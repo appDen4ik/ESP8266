@@ -1,7 +1,4 @@
-/*
-	The obligatory blinky demo
-	Blink an LED on GPIO pin 2
-*/
+
 
 #include <ets_sys.h>
 #include <osapi.h>
