@@ -54,7 +54,9 @@ LOCAL void ICACHE_FLASH_ATTR
 tcp_recvcb(void *arg, char *pdata, unsigned short len)
 {
 	int i = 0;
+	 uint8_t mes[] = "HELLO MAN";
     struct espconn *pespconn = (struct espconn *) arg;
+    espconn_sent(pespconn, mes, strlen(mes));
     ets_uart_printf("Hello World!\r\n");
 //    uart0_tx_buffer(pdata, len);
 	for ( ; i++ < len; ){
@@ -93,7 +95,8 @@ sendDatagram(char *datagram, uint16 size) {
 
 	//	IP4_ADDR((ip_addr_t *)sendResponse.proto.udp->remote_ip, (inf.ip.addr & 0xff000000), 0, 11, 255);
 
-		IP4_ADDR((ip_addr_t *)sendResponse.proto.udp->remote_ip, 10, 0, 11, 255);
+	//	IP4_ADDR((ip_addr_t *)sendResponse.proto.udp->remote_ip, 10, 0, 11, 255);
+		IP4_ADDR((ip_addr_t *)sendResponse.proto.udp->remote_ip, 192, 168, 0, 255);
 
 		count = ShortIntToString((uint8_t)( (inf.ip.addr >> 24) & 0x000000ff ) , tmp);
 		*count++ = '.';
@@ -117,7 +120,7 @@ user_init(void)
 	LOCAL struct espconn conn1;
 	LOCAL esp_tcp tcp1;
 
-	const char ssid[] = "TSM_Guest";
+	const char ssid[] = "DIR-320";//"TSM_Guest";
 	const char password[] = "tsmguest";
 	struct station_config stationConf;
 
