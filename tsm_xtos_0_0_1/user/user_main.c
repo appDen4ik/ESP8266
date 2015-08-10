@@ -20,6 +20,10 @@ LOCAL struct espconn masterconn;
 LOCAL struct espconn sendResponse;
 LOCAL esp_udp udp;
 
+uint8_t tmp[40] = { 0 };
+
+uint8_t *count;
+
 struct ip_info inf;
 
 
@@ -30,11 +34,13 @@ struct ip_info inf;
 
 #define DELAY 100 /* milliseconds */
 
-
+uint8_t state;
 
 LOCAL os_timer_t blink_timer;
 
-
+void user_rf_pre_init(void)
+{
+}
 
 /*
 LOCAL void ICACHE_FLASH_ATTR
@@ -79,16 +85,30 @@ sendDatagram(char *datagram, uint16 size) {
 		//посмотреть что там с портами
 
 		//выделить бродкаст айпишку
-	if ( wifi_station_get_connect_status() == STATION_CONNECTING ) {
+//	if ( wifi_station_get_connect_status() == STATION_CONNECTING ) {
 
 		wifi_get_ip_info( STATION_IF, &inf );
 
-		IP4_ADDR((ip_addr_t *)sendResponse.proto.udp->remote_ip, 192, 168, 0, 255);
+
+
+	//	IP4_ADDR((ip_addr_t *)sendResponse.proto.udp->remote_ip, (inf.ip.addr & 0xff000000), 0, 11, 255);
+
+		IP4_ADDR((ip_addr_t *)sendResponse.proto.udp->remote_ip, 10, 0, 11, 255);
+
+		count = ShortIntToString((uint8_t)( (inf.ip.addr >> 24) & 0x000000ff ) , tmp);
+		*count++ = '.';
+		count = ShortIntToString((uint8_t)( (inf.ip.addr >> 16) & 0x000000ff ) , count);
+		*count++ = '.';
+		count = ShortIntToString((uint8_t)( (inf.ip.addr >> 8) & 0x000000ff ) , count);
+		*count++ = '.';
+		count = ShortIntToString((uint8_t)( (inf.ip.addr) & 0x000000ff ) , count);
+		*count = '\0';
+
 
 		espconn_create(&sendResponse);
- 	 	espconn_sent(&sendResponse, "hi123", 5);
+ 	 	espconn_sent(&sendResponse, tmp, 18);
  	 	espconn_delete(&sendResponse);
-	}
+//	}
 }
 
 void ICACHE_FLASH_ATTR
@@ -97,8 +117,8 @@ user_init(void)
 	LOCAL struct espconn conn1;
 	LOCAL esp_tcp tcp1;
 
-	const char ssid[] = "DIR-320";
-	const char password[] = "123456789";
+	const char ssid[] = "TSM_Guest";
+	const char password[] = "tsmguest";
 	struct station_config stationConf;
 
 //	ets_wdt_enable();
@@ -107,11 +127,13 @@ user_init(void)
 	uart_init(BIT_RATE_115200, BIT_RATE_115200);
 
 	wifi_station_set_auto_connect(1);
+
 	wifi_set_opmode( STATION_MODE );
 	memcpy(&stationConf.ssid, ssid, sizeof(ssid));
 	memcpy(&stationConf.password, password, sizeof(password));
 	wifi_station_set_config(&stationConf);
 	wifi_station_connect();
+
 
 	PIN_FUNC_SELECT(LED_GPIO_MUX, LED_GPIO_FUNC);
 
