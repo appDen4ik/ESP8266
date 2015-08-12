@@ -25,6 +25,9 @@ LOCAL esp_udp udp;
 
 LOCAL os_timer_t blink_timer;
 
+void user_rf_pre_init(void)
+{
+}
 
 
 void sendDatagram(char *datagram, uint16 size) {
@@ -56,11 +59,14 @@ user_init(void)
 
 	wifi_set_opmode( SOFTAP_MODE );
 
+	wifi_softap_dhcps_stop();
 
 	IP4_ADDR(&ipinfo.ip, 10, 10, 10, 1);
 	IP4_ADDR(&ipinfo.gw, 10, 10, 10, 1);
 	IP4_ADDR(&ipinfo.netmask, 255, 255, 255, 0);
 	wifi_set_ip_info(SOFTAP_IF, &ipinfo);
+
+	wifi_softap_dhcps_start();
 
 	wifi_softap_get_config(&apConfig);
 
