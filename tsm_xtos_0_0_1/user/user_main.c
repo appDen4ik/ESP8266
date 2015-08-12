@@ -56,7 +56,7 @@ tcp_recvcb(void *arg, char *pdata, unsigned short len)
 	int i = 0;
 	 uint8_t mes[] = "HELLO MAN";
     struct espconn *pespconn = (struct espconn *) arg;
-    espconn_sent(pespconn, mes, strlen(mes));
+    espconn_sent(arg, mes, strlen(mes));
     ets_uart_printf("Hello World!\r\n");
 //    uart0_tx_buffer(pdata, len);
 	for ( ; i++ < len; ){
@@ -92,24 +92,22 @@ sendDatagram(char *datagram, uint16 size) {
 		wifi_get_ip_info( STATION_IF, &inf );
 
 
+		//выделить бродкаст айпишку
+		IP4_ADDR((ip_addr_t *)sendResponse.proto.udp->remote_ip, (uint8_t)(inf.ip.addr), (uint8_t)(inf.ip.addr >> 8),\
+																	(uint8_t)(inf.ip.addr >> 16), 255);
 
-	//	IP4_ADDR((ip_addr_t *)sendResponse.proto.udp->remote_ip, (inf.ip.addr & 0xff000000), 0, 11, 255);
-
-	//	IP4_ADDR((ip_addr_t *)sendResponse.proto.udp->remote_ip, 10, 0, 11, 255);
-		IP4_ADDR((ip_addr_t *)sendResponse.proto.udp->remote_ip, 192, 168, 0, 255);
-
-		count = ShortIntToString((uint8_t)( (inf.ip.addr >> 24) & 0x000000ff ) , tmp);
+		count = ShortIntToString( (uint8_t)(inf.ip.addr), tmp );
 		*count++ = '.';
-		count = ShortIntToString((uint8_t)( (inf.ip.addr >> 16) & 0x000000ff ) , count);
+		count = ShortIntToString( (uint8_t)(inf.ip.addr >> 8), count );
 		*count++ = '.';
-		count = ShortIntToString((uint8_t)( (inf.ip.addr >> 8) & 0x000000ff ) , count);
+		count = ShortIntToString( (uint8_t)(inf.ip.addr >> 16) , count );
 		*count++ = '.';
-		count = ShortIntToString((uint8_t)( (inf.ip.addr) & 0x000000ff ) , count);
+		count = ShortIntToString( (uint8_t)(inf.ip.addr  >> 24), count);
 		*count = '\0';
 
 
 		espconn_create(&sendResponse);
- 	 	espconn_sent(&sendResponse, tmp, 18);
+ 	 	espconn_sent(&sendResponse, tmp, strlen(tmp));
  	 	espconn_delete(&sendResponse);
 //	}
 }
@@ -120,7 +118,7 @@ user_init(void)
 	LOCAL struct espconn conn1;
 	LOCAL esp_tcp tcp1;
 
-	const char ssid[] = "DIR-320";//"TSM_Guest";
+	const char ssid[] = "TSM_Guest";//"DIR-320";
 	const char password[] = "tsmguest";
 	struct station_config stationConf;
 
@@ -145,7 +143,7 @@ user_init(void)
 		masterconn.type = ESPCONN_TCP;
 		masterconn.state = ESPCONN_NONE;
 		masterconn.proto.tcp = &tcp1;
-		masterconn.proto.tcp->local_port = 2300;
+		masterconn.proto.tcp->local_port = 80;
 		espconn_accept(&masterconn);
 		espconn_regist_time(&masterconn, server_timeover, 0);
 		espconn_regist_recvcb(&masterconn, tcp_recvcb);
