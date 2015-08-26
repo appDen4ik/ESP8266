@@ -3,6 +3,7 @@
 #include "os_type.h"
 #include "user_interface.h"
 
+
 #include "espconn.h"
 #include "mem.h"
 #include "gpio.h"
@@ -10,15 +11,22 @@
 #include "driver/uart.h"
 
 
-LOCAL uint8_t /*ICACHE_FLASH_ATTR*/  StringToChar(uint8_t *data);
-LOCAL uint8_t * /*ICACHE_FLASH_ATTR */ ShortIntToString(uint16_t data, uint8_t *adressDestenation);
+
+LOCAL uint8_t ICACHE_FLASH_ATTR StringToChar(uint8_t *data);
+LOCAL uint8_t* ICACHE_FLASH_ATTR  ShortIntToString(uint16_t data, uint8_t *adressDestenation);
+LOCAL void ICACHE_FLASH_ATTR senddata( void );
+LOCAL void ICACHE_FLASH_ATTR initPeriph( void );
+
+
+LOCAL struct espconn broadcast;
+LOCAL esp_udp udp;
 
 
 LOCAL uint16_t server_timeover = 180;
-LOCAL struct espconn masterconn;
+LOCAL struct espconn server;
+LOCAL esp_tcp tcp1;
+struct station_config stationConf;
 
-LOCAL struct espconn sendResponse;
-LOCAL esp_udp udp;
 
 uint8_t tmp[40] = { 0 };
 
@@ -26,15 +34,7 @@ uint8_t *count;
 
 struct ip_info inf;
 
-
-// see eagle_soc.h for these definitions
-#define LED_GPIO 2
-#define LED_GPIO_MUX PERIPHS_IO_MUX_GPIO2_U
-#define LED_GPIO_FUNC FUNC_GPIO2
-
-#define DELAY 100 /* milliseconds */
-
-uint8_t state;
+uint8_t ledState = 0;
 
 LOCAL os_timer_t blink_timer;
 
@@ -42,13 +42,6 @@ void user_rf_pre_init(void)
 {
 }
 
-/*
-LOCAL void ICACHE_FLASH_ATTR
-shell_tcp_disconcb(void *arg) {
-    struct espconn *pespconn = (struct espconn *) arg;
-
-    os_printf("tcp connection disconnected\n");
-}*/
 
 LOCAL void ICACHE_FLASH_ATTR
 tcp_recvcb(void *arg, char *pdata, unsigned short len)
@@ -62,107 +55,159 @@ tcp_recvcb(void *arg, char *pdata, unsigned short len)
 	for ( ; i++ < len; ){
 		uart_tx_one_char(*pdata++);
 	}
-        // espconn_sent(pespconn, pusrdata, length); //echo
-
 }
-/*
-LOCAL void ICACHE_FLASH_ATTR
-tcpserver_connectcb(void *arg)
-{
-	GPIO_OUTPUT_SET(LED_GPIO, 1);
-    struct espconn *pespconn = (struct espconn *)arg;
-
-    os_printf("tcp connection established\n");
-
-    espconn_regist_recvcb(pespconn, shell_tcp_recvcb);
-    // espconn_regist_reconcb(pespconn, tcpserver_recon_cb);
-    espconn_regist_disconcb(pespconn, shell_tcp_disconcb);
-    // espconn_regist_sentcb(pespconn, tcpclient_sent_cb);
-}*/
-
 
 void ICACHE_FLASH_ATTR
 sendDatagram(char *datagram, uint16 size) {
+	os_timer_disarm(&blink_timer);
+	switch(wifi_station_get_connect_status())
+	{
+		case STATION_GOT_IP:
+			GPIO_OUTPUT_SET(LED_GPIO, 1);
+			wifi_get_ip_info(STATION_IF, &inf);
+			if(inf.ip.addr != 0) {
+				#ifdef DEBUG
+				ets_uart_printf("WiFi connected\r\n");
+				#endif
+				senddata();
+			}
+			break;
+		case STATION_WRONG_PASSWORD:
+			#ifdef DEBUG
+			ets_uart_printf("WiFi connecting error, wrong password\r\n");
+			#endif
+			GPIO_OUTPUT_SET(LED_GPIO, ledState);
+			ledState ^=1;
+			break;
+		case STATION_NO_AP_FOUND:
+			#ifdef DEBUG
+			ets_uart_printf("WiFi connecting error, ap not found\r\n");
+			#endif
+			GPIO_OUTPUT_SET(LED_GPIO, ledState);
+			ledState ^=1;
+			break;
+		case STATION_CONNECT_FAIL:
+			#ifdef DEBUG
+			ets_uart_printf("WiFi connecting fail\r\n");
+			#endif
+			GPIO_OUTPUT_SET(LED_GPIO, ledState);
+			ledState ^=1;
+			break;
+		default:
+			#ifdef DEBUG
+			ets_uart_printf("WiFi connecting...\r\n");
+			#endif
+			GPIO_OUTPUT_SET(LED_GPIO, ledState);
+			ledState ^=1;
+			break;
 
-		//посмотреть что там с портами
+	}
 
-		//выделить бродкаст айпишку
-//	if ( wifi_station_get_connect_status() == STATION_CONNECTING ) {
-
-		wifi_get_ip_info( STATION_IF, &inf );
-
-
-		//выделить бродкаст айпишку
-		IP4_ADDR((ip_addr_t *)sendResponse.proto.udp->remote_ip, (uint8_t)(inf.ip.addr), (uint8_t)(inf.ip.addr >> 8),\
-																	(uint8_t)(inf.ip.addr >> 16), 255);
-
-		count = ShortIntToString( (uint8_t)(inf.ip.addr), tmp );
-		*count++ = '.';
-		count = ShortIntToString( (uint8_t)(inf.ip.addr >> 8), count );
-		*count++ = '.';
-		count = ShortIntToString( (uint8_t)(inf.ip.addr >> 16) , count );
-		*count++ = '.';
-		count = ShortIntToString( (uint8_t)(inf.ip.addr  >> 24), count);
-		*count = '\0';
-
-
-		espconn_create(&sendResponse);
- 	 	espconn_sent(&sendResponse, tmp, strlen(tmp));
- 	 	espconn_delete(&sendResponse);
-//	}
+	os_timer_setfn(&blink_timer, (os_timer_func_t *)sendDatagram, (void *)0);
+	os_timer_arm(&blink_timer, DELAY, 0);
 }
 
 void ICACHE_FLASH_ATTR
 user_init(void)
 {
-	LOCAL struct espconn conn1;
-	LOCAL esp_tcp tcp1;
+	initPeriph( );
 
-	const char ssid[] = "TSM_Guest";//"DIR-320";
-	const char password[] = "tsmguest";
-	struct station_config stationConf;
-
-//	ets_wdt_enable();
-//	ets_wdt_disable();
-
+	ets_uart_printf("TISO ver0.1");
+	uart_tx_one_char(system_update_cpu_freq(SYS_CPU_160MHZ));
 	uart_init(BIT_RATE_115200, BIT_RATE_115200);
+	os_install_putc1(uart_tx_one_char);
 
-	wifi_station_set_auto_connect(1);
+#ifdef DEBUG
+	os_printf( "SDK version: %s", system_get_sdk_version() );
+#endif
+
+//------------------------------------------------------------------
+	wifi_station_disconnect();
+	wifi_station_dhcpc_stop();
 
 	wifi_set_opmode( STATION_MODE );
-	memcpy(&stationConf.ssid, ssid, sizeof(ssid));
-	memcpy(&stationConf.password, password, sizeof(password));
+	memcpy(&stationConf.ssid, SSID_STA, sizeof(SSID_STA));
+	memcpy(&stationConf.password, PWD_STA, sizeof(PWD_STA));
 	wifi_station_set_config(&stationConf);
+
 	wifi_station_connect();
-
-
-	PIN_FUNC_SELECT(LED_GPIO_MUX, LED_GPIO_FUNC);
+	wifi_station_dhcpc_start();
+	wifi_station_set_auto_connect(1);
 
 //-----------------------------------------------------------------
 	{ //tcp
-		masterconn.type = ESPCONN_TCP;
-		masterconn.state = ESPCONN_NONE;
-		masterconn.proto.tcp = &tcp1;
-		masterconn.proto.tcp->local_port = 80;
-		espconn_accept(&masterconn);
-		espconn_regist_time(&masterconn, server_timeover, 0);
-		espconn_regist_recvcb(&masterconn, tcp_recvcb);
+		server.type = ESPCONN_TCP;
+		server.state = ESPCONN_NONE;
+		server.proto.tcp = &tcp1;
+		server.proto.tcp->local_port = 80;
+		espconn_accept(&server);
+		espconn_regist_time(&server, server_timeover, 0);
+		espconn_regist_recvcb(&server, tcp_recvcb);
 	}
 
+
     { //udp
-    	sendResponse.type = ESPCONN_UDP;
-    	sendResponse.state = ESPCONN_NONE;
-    	sendResponse.proto.udp = &udp;
-    	sendResponse.proto.udp->remote_port = 9876;
+    	broadcast.type = ESPCONN_UDP;
+    	broadcast.state = ESPCONN_NONE;
+    	broadcast.proto.udp = &udp;
+    	broadcast.proto.udp->remote_port = 9876;
     }
 
-	// Set up a timer to blink the LED
 	// os_timer_disarm(ETSTimer *ptimer)
 	os_timer_disarm(&blink_timer);
 	// os_timer_setfn(ETSTimer *ptimer, ETSTimerFunc *pfunction, void *parg)
 	os_timer_setfn(&blink_timer, (os_timer_func_t *)sendDatagram, (void *)0);
 	// void os_timer_arm(ETSTimer *ptimer,uint32_t milliseconds, bool repeat_flag)
-	os_timer_arm(&blink_timer, DELAY, 1);
+	os_timer_arm(&blink_timer, DELAY, 0);
+
+}
+
+LOCAL void ICACHE_FLASH_ATTR senddata( void )
+{
+	wifi_get_ip_info( STATION_IF, &inf );
+
+
+	//выделить бродкаст айпишку
+	IP4_ADDR((ip_addr_t *)broadcast.proto.udp->remote_ip, (uint8_t)(inf.ip.addr), (uint8_t)(inf.ip.addr >> 8),\
+																(uint8_t)(inf.ip.addr >> 16), 255);
+
+	count = ShortIntToString( (uint8_t)(inf.ip.addr), tmp );
+	*count++ = '.';
+	count = ShortIntToString( (uint8_t)(inf.ip.addr >> 8), count );
+	*count++ = '.';
+	count = ShortIntToString( (uint8_t)(inf.ip.addr >> 16) , count );
+	*count++ = '.';
+	count = ShortIntToString( (uint8_t)(inf.ip.addr  >> 24), count);
+	*count = '\0';
+
+
+	espconn_create(&broadcast);
+	espconn_sent(&broadcast, tmp, strlen(tmp));
+	espconn_delete(&broadcast);
+
+
+}
+
+LOCAL void ICACHE_FLASH_ATTR initPeriph( void ){
+
+	PIN_FUNC_SELECT(OUT_1_MUX, OUT_1_FUNC);
+
+	PIN_FUNC_SELECT(OUT_2_MUX, OUT_2_FUNC);
+
+	PIN_FUNC_SELECT(LED_MUX, LED_FUNC);
+
+
+	PIN_FUNC_SELECT(INP_1_MUX, INP_1_FUNC);
+	gpio_output_set(0, 0, 0, INP_1);
+
+	PIN_FUNC_SELECT(INP_2_MUX, INP_2_FUNC);
+	gpio_output_set(0, 0, 0, INP_2);
+
+	PIN_FUNC_SELECT(INP_3_MUX, INP_3_FUNC);
+	gpio_output_set(0, 0, 0, INP_3);
+
+	PIN_FUNC_SELECT(INP_3_MUX, INP_3_FUNC);
+	gpio_output_set(0, 0, 0, INP_3);
 
 }
 
