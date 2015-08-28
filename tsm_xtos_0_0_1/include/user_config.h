@@ -13,9 +13,9 @@
 #define OUT_2_FUNC 		FUNC_GPIO5
 //-----------------------------------------------------------------
 //status_led
-#define LED_GPIO		5//0
-#define LED_MUX 		PERIPHS_IO_MUX_GPIO0_U
-#define LED_FUNC 		FUNC_GPIO0
+#define LED_GPIO		15
+#define LED_MUX 		PERIPHS_IO_MUX_MTDO_U
+#define LED_FUNC 		FUNC_GPIO15
 //-----------------------------------------------------------------
 //-----------------------------------------------------------------
 #define INP_1 			BIT12
