@@ -36,9 +36,17 @@
 //-----------------------------------------------------------------
 //-----------------------------------------------------------------
 //STA
-#define SSID_STA /*"TSM_Guest"*/ "DIR-320"
+#define SSID_STA "TSM_Guest" //"DIR-320"
 #define PWD_STA "tsmguest"
 //----------------------------------------------------------------
 //Udp
 #define DELAY 	100 /* milliseconds */
 #endif
+//----------------------------------------------------------------
+//brodcast strings
+#define NAME "name: "
+#define MAC " mac: "
+#define IP " ip: "
+#define SERVER_PORT " server port: "
+#define RSSI " rssi: "
+

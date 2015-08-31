@@ -16,6 +16,8 @@ LOCAL uint8_t ICACHE_FLASH_ATTR StringToChar(uint8_t *data);
 LOCAL uint8_t* ICACHE_FLASH_ATTR  ShortIntToString(uint16_t data, uint8_t *adressDestenation);
 LOCAL void ICACHE_FLASH_ATTR senddata( void );
 LOCAL void ICACHE_FLASH_ATTR initPeriph( void );
+LOCAL uint8_t * ICACHE_FLASH_ATTR intToStringHEX(uint8_t data, uint8_t *adressDestenation);
+
 
 
 LOCAL struct espconn broadcast;
@@ -28,15 +30,22 @@ LOCAL esp_tcp tcp1;
 struct station_config stationConf;
 
 
-uint8_t tmp[40] = { 0 };
 
-uint8_t *count;
 
 struct ip_info inf;
 
 uint8_t ledState = 0;
 
-LOCAL os_timer_t blink_timer;
+
+uint8_t nameSTA[100] = "esp8266 1";
+uint8_t brodcastMessage[250] = { 0 };
+uint8_t *count;
+uint8_t macadr[10];
+uint16_t servPort = 80;
+sint8_t rssi;
+
+
+LOCAL os_timer_t task_timer;
 
 void user_rf_pre_init(void)
 {
@@ -57,19 +66,35 @@ tcp_recvcb(void *arg, char *pdata, unsigned short len)
 	}
 }
 
+
 void ICACHE_FLASH_ATTR
 sendDatagram(char *datagram, uint16 size) {
-	os_timer_disarm(&blink_timer);
+	os_timer_disarm(&task_timer);
 	switch(wifi_station_get_connect_status())
 	{
 		case STATION_GOT_IP:
-			GPIO_OUTPUT_SET(LED_GPIO, 1);
-			wifi_get_ip_info(STATION_IF, &inf);
-			if(inf.ip.addr != 0) {
-				#ifdef DEBUG
-				ets_uart_printf("WiFi connected\r\n");
-				#endif
-				senddata();
+			if ( ( rssi = wifi_station_get_rssi() ) < -85 ){
+				count = brodcastMessage;
+				*count++ = '-';
+				count = ShortIntToString( ~rssi, count );
+				*count = '\0';
+				os_printf( "Bad signal, rssi = %s", brodcastMessage);
+				GPIO_OUTPUT_SET(LED_GPIO, ledState);
+				ledState ^=1;
+			} else {
+				count = brodcastMessage;
+				*count++ = '-';
+				count = ShortIntToString( ~rssi, count );
+				*count = '\0';
+				os_printf( "Bad signal, rssi = %s", brodcastMessage);
+				GPIO_OUTPUT_SET(LED_GPIO, 1);
+				wifi_get_ip_info(STATION_IF, &inf);
+				if(inf.ip.addr != 0) {
+					#ifdef DEBUG
+					ets_uart_printf("WiFi connected\r\n");
+					#endif
+					senddata();
+				}
 			}
 			break;
 		case STATION_WRONG_PASSWORD:
@@ -103,8 +128,8 @@ sendDatagram(char *datagram, uint16 size) {
 
 	}
 
-	os_timer_setfn(&blink_timer, (os_timer_func_t *)sendDatagram, (void *)0);
-	os_timer_arm(&blink_timer, DELAY, 0);
+	os_timer_setfn(&task_timer, (os_timer_func_t *)sendDatagram, (void *)0);
+	os_timer_arm(&task_timer, DELAY, 0);
 }
 
 void ICACHE_FLASH_ATTR
@@ -135,18 +160,19 @@ user_init(void)
 	wifi_station_set_auto_connect(1);
 
 //-----------------------------------------------------------------
-	{ //tcp
+	{ //tcp сервер
 		server.type = ESPCONN_TCP;
 		server.state = ESPCONN_NONE;
 		server.proto.tcp = &tcp1;
-		server.proto.tcp->local_port = 80;
+		server.proto.tcp->local_port = servPort;
+
 		espconn_accept(&server);
 		espconn_regist_time(&server, server_timeover, 0);
 		espconn_regist_recvcb(&server, tcp_recvcb);
 	}
 
 
-    { //udp
+    { //udp клиент
     	broadcast.type = ESPCONN_UDP;
     	broadcast.state = ESPCONN_NONE;
     	broadcast.proto.udp = &udp;
@@ -154,35 +180,101 @@ user_init(void)
     }
 
 	// os_timer_disarm(ETSTimer *ptimer)
-	os_timer_disarm(&blink_timer);
+	os_timer_disarm(&task_timer);
 	// os_timer_setfn(ETSTimer *ptimer, ETSTimerFunc *pfunction, void *parg)
-	os_timer_setfn(&blink_timer, (os_timer_func_t *)sendDatagram, (void *)0);
+	os_timer_setfn(&task_timer, (os_timer_func_t *)sendDatagram, (void *)0);
 	// void os_timer_arm(ETSTimer *ptimer,uint32_t milliseconds, bool repeat_flag)
-	os_timer_arm(&blink_timer, DELAY, 0);
+	os_timer_arm(&task_timer, DELAY, 0);
 
 }
 
+
+
+// broadcast message:
+//          "name:" + " " + nameSTA +
+//          + " " + mac: + " " + wifi_get_macaddr() +
+//          + " " + ip: + " " + wifi_get_ip_info( ) +
+//          + " " + server port: + " " servPort + " " +
+//          + " " + rssi: + " " + wifi_station_get_rssi() +
+//          + " " + statuses: + " " + doorClose: + " " + closed/open +
+//          + " " + doorOpen: + " " + closed/open + "\r\n" + "\0"
 LOCAL void ICACHE_FLASH_ATTR senddata( void )
 {
+
+
+	//выделяем бродкаст айпишку
 	wifi_get_ip_info( STATION_IF, &inf );
 
-
-	//выделить бродкаст айпишку
 	IP4_ADDR((ip_addr_t *)broadcast.proto.udp->remote_ip, (uint8_t)(inf.ip.addr), (uint8_t)(inf.ip.addr >> 8),\
 																(uint8_t)(inf.ip.addr >> 16), 255);
 
-	count = ShortIntToString( (uint8_t)(inf.ip.addr), tmp );
+
+	count = brodcastMessage;
+
+	memcpy( count, NAME, ( sizeof( NAME ) - 1 ) );
+	count += sizeof( NAME ) - 1;
+
+	memcpy( count, nameSTA, strlen( nameSTA ) );
+	count += strlen( nameSTA );
+	//================================================================
+	memcpy( count, MAC, ( sizeof( MAC ) - 1 ) );
+	count += sizeof( MAC ) - 1;
+
+	wifi_get_macaddr( STATION_IF, macadr );
+
+	count = intToStringHEX( macadr[0], count );
+		*count++ = ':';
+	count = intToStringHEX( macadr[1], count );
+		*count++ = ':';
+	count = intToStringHEX( macadr[2], count );
+		*count++ = ':';
+	count = intToStringHEX( macadr[3], count );
+		*count++ = ':';
+	count = intToStringHEX( macadr[4], count );
+		*count++ = ':';
+	count = intToStringHEX( macadr[5], count );
+	//================================================================
+	if ( ( rssi = wifi_station_get_rssi() ) < 0 ) {
+		memcpy( count, RSSI, ( sizeof( RSSI ) - 1 ) );
+		    count += sizeof( RSSI ) - 1;
+
+		*count++ = '-';
+		//os_printf( "SDK version: %d", wifi_station_get_rssi() );
+//		uart_tx_one_char( wifi_station_get_rssi() );
+		count = ShortIntToString( ~rssi, count );
+	}
+    //================================================================
+	memcpy( count, IP, ( sizeof( IP ) - 1 ) );
+	count += sizeof( IP ) - 1;
+
+	count = ShortIntToString( (uint8_t)(inf.ip.addr), count );
 	*count++ = '.';
 	count = ShortIntToString( (uint8_t)(inf.ip.addr >> 8), count );
 	*count++ = '.';
 	count = ShortIntToString( (uint8_t)(inf.ip.addr >> 16) , count );
 	*count++ = '.';
 	count = ShortIntToString( (uint8_t)(inf.ip.addr  >> 24), count);
+	//================================================================
+	memcpy( count, SERVER_PORT, ( sizeof( SERVER_PORT ) - 1 ) );
+	count += sizeof( SERVER_PORT ) - 1;
+
+	count = ShortIntToString( servPort, count );
+	//================================================================
+
+
+//	memcpy( count, MAC, ( sizeof( MAC ) - 1 ) );
+//	count += sizeof( MAC ) - 1;
+
 	*count = '\0';
+
+//	os_printf( "SDK version: %s", macadr );
+
+
+
 
 
 	espconn_create(&broadcast);
-	espconn_sent(&broadcast, tmp, strlen(tmp));
+	espconn_sent(&broadcast, brodcastMessage, strlen(brodcastMessage));
 	espconn_delete(&broadcast);
 
 
@@ -211,7 +303,7 @@ LOCAL void ICACHE_FLASH_ATTR initPeriph( void ){
 
 }
 
-// Перевод числа в последовательность ASCII
+// Перевод десятичного числа в последовательность ASCII
 uint8_t * ShortIntToString(uint16_t data, uint8_t *adressDestenation) {
 	uint8_t *startAdressDestenation = adressDestenation;
 	uint8_t *endAdressDestenation;
@@ -239,5 +331,27 @@ uint8_t StringToChar(uint8_t *data) {
 	returnedValue = 10 * returnedValue + (*data - '0');
 	return returnedValue;
 }
+
+// Перевод шестнадцетиричного числа в последовательность ASCII
+uint8_t * intToStringHEX(uint8_t data, uint8_t *adressDestenation) {
+	if ( ( data >> 4 ) < 10 ) {
+		*adressDestenation++ = ( data >> 4 ) + '0';
+	} else {
+		*adressDestenation++ = ( data >> 4 ) % 10 + 'A';
+	}
+	if ( ( data & 0x0f ) < 10 ) {
+		*adressDestenation++ = ( data & 0x0f ) + '0';
+	} else {
+		*adressDestenation++ = ( data & 0x0f ) % 10 + 'A';
+	}
+	return adressDestenation;
+}
+
+
+
+
+
+
+
 
 
