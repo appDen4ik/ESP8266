@@ -30,7 +30,9 @@ LOCAL esp_tcp tcp1;
 struct station_config stationConf;
 
 
-
+uint8_t hello[1000];
+uint16_t i;
+uint32_t adr;
 
 struct ip_info inf;
 
@@ -49,6 +51,7 @@ LOCAL os_timer_t task_timer;
 
 void user_rf_pre_init(void)
 {
+
 }
 
 
@@ -73,7 +76,7 @@ sendDatagram(char *datagram, uint16 size) {
 	switch(wifi_station_get_connect_status())
 	{
 		case STATION_GOT_IP:
-			if ( ( rssi = wifi_station_get_rssi() ) < -85 ){
+			if ( ( rssi = wifi_station_get_rssi() ) < -90 ){
 				count = brodcastMessage;
 				*count++ = '-';
 				count = ShortIntToString( ~rssi, count );
@@ -86,12 +89,13 @@ sendDatagram(char *datagram, uint16 size) {
 				*count++ = '-';
 				count = ShortIntToString( ~rssi, count );
 				*count = '\0';
-				os_printf( "Bad signal, rssi = %s", brodcastMessage);
+
 				GPIO_OUTPUT_SET(LED_GPIO, 1);
 				wifi_get_ip_info(STATION_IF, &inf);
 				if(inf.ip.addr != 0) {
 					#ifdef DEBUG
 					ets_uart_printf("WiFi connected\r\n");
+					os_printf( "rssi = %s", brodcastMessage);
 					#endif
 					senddata();
 				}
@@ -136,11 +140,27 @@ void ICACHE_FLASH_ATTR
 user_init(void)
 {
 	initPeriph( );
+	GPIO_OUTPUT_SET(OUT_1_GPIO, 1);
 
+	for ( i = 0; i < sizeof(hello); i++ ) {
+		hello[i] = i;
+		uart_tx_one_char(hello[i]);
+	}
+	spi_flash_write( 169000, (uint32 *)hello, strlen(hello) );
+	for ( adr = 70000; adr < 170000; adr += sizeof(hello) ) {
+	 spi_flash_read( adr, (uint32 *)hello, sizeof(hello) );
+	}
+	GPIO_OUTPUT_SET(OUT_2_GPIO, 1);
 	ets_uart_printf("TISO ver0.1");
 	uart_tx_one_char(system_update_cpu_freq(SYS_CPU_160MHZ));
 	uart_init(BIT_RATE_115200, BIT_RATE_115200);
 	os_install_putc1(uart_tx_one_char);
+
+
+	for ( i = 0; i < sizeof(hello); i++ ) {
+//		uart_tx_one_char(hello[i]);
+	}
+
 
 #ifdef DEBUG
 	os_printf( "SDK version: %s", system_get_sdk_version() );
@@ -208,7 +228,6 @@ LOCAL void ICACHE_FLASH_ATTR senddata( void )
 	IP4_ADDR((ip_addr_t *)broadcast.proto.udp->remote_ip, (uint8_t)(inf.ip.addr), (uint8_t)(inf.ip.addr >> 8),\
 																(uint8_t)(inf.ip.addr >> 16), 255);
 
-
 	count = brodcastMessage;
 
 	memcpy( count, NAME, ( sizeof( NAME ) - 1 ) );
@@ -260,23 +279,40 @@ LOCAL void ICACHE_FLASH_ATTR senddata( void )
 
 	count = ShortIntToString( servPort, count );
 	//================================================================
+	memcpy( count, STATUSES, ( sizeof( STATUSES ) - 1 ) );
+	count += sizeof( STATUSES ) - 1;
+	//================================================================
+	memcpy( count, DOOR_CLOSE_SENSOR, ( sizeof( DOOR_CLOSE_SENSOR ) - 1 ) );
+	count += sizeof( DOOR_CLOSE_SENSOR ) - 1;
+	if ( 0 == GPIO_INPUT_GET(DOOR_CLOSE_SENSOR_PIN ) ) {
+		memcpy( count, CLOSE, ( sizeof( CLOSE ) - 1 ) );
+		GPIO_OUTPUT_SET(OUT_1_GPIO, 1);//
+		count += sizeof( CLOSE ) - 1;
+	} else {
+		memcpy( count, OPEN, ( sizeof( OPEN ) - 1 ) );
+		count += sizeof( OPEN ) - 1;
+	}
+	//================================================================
+	memcpy( count, DOOR_OPEN_SENSOR, ( sizeof( DOOR_OPEN_SENSOR ) - 1 ) );
+	count += sizeof( DOOR_OPEN_SENSOR ) - 1;
+	if ( 0 == GPIO_INPUT_GET(DOOR_OPEN_SENSOR_PIN ) ) {
+		memcpy( count, CLOSE, ( sizeof( CLOSE ) - 1 ) );
+		GPIO_OUTPUT_SET(OUT_1_GPIO, 0);//
+		count += sizeof( CLOSE ) - 1;
+	} else {
+		memcpy( count, OPEN, ( sizeof( OPEN ) - 1 ) );
+		count += sizeof( OPEN ) - 1;
+	}
 
-
-//	memcpy( count, MAC, ( sizeof( MAC ) - 1 ) );
-//	count += sizeof( MAC ) - 1;
-
+	*count++ = '\r';
+	*count++ = '\n';
 	*count = '\0';
 
 //	os_printf( "SDK version: %s", macadr );
 
-
-
-
-
 	espconn_create(&broadcast);
 	espconn_sent(&broadcast, brodcastMessage, strlen(brodcastMessage));
 	espconn_delete(&broadcast);
-
 
 }
 

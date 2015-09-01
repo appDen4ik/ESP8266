@@ -33,6 +33,16 @@
 #define INP_4 			BIT2
 #define INP_4_MUX 		PERIPHS_IO_MUX_MTMS_U
 #define INP_4_FUNC 		FUNC_GPIO2
+
+#define DOOR_OPEN_SENSOR_INP 		INP_1
+#define DOOR_OPEN_SENSOR_PIN 		12
+#define DOOR_OPEN_SENSOR_INP_MUX	INP_1_MUX
+#define DOOR_OPEN_SENSOR_INP_FUNC 	INP_1_FUNC
+
+#define DOOR_CLOSE_SENSOR_INP 		INP_2
+#define DOOR_CLOSE_SENSOR_PIN 		13
+#define DOOR_CLOSE_SENSOR_INP_MUX	INP_2_MUX
+#define DOOR_CLOSE_SENSOR_INP_FUNC 	INP_2_FUNC
 //-----------------------------------------------------------------
 //-----------------------------------------------------------------
 //STA
@@ -43,10 +53,15 @@
 #define DELAY 	100 /* milliseconds */
 #endif
 //----------------------------------------------------------------
-//brodcast strings
+//brodcast constant strings
 #define NAME "name: "
-#define MAC " mac: "
-#define IP " ip: "
-#define SERVER_PORT " server port: "
-#define RSSI " rssi: "
+#define MAC "\nmac: "
+#define IP "\nip: "
+#define SERVER_PORT "\nserver port: "
+#define RSSI "\nrssi: "
+#define STATUSES "\nSTATUSES: "
+#define DOOR_CLOSE_SENSOR "\n\tdoorCloseSensor: "
+#define DOOR_OPEN_SENSOR "\n\tdoorOpenSensor: "
+#define OPEN "open "
+#define CLOSE "close "
 
