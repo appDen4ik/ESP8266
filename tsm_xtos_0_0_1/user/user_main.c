@@ -1,3 +1,28 @@
+/**
+ ************************************************************************************
+  * @file    user_main.c
+  * @author  Denys
+  * @version V0.0.1
+  * @date    2-Sept-2015
+  * @brief
+ ************************************************************************************
+ * @info:
+ * 		esp8266 работает в режиме softAP и STA. На ней запущен TCP сервер
+ * который может обрабатывать определенный список команд ( который будет
+ * определлен и реализован в следующей версии ), в данной же версии,
+ * при получении любой информации она просто валится в уарт. Также, если есп
+ * настроен на определенный роутер, то он пытается подключиться к нему, в
+ * случае успешного подключения есп udp бродкастом шлет через каждый
+ * определенный промежуток времени необходимую информацию (свой ip, номер пората
+ * , для того чтобы данную есп можна было найти в сети и подключиться с TCP
+ * серверу с дальшей передачей необходимой информации. Обратная связь реализована
+ * через широковещительные запроси, через те же запросы, через которые передается
+ * информация которая необходима, для того чтобы можна было найти есп внутри
+ * локальной сети.
+ ************************************************************************************
+ */
+
+
 #include "ets_sys.h"
 #include "osapi.h"
 #include "os_type.h"
@@ -61,6 +86,10 @@ tcp_recvcb(void *arg, char *pdata, unsigned short len)
 	int i = 0;
 	 uint8_t mes[] = "HELLO MAN";
     struct espconn *pespconn = (struct espconn *) arg;
+    //  if (*pdata == '+') {
+    	GPIO_OUTPUT_SET(OUT_1_GPIO, ledState);
+    			ledState ^=1;
+//    }
     espconn_sent(arg, mes, strlen(mes));
     ets_uart_printf("Hello World!\r\n");
 //    uart0_tx_buffer(pdata, len);
@@ -215,6 +244,7 @@ user_init(void)
 //          + " " + mac: + " " + wifi_get_macaddr() +
 //          + " " + ip: + " " + wifi_get_ip_info( ) +
 //          + " " + server port: + " " servPort + " " +
+//			+ " " + phy mode: + " " + wifi_get_phy_mode() +
 //          + " " + rssi: + " " + wifi_station_get_rssi() +
 //          + " " + statuses: + " " + doorClose: + " " + closed/open +
 //          + " " + doorOpen: + " " + closed/open + "\r\n" + "\0"
@@ -261,6 +291,22 @@ LOCAL void ICACHE_FLASH_ATTR senddata( void )
 		//os_printf( "SDK version: %d", wifi_station_get_rssi() );
 //		uart_tx_one_char( wifi_station_get_rssi() );
 		count = ShortIntToString( ~rssi, count );
+	}
+	//================================================================
+	memcpy( count, PHY_MODE, ( sizeof( PHY_MODE ) - 1 ) );
+		count += sizeof( PHY_MODE ) - 1;
+	{
+		uint8_t phyMode;
+		if ( PHY_MODE_11B == (phyMode = wifi_get_phy_mode()) ){
+			memcpy( count, PHY_MODE_B, ( sizeof( PHY_MODE_B ) - 1 ) );
+					    count += sizeof( PHY_MODE_B ) - 1;
+		} else if ( PHY_MODE_11G == phyMode ) {
+			memcpy( count, PHY_MODE_G, ( sizeof( PHY_MODE_G ) - 1 ) );
+								    count += sizeof( PHY_MODE_G ) - 1;
+		} else if ( PHY_MODE_11N == phyMode ) {
+			memcpy( count, PHY_MODE_N, ( sizeof( PHY_MODE_N ) - 1 ) );
+								    count += sizeof( PHY_MODE_N ) - 1;
+		}
 	}
     //================================================================
 	memcpy( count, IP, ( sizeof( IP ) - 1 ) );

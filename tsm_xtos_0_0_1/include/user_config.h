@@ -54,14 +54,18 @@
 #endif
 //----------------------------------------------------------------
 //brodcast constant strings
-#define NAME "name: "
-#define MAC "\nmac: "
-#define IP "\nip: "
-#define SERVER_PORT "\nserver port: "
-#define RSSI "\nrssi: "
-#define STATUSES "\nSTATUSES: "
-#define DOOR_CLOSE_SENSOR "\n\tdoorCloseSensor: "
-#define DOOR_OPEN_SENSOR "\n\tdoorOpenSensor: "
-#define OPEN "open "
-#define CLOSE "close "
+#define NAME 				"name: "
+#define MAC 				"\nmacSTA: "
+#define IP 					"\nip: "
+#define SERVER_PORT 		"\nserver port: "
+#define RSSI 				"\nrssi: "
+#define STATUSES 			"\nSTATUSES: "
+#define PHY_MODE 			"\nphy mode: "
+#define PHY_MODE_B 			"IEEE 802.11b"
+#define PHY_MODE_G     		"IEEE 802.11g"
+#define PHY_MODE_N      	"IEEE 802.11n"
+#define DOOR_CLOSE_SENSOR 	"\n\tdoorCloseSensor: "
+#define DOOR_OPEN_SENSOR 	"\n\tdoorOpenSensor: "
+#define OPEN 				"open "
+#define CLOSE 				"close "
 
