@@ -49,7 +49,7 @@ LOCAL struct espconn broadcast;
 LOCAL esp_udp udp;
 
 
-LOCAL uint16_t server_timeover = 180;
+LOCAL uint16_t server_timeover = 20;
 LOCAL struct espconn server;
 LOCAL esp_tcp tcp1;
 struct station_config stationConf;
@@ -82,6 +82,7 @@ void user_rf_pre_init(void)
 
 LOCAL void ICACHE_FLASH_ATTR
 tcp_recvcb(void *arg, char *pdata, unsigned short len)
+
 {
 	int i = 0;
 	 uint8_t mes[] = "HELLO MAN";
@@ -96,6 +97,17 @@ tcp_recvcb(void *arg, char *pdata, unsigned short len)
 	for ( ; i++ < len; ){
 		uart_tx_one_char(*pdata++);
 	}
+}
+
+LOCAL void ICACHE_FLASH_ATTR
+tcp_connectcb(void* arg){
+	ets_uart_printf("Connect");
+}
+
+LOCAL void ICACHE_FLASH_ATTR
+tcp_disnconcb(void* arg){
+	ets_uart_printf("Disconnect");
+//	os_printf( "disconnect result = %d", espconn_delete((struct espconn *) arg));
 }
 
 
@@ -123,8 +135,8 @@ sendDatagram(char *datagram, uint16 size) {
 				wifi_get_ip_info(STATION_IF, &inf);
 				if(inf.ip.addr != 0) {
 					#ifdef DEBUG
-					ets_uart_printf("WiFi connected\r\n");
-					os_printf( "rssi = %s", brodcastMessage);
+			//		ets_uart_printf("WiFi connected\r\n");
+				//	os_printf( "rssi = %s", brodcastMessage);
 					#endif
 					senddata();
 				}
@@ -169,17 +181,7 @@ void ICACHE_FLASH_ATTR
 user_init(void)
 {
 	initPeriph( );
-	GPIO_OUTPUT_SET(OUT_1_GPIO, 1);
 
-	for ( i = 0; i < sizeof(hello); i++ ) {
-		hello[i] = i;
-		uart_tx_one_char(hello[i]);
-	}
-	spi_flash_write( 169000, (uint32 *)hello, strlen(hello) );
-	for ( adr = 70000; adr < 170000; adr += sizeof(hello) ) {
-	 spi_flash_read( adr, (uint32 *)hello, sizeof(hello) );
-	}
-	GPIO_OUTPUT_SET(OUT_2_GPIO, 1);
 	ets_uart_printf("TISO ver0.1");
 	uart_tx_one_char(system_update_cpu_freq(SYS_CPU_160MHZ));
 	uart_init(BIT_RATE_115200, BIT_RATE_115200);
@@ -218,6 +220,8 @@ user_init(void)
 		espconn_accept(&server);
 		espconn_regist_time(&server, server_timeover, 0);
 		espconn_regist_recvcb(&server, tcp_recvcb);
+		espconn_regist_connectcb(&server, tcp_connectcb);
+		espconn_regist_disconcb(&server, tcp_disnconcb);
 	}
 
 
