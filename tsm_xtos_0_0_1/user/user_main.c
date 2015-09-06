@@ -35,7 +35,7 @@
 #include "user_config.h"
 #include "driver/uart.h"
 
-
+#include "driver/myDB.h"
 
 LOCAL uint8_t ICACHE_FLASH_ATTR StringToChar(uint8_t *data);
 LOCAL uint8_t* ICACHE_FLASH_ATTR  ShortIntToString(uint16_t data, uint8_t *adressDestenation);
@@ -66,6 +66,7 @@ uint8_t ledState = 0;
 
 uint8_t nameSTA[100] = "esp8266 1";
 uint8_t brodcastMessage[250] = { 0 };
+uint8_t tmp[250] = { 0 };
 uint8_t *count;
 uint8_t macadr[10];
 uint16_t servPort = 80;
@@ -85,14 +86,15 @@ tcp_recvcb(void *arg, char *pdata, unsigned short len)
 
 {
 	int i = 0;
-	 uint8_t mes[] = "HELLO MAN";
     struct espconn *pespconn = (struct espconn *) arg;
     //  if (*pdata == '+') {
     	GPIO_OUTPUT_SET(OUT_1_GPIO, ledState);
     			ledState ^=1;
 //    }
-    espconn_sent(arg, mes, strlen(mes));
-    ets_uart_printf("Hello World!\r\n");
+    memcpy( tmp, pdata, len );
+    tmp[len++] = '\r';
+    tmp[len] = '\0';
+    espconn_sent(arg, tmp, strlen(tmp));
 //    uart0_tx_buffer(pdata, len);
 	for ( ; i++ < len; ){
 		uart_tx_one_char(*pdata++);
@@ -181,10 +183,26 @@ void ICACHE_FLASH_ATTR
 user_init(void)
 {
 	initPeriph( );
+	uart_init(BIT_RATE_115200, BIT_RATE_115200);
+/*	cleanAllSectors();
+	{
+		uint8_t currentSector = START_SECTOR;
+		uint8_t tmp[0x1000] ;
+		uint16_t t2;
+		for ( ; currentSector <= END_SECTOR; currentSector++ ){
+			system_soft_wdt_stop();
+			spi_flash_read( currentSector*SPI_FLASH_SEC_SIZE, (uint32 *)tmp,  SPI_FLASH_SEC_SIZE);
 
+			  for (  t2 = 0; t2 < 0x1000; t2++ ){
+				  uart_tx_one_char(tmp[t2]);
+			  }
+			  system_soft_wdt_restart();
+		}
+
+	}
+*/
 	ets_uart_printf("TISO ver0.1");
 	uart_tx_one_char(system_update_cpu_freq(SYS_CPU_160MHZ));
-	uart_init(BIT_RATE_115200, BIT_RATE_115200);
 	os_install_putc1(uart_tx_one_char);
 
 
