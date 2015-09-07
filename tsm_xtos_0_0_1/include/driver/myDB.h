@@ -3,13 +3,16 @@
   * @file    myDB.h
   * @author  Denys
   * @version V0.0.1
-  * @date    6-Sept-2015
+  * @date    7-Sept-2015
   * @brief
  ************************************************************************************
 **/
 
 #ifndef INCLUDE_DRIVER_MYDB_H_
 #define INCLUDE_DRIVER_MYDB_H_
+
+
+#define DB_DEBUG
 
 #include "driver/myDB.h"
 #include "c_types.h"
@@ -29,20 +32,27 @@
  * длинна записи, последний байт маркер что это
  * последняя запись или нет
  */
-#define LINE_SIZE	14
+#define LINE_SIZE	13
 
 /*
- * маркеры секторов
+ * выровняная длинна записи. Использование этого
+ * значения связано с тем что функция записи
+ * данных во spi flash пишет по 4 байта. Определяется
+ * следующим образом: если длинна записи делится
+ * нацело на 4 тогда  ALIGN_LINE_SIZE = LINE_SIZE,
+ * если не делится то нужно округлить до ближайшего
+ * большего значения так чтобы делилось нацело
+ * Пример.
+ * 		LINE_SIZE	14 тогда  ALIGN_LINE_SIZE 	16
+ * 		LINE_SIZE	4 тогда  ALIGN_LINE_SIZE 	4
  */
-#define EMPTY_SECTOR		 3
-#define SECTOR_NOT_EMPTY	 0
+#define ALIGN_LINE_SIZE 	16
 
 /*
- * маркеры записей
+ * маркер последней записи
  */
-#define LAST_LINE            3
-#define LINE_NOT_LAST	       0
-
+#define MARKER_ENABLE		 3
+#define MARKER_DISABLE		 0
 
 
 typedef enum {

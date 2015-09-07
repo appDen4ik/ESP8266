@@ -43,7 +43,8 @@ LOCAL void ICACHE_FLASH_ATTR senddata( void );
 LOCAL void ICACHE_FLASH_ATTR initPeriph( void );
 LOCAL uint8_t * ICACHE_FLASH_ATTR intToStringHEX(uint8_t data, uint8_t *adressDestenation);
 
-
+extern void ets_wdt_enable (void);
+extern void ets_wdt_disable (void);
 
 LOCAL struct espconn broadcast;
 LOCAL esp_udp udp;
@@ -182,6 +183,10 @@ sendDatagram(char *datagram, uint16 size) {
 void ICACHE_FLASH_ATTR
 user_init(void)
 {
+	uint8_t firstLine[13] = "380673173093";
+	uint8_t secondLine[13] = "380673176890";
+	uint8_t thirdLine[13] = "123456789012";
+
 	initPeriph( );
 	uart_init(BIT_RATE_115200, BIT_RATE_115200);
 /*	cleanAllSectors();
@@ -201,6 +206,30 @@ user_init(void)
 
 	}
 */
+
+//=======================
+	{
+
+		uint8_t temp[0x1000];
+		uint16_t i;
+		ets_wdt_enable();
+		ets_wdt_disable();
+		ets_uart_printf("Begin");
+		system_soft_wdt_stop();
+		cleanAllSectors();
+		  spi_flash_read( 0x12000 , (uint32 *)temp, 0x1000 );
+		  for (  i = 0; i < 0x1000; i++ ){
+			  uart_tx_one_char(temp[i]);
+		  }
+
+		ets_uart_printf("clean OK");
+		writeLine(firstLine);
+		writeLine(secondLine);
+//		writeLine(thirdLine);
+		system_soft_wdt_restart();
+
+	}
+//=======================
 	ets_uart_printf("TISO ver0.1");
 	uart_tx_one_char(system_update_cpu_freq(SYS_CPU_160MHZ));
 	os_install_putc1(uart_tx_one_char);
