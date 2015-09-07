@@ -9,9 +9,7 @@
 #include "driver/uart.h"
 
 
-uint8 data[] = "Hello World";
 
-uint8 hello[0x1000] = "1111111111";
 
 
 void user_rf_pre_init(void)
@@ -23,14 +21,16 @@ void user_rf_pre_init(void)
 //Init function 
 void ICACHE_FLASH_ATTR
 user_init() {
+	uint8 data[] = "Hello World";
+	uint8 hello[0x1000] = "1111111111";
 	uint32_t i;
   extern void ets_wdt_disable(void);
 
 
   uart_init(BIT_RATE_115200, BIT_RATE_115200);
-
-
-//  spi_flash_erase_sector(0x12);
+  uart_tx_one_char(system_update_cpu_freq(SYS_CPU_160MHZ));
+  os_install_putc1(uart_tx_one_char);
+  spi_flash_erase_sector(0x12);
 /*  if ( spi_flash_write( 0x12000, (uint32 *)data, 10 ) != 0 ){
 
 	  ets_uart_printf("Error");
@@ -60,15 +60,15 @@ user_init() {
 
   */
 
-//  spi_flash_write( 0x12000, (uint32 *)data, sizeof(data) );
-  spi_flash_read( 0x12000, (uint32 *)hello, 0x1000 );
+  spi_flash_write( 0x12000 + 501, (uint32 *)data, 5 );
+  spi_flash_read( 0x12000 , (uint32 *)hello, 0x1000 );
   for (  i = 0; i < 0x1000; i++ ){
 	  uart_tx_one_char(hello[i]);
   }
-  spi_flash_read( 0x13000, (uint32 *)hello, 0x1000 );
+/*  spi_flash_read( 0x13000, (uint32 *)hello, 0x1000 );
   for (  i = 0; i < 0x1000; i++ ){
 	  uart_tx_one_char(hello[i]);
-  }
+  }*/
 }
 
 
