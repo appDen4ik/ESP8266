@@ -183,33 +183,21 @@ sendDatagram(char *datagram, uint16 size) {
 void ICACHE_FLASH_ATTR
 user_init(void)
 {
-	uint8_t firstLine[13] = "380673173093";
-	uint8_t secondLine[13] = "380673176890";
-	uint8_t thirdLine[13] = "123456789012";
 
 	initPeriph( );
 	uart_init(BIT_RATE_115200, BIT_RATE_115200);
-/*	cleanAllSectors();
 	{
-		uint8_t currentSector = START_SECTOR;
-		uint8_t tmp[0x1000] ;
-		uint16_t t2;
-		for ( ; currentSector <= END_SECTOR; currentSector++ ){
-			system_soft_wdt_stop();
-			spi_flash_read( currentSector*SPI_FLASH_SEC_SIZE, (uint32 *)tmp,  SPI_FLASH_SEC_SIZE);
+	uint8_t testLine[13] = "380673173093";
+	testLine[12] = 3;
+	uint8_t secondLine[13] = "380673176890";
+	uint8_t thirdLine[13] = "123456789012";
 
-			  for (  t2 = 0; t2 < 0x1000; t2++ ){
-				  uart_tx_one_char(tmp[t2]);
-			  }
-			  system_soft_wdt_restart();
-		}
 
-	}
-*/
 
 //=======================
-	{
 
+		static uint8_t markerDisable[4] = { MARKER_DISABLE, 0xff, 0xff, 0xff };
+		uint8_t firstLine[13] = "380673173093";
 		uint8_t temp[0x1000];
 		uint16_t i;
 		ets_wdt_enable();
@@ -217,18 +205,28 @@ user_init(void)
 		ets_uart_printf("Begin");
 		system_soft_wdt_stop();
 		cleanAllSectors();
-		  spi_flash_read( 0x12000 , (uint32 *)temp, 0x1000 );
+		ets_uart_printf("clean OK");
+//		writeLine(firstLine);
+//		writeLine(secondLine);
+//		writeLine(thirdLine);
+
+
+		spi_flash_write( 50*SPI_FLASH_SEC_SIZE, (uint32 *)markerDisable, 1 );
+		spi_flash_write( (50*SPI_FLASH_SEC_SIZE + 1), (uint32 *)firstLine, 16 );
+		spi_flash_read( 50*SPI_FLASH_SEC_SIZE , (uint32 *)temp, 0x1000 );
 		  for (  i = 0; i < 0x1000; i++ ){
 			  uart_tx_one_char(temp[i]);
 		  }
 
-		ets_uart_printf("clean OK");
-		writeLine(firstLine);
-		writeLine(secondLine);
-//		writeLine(thirdLine);
-		system_soft_wdt_restart();
+		if ( OPERATION_OK == foundLine( firstLine ) ) {
+			ets_uart_printf("string found");
+		} else {
+			ets_uart_printf("string not found");
+		}
 
 	}
+
+	system_soft_wdt_restart();
 //=======================
 	ets_uart_printf("TISO ver0.1");
 	uart_tx_one_char(system_update_cpu_freq(SYS_CPU_160MHZ));
