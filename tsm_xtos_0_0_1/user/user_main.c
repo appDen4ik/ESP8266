@@ -434,7 +434,7 @@ LOCAL void ICACHE_FLASH_ATTR initPeriph( void ){
 
 }
 
-// Перевод десятичного числа в последовательность ASCII
+// Перевод числа в последовательность ASCII
 uint8_t * ShortIntToString(uint16_t data, uint8_t *adressDestenation) {
 	uint8_t *startAdressDestenation = adressDestenation;
 	uint8_t *endAdressDestenation;
