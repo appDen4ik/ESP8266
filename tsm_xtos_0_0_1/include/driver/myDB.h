@@ -11,10 +11,8 @@
 #ifndef INCLUDE_DRIVER_MYDB_H_
 #define INCLUDE_DRIVER_MYDB_H_
 
-
 #define DB_DEBUG
 
-#include "driver/myDB.h"
 #include "c_types.h"
 
 
@@ -68,9 +66,9 @@ typedef enum {
 } operationres ;
 
 
-writeres ICACHE_FLASH_ATTR writeLine( uint8_t *line );
-operationres ICACHE_FLASH_ATTR foundLine( uint8_t *line );
-operationres ICACHE_FLASH_ATTR delLine( uint8_t *line );
-operationres ICACHE_FLASH_ATTR cleanAllSectors( void );
+writeres ICACHE_FLASH_ATTR insert( uint8_t *line );
+uint32_t ICACHE_FLASH_ATTR findLine( uint8_t *line );
+operationres ICACHE_FLASH_ATTR delete( uint8_t *line );
+operationres ICACHE_FLASH_ATTR clearSectors( void );
 
 #endif /* INCLUDE_DRIVER_MYDB_H_ */
