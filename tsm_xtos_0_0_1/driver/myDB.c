@@ -89,7 +89,7 @@ insert( uint8_t *line ) {
 	}
 
 	 // длинна записи не больше величины сектора  SPI_FLASH_SEC_SIZE
-	 // длинна входящей строки не должна быть больше установленой длинны LINE_SIZE
+	 // длинна входящей записи не должна быть больше установленой длинны LINE_SIZE
 	if ( len > SPI_FLASH_SEC_SIZE || len != LINE_SIZE ) { return WRITE_FAIL; }
 
 	// данная строка являеться последней ( записываю соответствующий маркер )
@@ -217,6 +217,7 @@ update( uint8_t *oldLine, uint8_t *newLine ) {
  }
 
 
+
 /*
  * operationres ICACHE_FLASH_ATTR delete( uint8_t *line )
  * Сначала поиск записи во flash памяти, если запись не найдено то ничего не делаем, и выходим из функции;
@@ -247,11 +248,17 @@ delete( uint8_t *line ) {
 																	// определяем адресс сдедующей записи в буфферe
 		lineAdressInTmp = &tmp[ adress - ( SPI_FLASH_SEC_SIZE * sectorNumber ) + LINE_SIZE];
 
-
+															 // проверяем не является ли удаляемая запись последней
+		if (MARKER_ENABLE == tmp[ adress - ( SPI_FLASH_SEC_SIZE * sectorNumber ) + LINE_SIZE - 1]) {
+			//необходимо сделать предыдущую запись последней
+		}
 
 
 	}
  }
+
+
+
 
 operationres ICACHE_FLASH_ATTR
 clearSectors( void ) {
