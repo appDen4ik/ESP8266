@@ -226,35 +226,66 @@ update( uint8_t *oldLine, uint8_t *newLine ) {
  * определили на одну запись влево, затереть сектор, записать данные с буффера в сектор flash
  */
 operationres ICACHE_FLASH_ATTR
-delete( uint8_t *line ) {
-	uint8_t lineLemght;
-	uint8_t sectorNumber;
-	uint8_t *lineAdressInTmp;
-	uint32_t adress;
+delete( uint8_t *removableLine ) {
+	uint8_t   strAdrOfSecThatContRemLine;     // startAdressOfSectorThatContainsRemovableLine
+	uint32_t  absAdrOfRemLineInFlash;         // absoluteAdressOfRemovableLineInFlash
+	uint16_t  reltAdrOfRemLine;               // relativeAdressOfRemovableLine адрес удаляемой записи относительно
+	                                          // начала сектора ( тоже самое что относительно начала tmp[] )
+	uint16_t i;
 
-	if ( lineLemght != LINE_SIZE ){
-			return OPERATION_FAIL;   							 		// проверка что длинна обновляемой записи не больше
-																 	 	 	// заданой длинны записи во время компиляции
-		}
+	if ( strlen( removableLine ) != LINE_SIZE ){		// длинна обновляемой записи не больше
+			return OPERATION_FAIL;   					// заданой длинны LINE_SIZE во время компиляции
+	}
 
-	if ( OPERATION_FAIL == ( adress = foundLine(line) ) ){
-			return OPERATION_FAIL;												// если запись не найдено, то завершаем работу
+	if ( OPERATION_FAIL == ( absAdrOfRemLineInFlash = foundLine( removableLine ) ) ){
+		return OPERATION_FAIL;							// если запись не найдено, то работа функции на этом завершается
 	} else {
-		sectorNumber = (adress / SPI_FLASH_SEC_SIZE) * SPI_FLASH_SEC_SIZE ;							// определяем в каком секторе находится запись
+		                                                // начальный адресс сектора в котором находится запись
+		strAdrOfSecThatContRemLine = ( absAdrOfRemLineInFlash / SPI_FLASH_SEC_SIZE ) * SPI_FLASH_SEC_SIZE;
 
-		if ( SPI_FLASH_RESULT_OK != spi_flash_read( sectorNumber , (uint32 *)tmp, SPI_FLASH_SEC_SIZE ) ) {
+		if ( SPI_FLASH_RESULT_OK != spi_flash_read( strAdrOfSecThatContRemLine, (uint32 *)tmp, SPI_FLASH_SEC_SIZE ) ) {
 				return OPERATION_FAIL;
 		}
-																	// определяем адресс сдедующей записи в буфферe
-		lineAdressInTmp = &tmp[ adress - ( SPI_FLASH_SEC_SIZE * sectorNumber ) + LINE_SIZE];
 
-															 // проверяем не является ли удаляемая запись последней
-		if (MARKER_ENABLE == tmp[ adress - ( SPI_FLASH_SEC_SIZE * sectorNumber ) + LINE_SIZE - 1]) {
-			//необходимо сделать предыдущую запись последней
+		reltAdrOfRemLine = absAdrOfRemLineInFlash - strAdrOfSecThatContRemLine;
+
+		                                                           // не является ли удаляемая запись последней
+		if ( MARKER_ENABLE == tmp[ reltAdrOfRemLine + LINE_SIZE - 1 ] ) {
+
+			tmp[ reltAdrOfRemLine - 1 ] = MARKER_DISABLE;          // предыдущая запись стает последней
+
+			i = 1;
+
+		} else {
+			                                                   // необходимо все записи которые находятся справа
+			                                                   // от удаляемой сместить на длинну одной строки влево
+			for ( i = 0; tmp[ reltAdrOfRemLine + LINE_SIZE + i ] != MARKER_ENABLE; i++ ){
+				tmp[ reltAdrOfRemLine + i ] = tmp[ reltAdrOfRemLine + LINE_SIZE + i ];
+			}
+
+			tmp[ reltAdrOfRemLine + LINE_SIZE + i ] = MARKER_ENABLE;
+
+			i++;
+
+		}
+		                                               	   // необходимо заполнить все биты справа от последней записи 0xFF
+		for ( ; ( reltAdrOfRemLine + i ) < LINE_SIZE; i++ ){
+			tmp[ reltAdrOfRemLine + i ] = 0xFF;
 		}
 
+													   	   	   	   	   	   // перезапись сектора с удаляемой записью
+		if ( SPI_FLASH_RESULT_OK != spi_flash_erase_sector( strAdrOfSecThatContRemLine / SPI_FLASH_SEC_SIZE ) ) {
+			return OPERATION_FAIL;
+		}
 
+		if ( SPI_FLASH_RESULT_OK != \
+				spi_flash_write( ( strAdrOfSecThatContRemLine / SPI_FLASH_SEC_SIZE ), (uint32 *)tmp, SPI_FLASH_SEC_SIZE ) ) {
+
+			return OPERATION_FAIL;
+		}
 	}
+
+	return OPERATION_OK;
  }
 
 
