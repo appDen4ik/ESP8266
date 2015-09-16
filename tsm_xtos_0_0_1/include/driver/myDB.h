@@ -69,6 +69,8 @@ typedef enum {
 writeres ICACHE_FLASH_ATTR insert( uint8_t *line );
 uint32_t ICACHE_FLASH_ATTR findLine( uint8_t *line );
 operationres ICACHE_FLASH_ATTR delete( uint8_t *line );
-operationres ICACHE_FLASH_ATTR clearSectors( void );
+operationres ICACHE_FLASH_ATTR clearSectorsDB( void );
+operationres ICACHE_FLASH_ATTR update( uint8_t *oldLine, uint8_t *newLine );
+operationres ICACHE_FLASH_ATTR requestLine( uint8_t *line );
 
 #endif /* INCLUDE_DRIVER_MYDB_H_ */
