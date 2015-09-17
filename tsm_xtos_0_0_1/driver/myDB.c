@@ -57,7 +57,7 @@ static uint8_t tmp[SPI_FLASH_SEC_SIZE];
 
 
 /*
- *  writeres ICACHE_FLASH_ATTR writeLine( uint8_t *line )
+ *  writeres ICACHE_FLASH_ATTR insert( uint8_t *line )
  *  @Description:
  *    - длинна записи должна быть меньше величины сектора, а также
  *      длина записи должна быть равна LINE_SIZE (установленная длинна записи)
@@ -94,9 +94,8 @@ insert( uint8_t *line ) {
 		}
 	}
 
-	 // длинна записи не больше величины сектора  SPI_FLASH_SEC_SIZE
 	 // длинна входящей записи не должна быть больше установленой длинны LINE_SIZE
-	if ( len > SPI_FLASH_SEC_SIZE || len != LINE_SIZE ) { return WRITE_FAIL; }
+	if ( len != LINE_SIZE ) { return WRITE_FAIL; }
 
 	// данная строка являеться последней ( записываю соответствующий маркер )
 	line[LINE_SIZE - 1] = MARKER_ENABLE;
@@ -296,15 +295,80 @@ delete( uint8_t *removableLine ) {
 
 /*
  * operationres ICACHE_FLASH_ATTR requestLine( uint8_t *line)
- * В пустые поля искомой строки должны быть записаны \r
- * Функция работает следующим образом:
- * - на вход приходит строка в которой заполнены не все поля
+ * - на вход приходит строка в которой заполнены часть полей
  *   и необходимо найти в куче запись в которой хотя бы одно
- *   поле будет такое же как в искомой записи
+ *   поле будет такое же как в искомой записи. В пустые поля искомой строки должны
+ *   быть записаны \r
+ *@Description:
+ *    - Проверки
+ *        - длинна запрашиваемой строки должна быть равна заданной (LINE_SIZE)
+ *   	  - в запрашиваемой строке должно быть заполнено хотя бы одно поле
+ *    - Если во входящей строке заполнено больше одного поля то необходимо
+ *      сначала маскировать все кроме первого, далее искать во флеше по всем
+ *      записям совпадение, если его не найдено то тогда маскируются все поля
+ *      кроме второго и происходит поиск во флеше, и так далее, до тех пор
+ *      пока не будет найдено запись с таким же полем, либо ее не будет найдено
+ *      вообще.
+ *
  */
 operationres ICACHE_FLASH_ATTR
 requestLine( uint8_t *line) {
 
+	uint8_t currentSector = START_SECTOR;
+	uint16_t i, c;
+
+	                                      // длинна входящей строки не должна быть больше установленой длинны LINE_SIZE
+	if ( ( strlen( line ) + 1 ) != LINE_SIZE ) { return OPERATION_FAIL; }
+
+	                                // в искомой строке должно быть заполнено хотя бы одно поле
+	for ( i = 0; i <= LINE_SIZE; i++ ){
+		if ( '\n' != tmp[i] || 3 != tmp[i] ) {		                                // ищется окончание первого попавшкгося поля
+			break;
+		} else if ( LINE_SIZE == i ){
+			return OPERATION_FAIL;
+		}
+	}
+
+
+	for ( i = 0; i < LINE_SIZE; ) {
+
+		// подготовка запрашеваемой строки (маскировка необходимых полей)
+		/*
+		 * сначала необходимо найти конец первого поля ( первый попавшийся \n )
+		 * далее все байты справа сделать \r
+		 */
+		for ( ; ; ){
+
+		}
+
+	}
+
+
+
+
+
+
+	for ( ; currentSector <= END_SECTOR;  currentSector++) {                // пока не дошли до конца выделенной памяти
+
+		if ( SPI_FLASH_RESULT_OK != spi_flash_read( SPI_FLASH_SEC_SIZE*currentSector , (uint32 *)tmp, SPI_FLASH_SEC_SIZE ) ){
+				return OPERATION_FAIL;
+		}
+
+		if ( MARKER_DISABLE == tmp[0] ) {   // сектор не пустой
+		    for ( i = 1; i < SPI_FLASH_SEC_SIZE; i += LINE_SIZE ) { // пока не дошли до конца сектора
+			    if ( 0 == strcmp( line, &tmp[i] ) ) { return currentSector*SPI_FLASH_SEC_SIZE + i;      // найдено совпадение
+			    }
+			    else if ( MARKER_ENABLE == tmp[i] ) {
+				    tmp[i - 1] = MARKER_DISABLE;
+				    if ( 0 == strcmp( line, &tmp[i] ) ) { return currentSector*SPI_FLASH_SEC_SIZE + i;  // найдено совпадение
+				    } else { break; }
+			    }
+
+		   }
+		}
+	}
+
+	return OPERATION_FAIL;        // если дошли до этой строчки значит совпадений не было найдено
 }
 
 
@@ -341,12 +405,11 @@ clearSectorsDB( void ) {
  */
 uint32_t ICACHE_FLASH_ATTR
 findLine( uint8_t *line ) {
+
 	uint8_t currentSector = START_SECTOR;
-	uint16_t len = strlen(line) + 1; // функция возвращает длинну без учета \0
-	uint8_t *p = &tmp[1];
 
 	 // длинна входящей строки не должна быть больше установленой длинны LINE_SIZE
-	if ( len > LINE_SIZE ) { return OPERATION_FAIL; }
+	if ( ( strlen( line ) + 1 ) != LINE_SIZE ) { return OPERATION_FAIL; }
 
 
 	for ( ; currentSector <= END_SECTOR;  currentSector++) {                // пока не дошли до конца выделенной памяти
@@ -361,13 +424,13 @@ findLine( uint8_t *line ) {
 		}
 
 		if ( MARKER_DISABLE == tmp[0] ) {   // сектор не пустой
-
-		    for ( p = &tmp[1]; p < &tmp[SPI_FLASH_SEC_SIZE]; p += LINE_SIZE ) { // пока не дошли до конца сектора
-			    if ( 0 == strcmp( line, p ) ) { return currentSector*SPI_FLASH_SEC_SIZE + (p - &tmp[0]);      // найдено совпадение
+			uint16_t i;
+		    for ( i = 1; i < SPI_FLASH_SEC_SIZE; i += LINE_SIZE ) { // пока не дошли до конца сектора
+			    if ( 0 == strcmp( line, &tmp[i] ) ) { return currentSector*SPI_FLASH_SEC_SIZE + i;      // найдено совпадение
 			    }
-			    else if ( MARKER_ENABLE == p[LINE_SIZE - 1] ) {
-				    p[LINE_SIZE - 1] = MARKER_DISABLE;
-				    if ( 0 == strcmp( line, p ) ) { return currentSector*SPI_FLASH_SEC_SIZE + (p - &tmp[0]);  // найдено совпадение
+			    else if ( MARKER_ENABLE == tmp[i] ) {
+				    tmp[i - 1] = MARKER_DISABLE;
+				    if ( 0 == strcmp( line, &tmp[i] ) ) { return currentSector*SPI_FLASH_SEC_SIZE + i;  // найдено совпадение
 				    } else { break; }
 			    }
 
