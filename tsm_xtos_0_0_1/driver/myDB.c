@@ -27,7 +27,7 @@
  *  	     начиная с первого байта (не с 0-го, в этом байте храниться индикатор того что сектор пустой, либо в
  *  	     нем есть записи). Каждая запись заканчивается символом \0 либо цифрой 3 (спец символ ASCII).
  *  	-    Записи состоят из полей. Количество полей во всех записях одинаковое и они одинаковой длинны.
- *  	     Каждая запись заканчивается символом \n - переход на новую строку
+ *  	     Каждое поле заканчивается символом \n - переход на новую строку, а начинается с 2 START_OF_TEXT
  * 	-	В функциях spi_flash_write и spi_flash_read запись и чтение производится по 4 байта, если указать в этих
  * 	    функциях значение которе не кратно четырем то оно все равно округлится до ближайшего большего значения,
  * 	    которое кратно четырем, для коректной работы это нужно учитывать.
@@ -39,11 +39,17 @@
  ************************************************************************************************************************
  */
 
+
+#include "user_interface.h"
+
 #include "driver/myDB.h"
 #include "c_types.h"
 #include "spi_flash.h"
 #include "osapi.h"
+#include "espconn.h"
 
+
+ICACHE_FLASH_ATTR static void maskBitsInField ( uint8_t* adressOfField, uint16_t startAbsovuleAdress, uint16_t endAbsovuleAdress );
 
 
 // подгружаем необходимые константы в ОЗУ (пока не совсем понятно причина по которой
@@ -293,12 +299,13 @@ delete( uint8_t *removableLine ) {
  }
 
 
+
+
 /*
  * operationres ICACHE_FLASH_ATTR requestLine( uint8_t *line)
- * - на вход приходит строка в которой заполнены часть полей
- *   и необходимо найти в куче запись в которой хотя бы одно
- *   поле будет такое же как в искомой записи. В пустые поля искомой строки должны
- *   быть записаны \r
+ * - на вход приходит строка в которой заполнены часть полей и необходимо найти в куче запись в
+ *   которой хотя бы одно поле будет такое же как в искомой записи. В пустые поля искомой строки
+ *   должны быть записаны \r
  *@Description:
  *    - Проверки
  *        - длинна запрашиваемой строки должна быть равна заданной (LINE_SIZE)
@@ -316,56 +323,80 @@ requestLine( uint8_t *line) {
 
 	uint8_t currentSector = START_SECTOR;
 	uint16_t i, c;
+	uint8_t endAdressOfCarrentField, startAdressOfCarrentField;
+	uint8_t copyLine[LINE_SIZE];
 
 	                                      // длинна входящей строки не должна быть больше установленой длинны LINE_SIZE
 	if ( ( strlen( line ) + 1 ) != LINE_SIZE ) { return OPERATION_FAIL; }
 
 	                                // в искомой строке должно быть заполнено хотя бы одно поле
 	for ( i = 0; i <= LINE_SIZE; i++ ){
-		if ( '\n' != tmp[i] || 3 != tmp[i] ) {		                                // ищется окончание первого попавшкгося поля
+		if ( '\n' != tmp[i] || MARKER_ENABLE != tmp[i] ) {		                                // ищется окончание первого попавшего поля
 			break;
 		} else if ( LINE_SIZE == i ){
 			return OPERATION_FAIL;
 		}
 	}
+//***********************************************************************************************************************************************
 
 
+
+				// подготовка запрашеваемой строки (маскировка необходимых полей)
 	for ( i = 0; i < LINE_SIZE; ) {
 
-		// подготовка запрашеваемой строки (маскировка необходимых полей)
-		/*
-		 * сначала необходимо найти конец первого поля ( первый попавшийся \n )
-		 * далее все байты справа сделать \r
-		 */
-		for ( ; ; ){
+				// копируем запрашиваемую строку
+		memcpy( copyLine, line, LINE_SIZE );
 
-		}
-
-	}
-
-
-
-
-
-
-	for ( ; currentSector <= END_SECTOR;  currentSector++) {                // пока не дошли до конца выделенной памяти
-
-		if ( SPI_FLASH_RESULT_OK != spi_flash_read( SPI_FLASH_SEC_SIZE*currentSector , (uint32 *)tmp, SPI_FLASH_SEC_SIZE ) ){
+				// находим начало следующей строки  START_OF_TEXT
+		for ( i = 0; ; i++) {
+			if ( START_OF_TEXT == copyLine[i] ) {
+				startAdressOfCarrentField = i;
+				break;
+			} else if ( '\0' == copyLine[i] || MARKER_ENABLE != copyLine[i] || LINE_SIZE == i) {
 				return OPERATION_FAIL;
+			}
 		}
 
-		if ( MARKER_DISABLE == tmp[0] ) {   // сектор не пустой
-		    for ( i = 1; i < SPI_FLASH_SEC_SIZE; i += LINE_SIZE ) { // пока не дошли до конца сектора
-			    if ( 0 == strcmp( line, &tmp[i] ) ) { return currentSector*SPI_FLASH_SEC_SIZE + i;      // найдено совпадение
-			    }
-			    else if ( MARKER_ENABLE == tmp[i] ) {
-				    tmp[i - 1] = MARKER_DISABLE;
-				    if ( 0 == strcmp( line, &tmp[i] ) ) { return currentSector*SPI_FLASH_SEC_SIZE + i;  // найдено совпадение
-				    } else { break; }
-			    }
-
-		   }
+			    // находим конец следующей строки \n
+		for ( ; ; i++ ) {
+			if ( START_OF_TEXT == copyLine[i] ) {
+				endAdressOfCarrentField = i;
+					break;
+				} else if ( '\0' == copyLine[i] || MARKER_ENABLE != copyLine[i] || LINE_SIZE == i) {
+					return OPERATION_FAIL;
+				}
 		}
+
+
+		maskBitsInField( copyLine, startAdressOfCarrentField, endAdressOfCarrentField );
+
+//************************************************************************************************************************************************
+
+
+		for ( ; currentSector <= END_SECTOR;  currentSector++) {                  						// пока не дошли до конца выделенной памяти
+
+																												//чтение сектора
+			if ( SPI_FLASH_RESULT_OK != spi_flash_read( SPI_FLASH_SEC_SIZE*currentSector , (uint32 *)tmp, SPI_FLASH_SEC_SIZE ) ){
+					return OPERATION_FAIL;
+			}
+
+			if ( MARKER_DISABLE == tmp[0] ) {   // сектор не пустой
+				for ( c = 1; c < SPI_FLASH_SEC_SIZE; c += LINE_SIZE ) { // пока не дошли до конца сектора
+
+					maskBitsInField ( &tmp[c], startAdressOfCarrentField, endAdressOfCarrentField );
+
+					if ( 0 == strcmp( copyLine, &tmp[c] ) ) { return currentSector*SPI_FLASH_SEC_SIZE + c;      // найдено совпадение
+					}
+					else if ( MARKER_ENABLE == tmp[c] ) {
+						tmp[c - 1] = MARKER_DISABLE;
+						if ( 0 == strcmp( copyLine, &tmp[c] ) ) { return currentSector*SPI_FLASH_SEC_SIZE + c;  // найдено совпадение
+						} else { break; }
+					}
+
+				}
+			}
+		}
+
 	}
 
 	return OPERATION_FAIL;        // если дошли до этой строчки значит совпадений не было найдено
@@ -444,11 +475,26 @@ findLine( uint8_t *line ) {
  }
 
 operationres ICACHE_FLASH_ATTR
-query() {
+query( struct espconn* transmiter ) {
+
+ return 0;
+}
+
+ICACHE_FLASH_ATTR
+void maskBitsInField ( uint8_t* adressOfField, uint16_t startAbsovuleAdress, uint16_t endAbsovuleAdress ) {
+
+	uint16_t i;
+
+	for ( i = 0; i < LINE_SIZE - 1; i++ ) {
+		if ( i == startAbsovuleAdress ) {
+			i = endAbsovuleAdress + 1;
+		}
+
+		adressOfField[i] = '\r';
+	}
 
 
 }
-
 
 
 

@@ -42,6 +42,7 @@ LOCAL uint8_t* ICACHE_FLASH_ATTR  ShortIntToString(uint16_t data, uint8_t *adres
 LOCAL void ICACHE_FLASH_ATTR senddata( void );
 LOCAL void ICACHE_FLASH_ATTR initPeriph( void );
 LOCAL uint8_t * ICACHE_FLASH_ATTR intToStringHEX(uint8_t data, uint8_t *adressDestenation);
+LOCAL void ICACHE_FLASH_ATTR broadcastBuilder( void );
 
 extern void ets_wdt_enable (void);
 extern void ets_wdt_disable (void);
@@ -81,10 +82,9 @@ void user_rf_pre_init(void)
 
 }
 
-
+//*******************************************************Callbacks***********************************************************************
 LOCAL void ICACHE_FLASH_ATTR
 tcp_recvcb(void *arg, char *pdata, unsigned short len)
-
 {
 	int i = 0;
     struct espconn *pespconn = (struct espconn *) arg;
@@ -112,6 +112,11 @@ tcp_disnconcb(void* arg){
 	ets_uart_printf("Disconnect");
 //	os_printf( "disconnect result = %d", espconn_delete((struct espconn *) arg));
 }
+
+
+
+
+
 
 
 void ICACHE_FLASH_ATTR
@@ -204,7 +209,7 @@ user_init(void)
 		ets_wdt_disable();
 		ets_uart_printf("Begin");
 		system_soft_wdt_stop();
-		cleanAllSectors();
+	//	cleanAllSectors();
 		ets_uart_printf("clean OK");
 //		writeLine(firstLine);
 //		writeLine(secondLine);
@@ -218,11 +223,11 @@ user_init(void)
 			  uart_tx_one_char(temp[i]);
 		  }
 
-		if ( OPERATION_OK == foundLine( firstLine ) ) {
+/*		if ( OPERATION_OK == foundLine( firstLine ) ) {
 			ets_uart_printf("string found");
 		} else {
 			ets_uart_printf("string not found");
-		}
+		}*/
 
 	}
 
@@ -287,124 +292,10 @@ user_init(void)
 }
 
 
-
-// broadcast message:
-//          "name:" + " " + nameSTA +
-//          + " " + mac: + " " + wifi_get_macaddr() +
-//          + " " + ip: + " " + wifi_get_ip_info( ) +
-//          + " " + server port: + " " servPort + " " +
-//			+ " " + phy mode: + " " + wifi_get_phy_mode() +
-//          + " " + rssi: + " " + wifi_station_get_rssi() +
-//          + " " + statuses: + " " + doorClose: + " " + closed/open +
-//          + " " + doorOpen: + " " + closed/open + "\r\n" + "\0"
 LOCAL void ICACHE_FLASH_ATTR senddata( void )
 {
 
-
-	//выделяем бродкаст айпишку
-	wifi_get_ip_info( STATION_IF, &inf );
-
-	IP4_ADDR((ip_addr_t *)broadcast.proto.udp->remote_ip, (uint8_t)(inf.ip.addr), (uint8_t)(inf.ip.addr >> 8),\
-																(uint8_t)(inf.ip.addr >> 16), 255);
-
-	count = brodcastMessage;
-
-	memcpy( count, NAME, ( sizeof( NAME ) - 1 ) );
-	count += sizeof( NAME ) - 1;
-
-	memcpy( count, nameSTA, strlen( nameSTA ) );
-	count += strlen( nameSTA );
-	//================================================================
-	memcpy( count, MAC, ( sizeof( MAC ) - 1 ) );
-	count += sizeof( MAC ) - 1;
-
-	wifi_get_macaddr( STATION_IF, macadr );
-
-	count = intToStringHEX( macadr[0], count );
-		*count++ = ':';
-	count = intToStringHEX( macadr[1], count );
-		*count++ = ':';
-	count = intToStringHEX( macadr[2], count );
-		*count++ = ':';
-	count = intToStringHEX( macadr[3], count );
-		*count++ = ':';
-	count = intToStringHEX( macadr[4], count );
-		*count++ = ':';
-	count = intToStringHEX( macadr[5], count );
-	//================================================================
-	if ( ( rssi = wifi_station_get_rssi() ) < 0 ) {
-		memcpy( count, RSSI, ( sizeof( RSSI ) - 1 ) );
-		    count += sizeof( RSSI ) - 1;
-
-		*count++ = '-';
-		//os_printf( "SDK version: %d", wifi_station_get_rssi() );
-//		uart_tx_one_char( wifi_station_get_rssi() );
-		count = ShortIntToString( ~rssi, count );
-	}
-	//================================================================
-	memcpy( count, PHY_MODE, ( sizeof( PHY_MODE ) - 1 ) );
-		count += sizeof( PHY_MODE ) - 1;
-	{
-		uint8_t phyMode;
-		if ( PHY_MODE_11B == (phyMode = wifi_get_phy_mode()) ){
-			memcpy( count, PHY_MODE_B, ( sizeof( PHY_MODE_B ) - 1 ) );
-					    count += sizeof( PHY_MODE_B ) - 1;
-		} else if ( PHY_MODE_11G == phyMode ) {
-			memcpy( count, PHY_MODE_G, ( sizeof( PHY_MODE_G ) - 1 ) );
-								    count += sizeof( PHY_MODE_G ) - 1;
-		} else if ( PHY_MODE_11N == phyMode ) {
-			memcpy( count, PHY_MODE_N, ( sizeof( PHY_MODE_N ) - 1 ) );
-								    count += sizeof( PHY_MODE_N ) - 1;
-		}
-	}
-    //================================================================
-	memcpy( count, IP, ( sizeof( IP ) - 1 ) );
-	count += sizeof( IP ) - 1;
-
-	count = ShortIntToString( (uint8_t)(inf.ip.addr), count );
-	*count++ = '.';
-	count = ShortIntToString( (uint8_t)(inf.ip.addr >> 8), count );
-	*count++ = '.';
-	count = ShortIntToString( (uint8_t)(inf.ip.addr >> 16) , count );
-	*count++ = '.';
-	count = ShortIntToString( (uint8_t)(inf.ip.addr  >> 24), count);
-	//================================================================
-	memcpy( count, SERVER_PORT, ( sizeof( SERVER_PORT ) - 1 ) );
-	count += sizeof( SERVER_PORT ) - 1;
-
-	count = ShortIntToString( servPort, count );
-	//================================================================
-	memcpy( count, STATUSES, ( sizeof( STATUSES ) - 1 ) );
-	count += sizeof( STATUSES ) - 1;
-	//================================================================
-	memcpy( count, DOOR_CLOSE_SENSOR, ( sizeof( DOOR_CLOSE_SENSOR ) - 1 ) );
-	count += sizeof( DOOR_CLOSE_SENSOR ) - 1;
-	if ( 0 == GPIO_INPUT_GET(DOOR_CLOSE_SENSOR_PIN ) ) {
-		memcpy( count, CLOSE, ( sizeof( CLOSE ) - 1 ) );
-		GPIO_OUTPUT_SET(OUT_1_GPIO, 1);//
-		count += sizeof( CLOSE ) - 1;
-	} else {
-		memcpy( count, OPEN, ( sizeof( OPEN ) - 1 ) );
-		count += sizeof( OPEN ) - 1;
-	}
-	//================================================================
-	memcpy( count, DOOR_OPEN_SENSOR, ( sizeof( DOOR_OPEN_SENSOR ) - 1 ) );
-	count += sizeof( DOOR_OPEN_SENSOR ) - 1;
-	if ( 0 == GPIO_INPUT_GET(DOOR_OPEN_SENSOR_PIN ) ) {
-		memcpy( count, CLOSE, ( sizeof( CLOSE ) - 1 ) );
-		GPIO_OUTPUT_SET(OUT_1_GPIO, 0);//
-		count += sizeof( CLOSE ) - 1;
-	} else {
-		memcpy( count, OPEN, ( sizeof( OPEN ) - 1 ) );
-		count += sizeof( OPEN ) - 1;
-	}
-
-	*count++ = '\r';
-	*count++ = '\n';
-	*count = '\0';
-
-//	os_printf( "SDK version: %s", macadr );
-
+	broadcastBuilder();
 	espconn_create(&broadcast);
 	espconn_sent(&broadcast, brodcastMessage, strlen(brodcastMessage));
 	espconn_delete(&broadcast);
@@ -480,8 +371,119 @@ uint8_t * intToStringHEX(uint8_t data, uint8_t *adressDestenation) {
 
 
 
+// broadcast message:
+//          "name:" + " " + nameSTA +
+//          + " " + mac: + " " + wifi_get_macaddr() +
+//          + " " + ip: + " " + wifi_get_ip_info( ) +
+//          + " " + server port: + " " servPort + " " +
+//			+ " " + phy mode: + " " + wifi_get_phy_mode() +
+//          + " " + rssi: + " " + wifi_station_get_rssi() +
+//          + " " + statuses: + " " + doorClose: + " " + closed/open +
+//          + " " + doorOpen: + " " + closed/open + "\r\n" + "\0"
+void ICACHE_FLASH_ATTR
+broadcastBuilder( void ){
+	//выделяем бродкаст айпишку
+	wifi_get_ip_info( STATION_IF, &inf );
 
+	IP4_ADDR((ip_addr_t *)broadcast.proto.udp->remote_ip, (uint8_t)(inf.ip.addr), (uint8_t)(inf.ip.addr >> 8),\
+															(uint8_t)(inf.ip.addr >> 16), 255);
 
+	count = brodcastMessage;
+
+	memcpy( count, NAME, ( sizeof( NAME ) - 1 ) );
+	count += sizeof( NAME ) - 1;
+
+	memcpy( count, nameSTA, strlen( nameSTA ) );
+	count += strlen( nameSTA );
+//================================================================
+	memcpy( count, MAC, ( sizeof( MAC ) - 1 ) );
+	count += sizeof( MAC ) - 1;
+
+	wifi_get_macaddr( STATION_IF, macadr );
+
+	count = intToStringHEX( macadr[0], count );
+		*count++ = ':';
+	count = intToStringHEX( macadr[1], count );
+		*count++ = ':';
+	count = intToStringHEX( macadr[2], count );
+		*count++ = ':';
+	count = intToStringHEX( macadr[3], count );
+		*count++ = ':';
+    count = intToStringHEX( macadr[4], count );
+	   *count++ = ':';
+    count = intToStringHEX( macadr[5], count );
+//================================================================
+    if ( ( rssi = wifi_station_get_rssi() ) < 0 ) {
+    	memcpy( count, RSSI, ( sizeof( RSSI ) - 1 ) );
+	    	count += sizeof( RSSI ) - 1;
+
+	    	*count++ = '-';
+	//os_printf( "SDK version: %d", wifi_station_get_rssi() );
+//		uart_tx_one_char( wifi_station_get_rssi() );
+	    	count = ShortIntToString( ~rssi, count );
+}
+//================================================================
+    memcpy( count, PHY_MODE, ( sizeof( PHY_MODE ) - 1 ) );
+		count += sizeof( PHY_MODE ) - 1;
+		{
+			uint8_t phyMode;
+			if ( PHY_MODE_11B == (phyMode = wifi_get_phy_mode()) ){
+				memcpy( count, PHY_MODE_B, ( sizeof( PHY_MODE_B ) - 1 ) );
+				    count += sizeof( PHY_MODE_B ) - 1;
+			} else if ( PHY_MODE_11G == phyMode ) {
+				memcpy( count, PHY_MODE_G, ( sizeof( PHY_MODE_G ) - 1 ) );
+							    count += sizeof( PHY_MODE_G ) - 1;
+			} else if ( PHY_MODE_11N == phyMode ) {
+				memcpy( count, PHY_MODE_N, ( sizeof( PHY_MODE_N ) - 1 ) );
+							    count += sizeof( PHY_MODE_N ) - 1;
+			}
+		}
+//================================================================
+		memcpy( count, IP, ( sizeof( IP ) - 1 ) );
+		count += sizeof( IP ) - 1;
+
+		count = ShortIntToString( (uint8_t)(inf.ip.addr), count );
+		    *count++ = '.';
+		count = ShortIntToString( (uint8_t)(inf.ip.addr >> 8), count );
+		    *count++ = '.';
+		count = ShortIntToString( (uint8_t)(inf.ip.addr >> 16) , count );
+		    *count++ = '.';
+		count = ShortIntToString( (uint8_t)(inf.ip.addr  >> 24), count);
+//================================================================
+		memcpy( count, SERVER_PORT, ( sizeof( SERVER_PORT ) - 1 ) );
+		count += sizeof( SERVER_PORT ) - 1;
+
+		count = ShortIntToString( servPort, count );
+//================================================================
+		memcpy( count, STATUSES, ( sizeof( STATUSES ) - 1 ) );
+		count += sizeof( STATUSES ) - 1;
+//================================================================
+		memcpy( count, DOOR_CLOSE_SENSOR, ( sizeof( DOOR_CLOSE_SENSOR ) - 1 ) );
+		count += sizeof( DOOR_CLOSE_SENSOR ) - 1;
+		if ( 0 == GPIO_INPUT_GET(DOOR_CLOSE_SENSOR_PIN ) ) {
+			memcpy( count, CLOSE, ( sizeof( CLOSE ) - 1 ) );
+			GPIO_OUTPUT_SET(OUT_1_GPIO, 1);//
+			count += sizeof( CLOSE ) - 1;
+		} else {
+			memcpy( count, OPEN, ( sizeof( OPEN ) - 1 ) );
+			count += sizeof( OPEN ) - 1;
+		}
+//================================================================
+		memcpy( count, DOOR_OPEN_SENSOR, ( sizeof( DOOR_OPEN_SENSOR ) - 1 ) );
+		count += sizeof( DOOR_OPEN_SENSOR ) - 1;
+		if ( 0 == GPIO_INPUT_GET(DOOR_OPEN_SENSOR_PIN ) ) {
+			memcpy( count, CLOSE, ( sizeof( CLOSE ) - 1 ) );
+			GPIO_OUTPUT_SET(OUT_1_GPIO, 0);//
+			count += sizeof( CLOSE ) - 1;
+		} else {
+			memcpy( count, OPEN, ( sizeof( OPEN ) - 1 ) );
+			count += sizeof( OPEN ) - 1;
+		}
+
+		*count++ = '\r';
+		*count++ = '\n';
+		*count = '\0';
+}
 
 
 

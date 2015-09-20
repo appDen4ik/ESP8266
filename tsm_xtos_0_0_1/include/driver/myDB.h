@@ -32,6 +32,13 @@
  */
 #define LINE_SIZE	13
 
+
+
+
+
+
+#define START_OF_TEXT	2
+
 /*
  * выровняная длинна записи. Использование этого
  * значения связано с тем что функция записи
@@ -44,7 +51,7 @@
  * 		LINE_SIZE	14 тогда  ALIGN_LINE_SIZE 	16
  * 		LINE_SIZE	4 тогда  ALIGN_LINE_SIZE 	4
  */
-#define ALIGN_LINE_SIZE 	16
+#define ALIGN_LINE_SIZE 	( ( LINE_SIZE % 4 ) + LINE_SIZE )
 
 /*
  * маркер последней записи
