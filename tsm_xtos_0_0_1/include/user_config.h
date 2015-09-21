@@ -3,7 +3,9 @@
 
 #define DEBUG
 
-//----------------------------------------------------------------
+
+//**********************************************************************************************
+
 #define OUT_1_GPIO 		4
 #define OUT_1_MUX 		PERIPHS_IO_MUX_GPIO4_U
 #define OUT_1_FUNC 		FUNC_GPIO4
@@ -11,40 +13,64 @@
 #define OUT_2_GPIO		5
 #define OUT_2_MUX 		PERIPHS_IO_MUX_GPIO5_U
 #define OUT_2_FUNC 		FUNC_GPIO5
-//-----------------------------------------------------------------
+//**********************************************************************************************
+
 //status_led
 #define LED_GPIO		15
 #define LED_MUX 		PERIPHS_IO_MUX_MTDO_U
 #define LED_FUNC 		FUNC_GPIO15
-//-----------------------------------------------------------------
-//-----------------------------------------------------------------
+//**********************************************************************************************
+
 #define INP_1 			BIT12
 #define INP_1_MUX 		PERIPHS_IO_MUX_MTDI_U
 #define INP_1_FUNC 		FUNC_GPIO12
+#define INP_1_PIN		12
 
 #define INP_2 			BIT13
 #define INP_2_MUX 		PERIPHS_IO_MUX_MTCK_U
 #define INP_2_FUNC 		FUNC_GPIO13
+#define INP_2_PIN		13
 
 #define INP_3 			BIT14
 #define INP_3_MUX 		PERIPHS_IO_MUX_GPIO2_U
 #define INP_3_FUNC 		FUNC_GPIO14
+#define INP_3_PIN		14
 
 #define INP_4 			BIT2
 #define INP_4_MUX 		PERIPHS_IO_MUX_MTMS_U
 #define INP_4_FUNC 		FUNC_GPIO2
+#define INP_4_PIN		2
+//**********************************************************************************************
+//**********************************************************************************************
 
-#define DOOR_OPEN_SENSOR_INP 		INP_1
-#define DOOR_OPEN_SENSOR_PIN 		12
-#define DOOR_OPEN_SENSOR_INP_MUX	INP_1_MUX
-#define DOOR_OPEN_SENSOR_INP_FUNC 	INP_1_FUNC
+// user data/parameters
 
-#define DOOR_CLOSE_SENSOR_INP 		INP_2
-#define DOOR_CLOSE_SENSOR_PIN 		13
-#define DOOR_CLOSE_SENSOR_INP_MUX	INP_2_MUX
-#define DOOR_CLOSE_SENSOR_INP_FUNC 	INP_2_FUNC
-//-----------------------------------------------------------------
-//-----------------------------------------------------------------
+#define USER_SECTOR_IN_FLASH_MEM		59 	            // согласовать с END_SECTOR в myDB.h
+
+/*  spi_flash layout
+ *
+ *  0............11                адресс относительно начала сектора  (
+ * | flash_ready\0 | \n |          USER_SECTOR_IN_FLASH_MEM * SPI_FLASH_SEC_SIZE )
+ *
+ *  13....17
+ * | STA:\0 | \n |               header
+ *  19..50
+ * | SSID | \n |                 max lenght 32
+ *  52.....116
+ * | PASSWORD | \n |             max lenght 64
+ *  118......121
+ *
+ * |   AP:\0   | \n |           header
+ *  123.....
+ * |    SSID     |
+ *
+ *
+ */
+
+
+//**********************************************************************************************
+//**********************************************************************************************
+
 //STA
 #define SSID_STA /*"TSM_Guest" */"DIR-320"
 #define PWD_STA "tsmguest"

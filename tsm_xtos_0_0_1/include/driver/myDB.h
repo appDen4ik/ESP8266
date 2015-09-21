@@ -19,7 +19,7 @@
 /*
  * начальный сектор
  */
-#define START_SECTOR 	18
+#define START_SECTOR 	19
 
 /*
  * последний сектор
@@ -31,9 +31,6 @@
  * последняя запись или нет
  */
 #define LINE_SIZE	13
-
-
-
 
 
 

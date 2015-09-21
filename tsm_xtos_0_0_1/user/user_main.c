@@ -44,8 +44,12 @@ LOCAL void ICACHE_FLASH_ATTR initPeriph( void );
 LOCAL uint8_t * ICACHE_FLASH_ATTR intToStringHEX(uint8_t data, uint8_t *adressDestenation);
 LOCAL void ICACHE_FLASH_ATTR broadcastBuilder( void );
 
+
+
 extern void ets_wdt_enable (void);
 extern void ets_wdt_disable (void);
+
+
 
 LOCAL struct espconn broadcast;
 LOCAL esp_udp udp;
@@ -55,6 +59,7 @@ LOCAL uint16_t server_timeover = 20;
 LOCAL struct espconn server;
 LOCAL esp_tcp tcp1;
 struct station_config stationConf;
+struct softap_config softapConf;
 
 
 uint8_t hello[1000];
@@ -113,8 +118,17 @@ tcp_disnconcb(void* arg){
 //	os_printf( "disconnect result = %d", espconn_delete((struct espconn *) arg));
 }
 
+LOCAL void ICACHE_FLASH_ATTR
+tcp_reconcb(void* arg){
 
+}
 
+LOCAL void ICACHE_FLASH_ATTR
+tcp_sentcb(void* arg){
+
+}
+
+//************************************************************************************************************************
 
 
 
@@ -186,72 +200,17 @@ sendDatagram(char *datagram, uint16 size) {
 }
 
 void ICACHE_FLASH_ATTR
-user_init(void)
-{
+user_init(void) {
 
-	initPeriph( );
-	uart_init(BIT_RATE_115200, BIT_RATE_115200);
-	{
-	uint8_t testLine[13] = "380673173093";
-	testLine[12] = 3;
-	uint8_t secondLine[13] = "380673176890";
-	uint8_t thirdLine[13] = "123456789012";
+	initPeriph();
 
-
-
-//=======================
-
-		static uint8_t markerDisable[4] = { MARKER_DISABLE, 0xff, 0xff, 0xff };
-		uint8_t firstLine[13] = "380673173093";
-		uint8_t temp[0x1000];
-		uint16_t i;
-		ets_wdt_enable();
-		ets_wdt_disable();
-		ets_uart_printf("Begin");
-		system_soft_wdt_stop();
-	//	cleanAllSectors();
-		ets_uart_printf("clean OK");
-//		writeLine(firstLine);
-//		writeLine(secondLine);
-//		writeLine(thirdLine);
-
-
-		spi_flash_write( 50*SPI_FLASH_SEC_SIZE, (uint32 *)markerDisable, 1 );
-		spi_flash_write( (50*SPI_FLASH_SEC_SIZE + 1), (uint32 *)firstLine, 16 );
-		spi_flash_read( 50*SPI_FLASH_SEC_SIZE , (uint32 *)temp, 0x1000 );
-		  for (  i = 0; i < 0x1000; i++ ){
-			  uart_tx_one_char(temp[i]);
-		  }
-
-/*		if ( OPERATION_OK == foundLine( firstLine ) ) {
-			ets_uart_printf("string found");
-		} else {
-			ets_uart_printf("string not found");
-		}*/
-
-	}
-
-	system_soft_wdt_restart();
-//=======================
-	ets_uart_printf("TISO ver0.1");
-	uart_tx_one_char(system_update_cpu_freq(SYS_CPU_160MHZ));
-	os_install_putc1(uart_tx_one_char);
-
-
-	for ( i = 0; i < sizeof(hello); i++ ) {
-//		uart_tx_one_char(hello[i]);
-	}
-
-
-#ifdef DEBUG
 	os_printf( "SDK version: %s", system_get_sdk_version() );
-#endif
 
 //------------------------------------------------------------------
 	wifi_station_disconnect();
 	wifi_station_dhcpc_stop();
 
-	wifi_set_opmode( STATION_MODE );
+	wifi_set_opmode( STATIONAP_MODE );
 	memcpy(&stationConf.ssid, SSID_STA, sizeof(SSID_STA));
 	memcpy(&stationConf.password, PWD_STA, sizeof(PWD_STA));
 	wifi_station_set_config(&stationConf);
@@ -292,8 +251,7 @@ user_init(void)
 }
 
 
-LOCAL void ICACHE_FLASH_ATTR senddata( void )
-{
+LOCAL void ICACHE_FLASH_ATTR senddata( void ) {
 
 	broadcastBuilder();
 	espconn_create(&broadcast);
@@ -302,14 +260,29 @@ LOCAL void ICACHE_FLASH_ATTR senddata( void )
 
 }
 
-LOCAL void ICACHE_FLASH_ATTR initPeriph( void ){
+LOCAL void ICACHE_FLASH_ATTR initPeriph( void ) {
+
+//	ets_wdt_enable();
+	ets_wdt_disable();
+
+	system_soft_wdt_stop();
+//	system_soft_wdt_restart();
+
+	uart_init(BIT_RATE_115200, BIT_RATE_115200);
+
+	uart_tx_one_char('\0');
+
+	os_install_putc1(uart_tx_one_char);
+
+	if ( SYS_CPU_160MHZ == system_get_cpu_freq() ) {
+		system_update_cpu_freq(SYS_CPU_160MHZ);
+	}
 
 	PIN_FUNC_SELECT(OUT_1_MUX, OUT_1_FUNC);
 
 	PIN_FUNC_SELECT(OUT_2_MUX, OUT_2_FUNC);
 
 	PIN_FUNC_SELECT(LED_MUX, LED_FUNC);
-
 
 	PIN_FUNC_SELECT(INP_1_MUX, INP_1_FUNC);
 	gpio_output_set(0, 0, 0, INP_1);
@@ -324,6 +297,9 @@ LOCAL void ICACHE_FLASH_ATTR initPeriph( void ){
 	gpio_output_set(0, 0, 0, INP_3);
 
 }
+
+
+
 
 // Перевод числа в последовательность ASCII
 uint8_t * ShortIntToString(uint16_t data, uint8_t *adressDestenation) {
@@ -460,7 +436,7 @@ broadcastBuilder( void ){
 //================================================================
 		memcpy( count, DOOR_CLOSE_SENSOR, ( sizeof( DOOR_CLOSE_SENSOR ) - 1 ) );
 		count += sizeof( DOOR_CLOSE_SENSOR ) - 1;
-		if ( 0 == GPIO_INPUT_GET(DOOR_CLOSE_SENSOR_PIN ) ) {
+		if ( 0 == GPIO_INPUT_GET(INP_1_PIN ) ) {
 			memcpy( count, CLOSE, ( sizeof( CLOSE ) - 1 ) );
 			GPIO_OUTPUT_SET(OUT_1_GPIO, 1);//
 			count += sizeof( CLOSE ) - 1;
@@ -471,7 +447,7 @@ broadcastBuilder( void ){
 //================================================================
 		memcpy( count, DOOR_OPEN_SENSOR, ( sizeof( DOOR_OPEN_SENSOR ) - 1 ) );
 		count += sizeof( DOOR_OPEN_SENSOR ) - 1;
-		if ( 0 == GPIO_INPUT_GET(DOOR_OPEN_SENSOR_PIN ) ) {
+		if ( 0 == GPIO_INPUT_GET(INP_1_PIN ) ) {
 			memcpy( count, CLOSE, ( sizeof( CLOSE ) - 1 ) );
 			GPIO_OUTPUT_SET(OUT_1_GPIO, 0);//
 			count += sizeof( CLOSE ) - 1;

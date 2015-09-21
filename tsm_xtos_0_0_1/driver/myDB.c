@@ -300,7 +300,6 @@ delete( uint8_t *removableLine ) {
 
 
 
-
 /*
  * operationres ICACHE_FLASH_ATTR requestLine( uint8_t *line)
  * - на вход приходит строка в которой заполнены часть полей и необходимо найти в куче запись в
