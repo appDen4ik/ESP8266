@@ -58,8 +58,8 @@
  * | SSID | \n |                 max lenght 32
  *  52.....116
  * | PASSWORD | \n |             max lenght 64
- *  118......121
  *
+ *  118......121
  * |   AP:\0   | \n |           header
  *  123.....
  * |    SSID     |

@@ -28,13 +28,10 @@
 
 /*
  * длинна записи, последний байт маркер что это
- * последняя запись или нет
+ * последняя запись секторе или нет
  */
 #define LINE_SIZE	13
 
-
-
-#define START_OF_TEXT	2
 
 /*
  * выровняная длинна записи. Использование этого
@@ -48,7 +45,7 @@
  * 		LINE_SIZE	14 тогда  ALIGN_LINE_SIZE 	16
  * 		LINE_SIZE	4 тогда  ALIGN_LINE_SIZE 	4
  */
-#define ALIGN_LINE_SIZE 	( ( LINE_SIZE % 4 ) + LINE_SIZE )
+#define ALIGN_LINE_SIZE 	16//( ( LINE_SIZE % 4 ) + LINE_SIZE )
 
 /*
  * маркер последней записи
@@ -56,25 +53,25 @@
 #define MARKER_ENABLE		 3
 #define MARKER_DISABLE		 0
 
-
-typedef enum {
-		WRITE_OK = 0,
-		NOT_ENOUGH_MEMORY,
-		WRITE_FAIL
-} writeres ;
+#define START_OF_TEXT	2
 
 
 typedef enum {
 		OPERATION_FAIL = 0,
+		WRONG_LENGHT,
+		NOTHING_FOUNDED,
+		NOT_ENOUGH_MEMORY,
+		LINE_ALREADY_EXIST,
 		OPERATION_OK
-} operationres ;
+} result;
 
 
-writeres ICACHE_FLASH_ATTR insert( uint8_t *line );
+
+result ICACHE_FLASH_ATTR insert( uint8_t *line );
 uint32_t ICACHE_FLASH_ATTR findLine( uint8_t *line );
-operationres ICACHE_FLASH_ATTR delete( uint8_t *line );
-operationres ICACHE_FLASH_ATTR clearSectorsDB( void );
-operationres ICACHE_FLASH_ATTR update( uint8_t *oldLine, uint8_t *newLine );
-operationres ICACHE_FLASH_ATTR requestLine( uint8_t *line );
+result ICACHE_FLASH_ATTR delete( uint8_t *line );
+result ICACHE_FLASH_ATTR clearSectorsDB( void );  					//tested
+result ICACHE_FLASH_ATTR update( uint8_t *oldLine, uint8_t *newLine );
+result ICACHE_FLASH_ATTR requestLine( uint8_t *line );
 
 #endif /* INCLUDE_DRIVER_MYDB_H_ */

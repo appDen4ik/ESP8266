@@ -44,6 +44,9 @@ LOCAL void ICACHE_FLASH_ATTR initPeriph( void );
 LOCAL uint8_t * ICACHE_FLASH_ATTR intToStringHEX(uint8_t data, uint8_t *adressDestenation);
 LOCAL void ICACHE_FLASH_ATTR broadcastBuilder( void );
 
+//****************************************************************************************************************************
+uint8_t tmpTest[SPI_FLASH_SEC_SIZE];
+//****************************************************************************************************************************
 
 
 extern void ets_wdt_enable (void);
@@ -203,6 +206,60 @@ void ICACHE_FLASH_ATTR
 user_init(void) {
 
 	initPeriph();
+
+//*********************************************************************************************************************
+	{// тест clearAllSectors DB
+
+/*		uint16_t i, c;
+
+		uint8_t data[] = "TEST TEST TEST";
+*/
+
+		clearSectorsDB();
+
+/*		uart_tx_one_char(START_SECTOR);
+		os_delay_us(500000);
+
+		for ( i = START_SECTOR; i <= END_SECTOR; i++ ) {
+
+			spi_flash_read( SPI_FLASH_SEC_SIZE * i, (uint32 *)tmpTest, SPI_FLASH_SEC_SIZE );
+
+			for ( c = 0; SPI_FLASH_SEC_SIZE > c; c++ ){
+				uart_tx_one_char(tmpTest[c]);
+			}
+
+			os_delay_us(500000);
+			uart_tx_one_char(i);
+			os_delay_us(500000);
+		}
+*/
+	}
+
+	{// тест insert DB
+
+		uint16_t c;
+		uint8_t *data0 = "FIRST   LINE";
+		uint8_t *data1 = "SECOND  LINE";
+
+		if ( OPERATION_OK != insert( data0 ) ) {
+			 ets_uart_printf("Error");
+		}
+
+		if ( OPERATION_OK != insert( data1 ) ) {
+					 ets_uart_printf("Error");
+				}
+		if ( OPERATION_OK != insert( data0 ) ) {
+					 ets_uart_printf("Error");
+				}
+
+		spi_flash_read( SPI_FLASH_SEC_SIZE * START_SECTOR, (uint32 *)tmpTest, SPI_FLASH_SEC_SIZE );
+
+		for ( c = 0; SPI_FLASH_SEC_SIZE > c; c++ ){
+			uart_tx_one_char(tmpTest[c]);
+		}
+
+	}
+//*********************************************************************************************************************
 
 	os_printf( "SDK version: %s", system_get_sdk_version() );
 
