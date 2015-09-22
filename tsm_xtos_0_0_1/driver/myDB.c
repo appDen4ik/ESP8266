@@ -92,6 +92,7 @@ insert( uint8_t *line ) {
 	uint8_t currentSector = START_SECTOR;
 	uint16_t len = strlen(line) + 1;              // функция возвращает длинну без учета \0
 	uint8_t alignLine[ALIGN_LINE_SIZE];
+	result res;
 	uint16_t i;
 
 
@@ -99,7 +100,8 @@ insert( uint8_t *line ) {
 		return WRONG_LENGHT;
 	}
 
-	if ( NOTHING_FOUNDED != findLine( line ) ) {
+	res = findLine( line );
+	if ( NOTHING_FOUND != findLine( line ) ) {
 		return LINE_ALREADY_EXIST;                       // такая запись уже есть
 	}
 
@@ -457,7 +459,7 @@ findLine( uint8_t *line ) {
 		}
 	}
 
-	return NOTHING_FOUNDED;                                 // если дошло до этой строчки значит совпадений не было найдено
+	return NOTHING_FOUND;                                 // если дошло до этой строчки значит совпадений не было найдено
  }
 
 
