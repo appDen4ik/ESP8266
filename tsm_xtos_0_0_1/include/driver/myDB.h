@@ -30,7 +30,7 @@
  * длинна записи, последний байт маркер что это
  * последняя запись секторе или нет
  */
-#define LINE_SIZE	13
+#define LINE_SIZE	101
 
 
 /*
@@ -45,15 +45,17 @@
  * 		LINE_SIZE	14 тогда  ALIGN_LINE_SIZE 	16
  * 		LINE_SIZE	4 тогда  ALIGN_LINE_SIZE 	4
  */
-#define ALIGN_LINE_SIZE 	16//( ( LINE_SIZE % 4 ) + LINE_SIZE )
+#define ALIGN_LINE_SIZE 	104//( ( LINE_SIZE % 4 ) + LINE_SIZE )
 
 /*
  * маркер последней записи
  */
-#define MARKER_ENABLE		 3
-#define MARKER_DISABLE		 0
+//#define MARKER_ENABLE		 3
+//#define MARKER_DISABLE		 0
 
 #define START_OF_TEXT	2
+
+#define END_OF_SRING     0
 
 
 typedef enum {
@@ -70,7 +72,7 @@ typedef enum {
 result ICACHE_FLASH_ATTR insert( uint8_t *line );
 uint32_t ICACHE_FLASH_ATTR findLine( uint8_t *line );
 result ICACHE_FLASH_ATTR delete( uint8_t *line );
-result ICACHE_FLASH_ATTR clearSectorsDB( void );  					//tested
+result ICACHE_FLASH_ATTR clearSectorsDB( void );  					      //tested
 result ICACHE_FLASH_ATTR update( uint8_t *oldLine, uint8_t *newLine );
 result ICACHE_FLASH_ATTR requestLine( uint8_t *line );
 

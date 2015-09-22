@@ -208,56 +208,105 @@ user_init(void) {
 	initPeriph();
 
 //*********************************************************************************************************************
-	{// тест clearAllSectors DB
 
-/*		uint16_t i, c;
-
-		uint8_t data[] = "TEST TEST TEST";
-*/
+	//тест findLine
+	//
+	{
+	/*	uint8_t *data = "qwertyuiopQWERTYUIOPasdfghjkl;ASDFGHJKL;zxcvbnm,./ZXCVBNM,./1234567890!@#$%^&*()test linesLIFE GOOD";
+		uint16_t c;
+		uint32_t a, i;
+        uint8_t null[4] = { 0, 0xff, 0xff, 0xff };
 
 		clearSectorsDB();
 
-/*		uart_tx_one_char(START_SECTOR);
-		os_delay_us(500000);
+		os_printf( " \n %s \n Size %d", data, (strlen(data) + 1) );
 
-		for ( i = START_SECTOR; i <= END_SECTOR; i++ ) {
-
-			spi_flash_read( SPI_FLASH_SEC_SIZE * i, (uint32 *)tmpTest, SPI_FLASH_SEC_SIZE );
-
-			for ( c = 0; SPI_FLASH_SEC_SIZE > c; c++ ){
-				uart_tx_one_char(tmpTest[c]);
-			}
-
-			os_delay_us(500000);
-			uart_tx_one_char(i);
-			os_delay_us(500000);
+		for( i = LINE_SIZE - 1; i < 39 * LINE_SIZE; i +=LINE_SIZE ) {
+			spi_flash_write( SPI_FLASH_SEC_SIZE * END_SECTOR + i, (uint32 *)null, 1 );
 		}
-*/
+
+		spi_flash_write( SPI_FLASH_SEC_SIZE * END_SECTOR + LINE_SIZE*39, (uint32 *)data, strlen(data) + 1 );
+
+		spi_flash_read( SPI_FLASH_SEC_SIZE * END_SECTOR, (uint32 *)tmpTest, SPI_FLASH_SEC_SIZE );
+
+		for ( c = 0; SPI_FLASH_SEC_SIZE > c; c++ ) {
+					uart_tx_one_char(tmpTest[c]);
+		}
+
+		switch (a = findLine(data) ){
+
+		case WRONG_LENGHT:
+			ets_uart_printf("WRONG_LENGHT");
+			break;
+
+		case NOTHING_FOUND:
+			ets_uart_printf("NOTHING_FOUND");
+			break;
+
+		case OPERATION_FAIL:
+			ets_uart_printf("OPERATION_FAIL");
+			break;
+
+		default:
+			ets_uart_printf("OPERATION_OK");
+			break;
+
+		}*/
+
+
 	}
 
-	{// тест insert DB
 
-		uint16_t c;
-		uint8_t *data0 = "FIRST   LINE";
-		uint8_t *data1 = "SECOND  LINE";
+	// тест insert DB
+	{
+			uint8_t *data = "qwertyuiopQWERTYUIOPasdfghjkl;ASDFGHJKL;zxcvbnm,./ZXCVBNM,./1234567890!@#$%^&*()test linesLIFE GOOD1";
+				uint16_t c;
+				uint32_t a, i;
+		        uint8_t null[4] = { 0, 0xff, 0xff, 0xff };
 
-		if ( OPERATION_OK != insert( data0 ) ) {
-			 ets_uart_printf("Error");
-		}
+				clearSectorsDB();
 
-		if ( OPERATION_OK != insert( data1 ) ) {
-					 ets_uart_printf("Error");
+				os_printf( " \n %s \n Size %d", data, (strlen(data) + 1) );
+
+
+				for ( ; ; ) {
+
+					switch ( insert(data) ){
+
+						case WRONG_LENGHT:
+							ets_uart_printf("WRONG_LENGHT");
+							break;
+
+						case NOT_ENOUGH_MEMORY:
+							ets_uart_printf("NOT_ENOUGH_MEMORY");
+							goto mm;
+							break;
+
+						case OPERATION_FAIL:
+							ets_uart_printf("OPERATION_FAIL");
+							break;
+
+						default:
+							ets_uart_printf("OPERATION_OK");
+							break;
+					}
+
+
+										spi_flash_read( SPI_FLASH_SEC_SIZE * START_SECTOR, (uint32 *)tmpTest, SPI_FLASH_SEC_SIZE );
+
+										for ( c = 0; SPI_FLASH_SEC_SIZE > c; c++ ) {
+											uart_tx_one_char(tmpTest[c]);
+										}
+
 				}
-		if ( OPERATION_OK != insert( data0 ) ) {
-					 ets_uart_printf("Error");
+mm:
+				for (i = START_SECTOR ; i <= END_SECTOR; i++ ) {
+					spi_flash_read( SPI_FLASH_SEC_SIZE * i, (uint32 *)tmpTest, SPI_FLASH_SEC_SIZE );
+
+					for ( c = 0; SPI_FLASH_SEC_SIZE > c; c++ ) {
+						uart_tx_one_char(tmpTest[c]);
+					}
 				}
-
-		spi_flash_read( SPI_FLASH_SEC_SIZE * START_SECTOR, (uint32 *)tmpTest, SPI_FLASH_SEC_SIZE );
-
-		for ( c = 0; SPI_FLASH_SEC_SIZE > c; c++ ){
-			uart_tx_one_char(tmpTest[c]);
-		}
-
 	}
 //*********************************************************************************************************************
 
@@ -307,8 +356,7 @@ user_init(void) {
 
 }
 
-
-LOCAL void ICACHE_FLASH_ATTR senddata( void ) {
+void senddata( void ){
 
 	broadcastBuilder();
 	espconn_create(&broadcast);
@@ -317,7 +365,7 @@ LOCAL void ICACHE_FLASH_ATTR senddata( void ) {
 
 }
 
-LOCAL void ICACHE_FLASH_ATTR initPeriph( void ) {
+void ICACHE_FLASH_ATTR initPeriph( void ) {
 
 //	ets_wdt_enable();
 	ets_wdt_disable();
@@ -516,7 +564,10 @@ broadcastBuilder( void ){
 		*count++ = '\r';
 		*count++ = '\n';
 		*count = '\0';
-}
+ }
+
+
+
 
 
 
