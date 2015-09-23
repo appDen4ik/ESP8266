@@ -14,6 +14,7 @@
 #define DB_DEBUG
 
 #include "c_types.h"
+#include "spi_flash.h"
 
 
 /*
@@ -27,31 +28,35 @@
 #define END_SECTOR 		58
 
 /*
- * длинна записи, последний байт маркер что это
- * последняя запись секторе или нет
+ * длинна записи
  */
-#define LINE_SIZE	101
+#define STRING_SIZE	   100
 
 
 /*
- * выровняная длинна записи. Использование этого
- * значения связано с тем что функция записи
- * данных во spi flash пишет по 4 байта. Определяется
- * следующим образом: если длинна записи делится
- * нацело на 4 тогда  ALIGN_LINE_SIZE = LINE_SIZE,
- * если не делится то нужно округлить до ближайшего
- * большего значения так чтобы делилось нацело
- * Пример.
- * 		LINE_SIZE	14 тогда  ALIGN_LINE_SIZE 	16
- * 		LINE_SIZE	4 тогда  ALIGN_LINE_SIZE 	4
+ ***************************************************************************************************************
+ * Выровняная длинна записи. Использование этого значения связано с тем что функция записи данных во spi flash
+ * пишет по 4 байта. Определяется следующим образом: если длинна записи делится нацело на 4 тогда
+ * ALIGN_STRING_SIZE = STRING_SIZE, если не делится то нужно округлить до ближайшего большего значения так чтобы
+ * делилось нацело на 4
+ * Пример
+ * 		STRING_SIZE	  14   тогда   ALIGN_STRING_SIZE 	16
+ * 		STRING_SIZE    4   тогда   ALIGN_STRING_SIZE 	 4
+ ***************************************************************************************************************
  */
-#define ALIGN_LINE_SIZE 	104//( ( LINE_SIZE % 4 ) + LINE_SIZE )
 
-/*
- * маркер последней записи
- */
-//#define MARKER_ENABLE		 3
-//#define MARKER_DISABLE		 0
+#if STRING_SIZE % 4 == 0
+     #define ALIGN_STRING_SIZE       STRING_SIZE
+#else
+	#define ALIGN_STRING_SIZE 	   ( 4 - ( STRING_SIZE % 4 ) + STRING_SIZE )
+#endif
+
+#if STRING_SIZE > SPI_FLASH_SEC_SIZE || STRING_SIZE == 0
+#error STRING_SIZE wrong lenght
+#endif
+
+
+
 
 #define START_OF_TEXT	2
 
@@ -70,7 +75,7 @@ typedef enum {
 
 
 result ICACHE_FLASH_ATTR insert( uint8_t *line );
-uint32_t ICACHE_FLASH_ATTR findLine( uint8_t *line );
+uint32_t ICACHE_FLASH_ATTR findLine( uint8_t *line );                     //tested
 result ICACHE_FLASH_ATTR delete( uint8_t *line );
 result ICACHE_FLASH_ATTR clearSectorsDB( void );  					      //tested
 result ICACHE_FLASH_ATTR update( uint8_t *oldLine, uint8_t *newLine );

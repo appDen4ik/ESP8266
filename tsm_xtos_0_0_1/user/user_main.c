@@ -259,54 +259,77 @@ user_init(void) {
 
 	// тест insert DB
 	{
-			uint8_t *data = "qwertyuiopQWERTYUIOPasdfghjkl;ASDFGHJKL;zxcvbnm,./ZXCVBNM,./1234567890!@#$%^&*()test linesLIFE GOOD1";
-				uint16_t c;
+			uint8_t *data = "qwertyuiopQWERTYUIOPasdfghjkl;ASDFGHJKL;zxcvbnm,./ZXCVBNM,./1234567890!@#$%^&*()test linesLIFE GOOD";
+
+			uint16_t c;
 				uint32_t a, i;
-		        uint8_t null[4] = { 0, 0xff, 0xff, 0xff };
+		        uint8_t alignLine[ALIGN_STRING_SIZE];
 
 				clearSectorsDB();
 
+				os_printf( " Align line size %d    ", ALIGN_STRING_SIZE );
+
 				os_printf( " \n %s \n Size %d", data, (strlen(data) + 1) );
 
+				for ( i = 0; i < ALIGN_STRING_SIZE; i++){
+					alignLine[i] = 0xff;
+				}
 
-				for ( ; ; ) {
+				memcpy( alignLine, data, STRING_SIZE );
 
-					switch ( insert(data) ){
-
-						case WRONG_LENGHT:
-							ets_uart_printf("WRONG_LENGHT");
-							break;
-
-						case NOT_ENOUGH_MEMORY:
-							ets_uart_printf("NOT_ENOUGH_MEMORY");
-							goto mm;
-							break;
-
-						case OPERATION_FAIL:
-							ets_uart_printf("OPERATION_FAIL");
-							break;
-
-						default:
-							ets_uart_printf("OPERATION_OK");
-							break;
-					}
-
-
-										spi_flash_read( SPI_FLASH_SEC_SIZE * START_SECTOR, (uint32 *)tmpTest, SPI_FLASH_SEC_SIZE );
-
-										for ( c = 0; SPI_FLASH_SEC_SIZE > c; c++ ) {
-											uart_tx_one_char(tmpTest[c]);
-										}
+	/*			c = spi_flash_write( SPI_FLASH_SEC_SIZE * START_SECTOR + 6, (uint32 *)alignLine, ALIGN_LINE_SIZE );
+					switch (c) {
+										case SPI_FLASH_RESULT_ERR :
+											ets_uart_printf("SPI_FLASH_RESULT_ERR");
+											break;
+										case SPI_FLASH_RESULT_TIMEOUT :
+											ets_uart_printf("SPI_FLASH_RESULT_TIMEOUT");
+											break;
+										case SPI_FLASH_RESULT_OK :
+											ets_uart_printf("SPI_FLASH_RESULT_OK");
+											break;
+					}*/
+          for ( a = START_SECTOR; a <= END_SECTOR; a += 1 ) {
+        	  os_printf( " Sector %d    ", a );
+				for ( i = 0; i + ALIGN_STRING_SIZE < SPI_FLASH_SEC_SIZE; i += ALIGN_STRING_SIZE ) {
+					c = insert(data);
+				switch (c) {
+									case OPERATION_OK :
+										ets_uart_printf("OPERATION_OK");
+										break;
+									case WRONG_LENGHT :
+										ets_uart_printf("WRONG_LENGHT");
+										break;
+									case OPERATION_FAIL :
+										ets_uart_printf("OPERATION_FAIL");
+										break;
+									case LINE_ALREADY_EXIST :
+										ets_uart_printf("LINE_ALREADY_EXIST");
+										break;
+									case NOT_ENOUGH_MEMORY :
+										ets_uart_printf("NOT_ENOUGH_MEMORY");
+										break;
 
 				}
-mm:
-				for (i = START_SECTOR ; i <= END_SECTOR; i++ ) {
-					spi_flash_read( SPI_FLASH_SEC_SIZE * i, (uint32 *)tmpTest, SPI_FLASH_SEC_SIZE );
+
+					os_delay_us(10000);
+				}
+				os_delay_us(50000);
+
+          }
+
+          for ( a = START_SECTOR; a <= END_SECTOR; a += 1 ) {
+        	  os_printf( " Current sector %d    ", a );
+					spi_flash_read( SPI_FLASH_SEC_SIZE * START_SECTOR, (uint32 *)tmpTest, SPI_FLASH_SEC_SIZE );
 
 					for ( c = 0; SPI_FLASH_SEC_SIZE > c; c++ ) {
 						uart_tx_one_char(tmpTest[c]);
 					}
-				}
+					os_delay_us(500000);
+					system_soft_wdt_stop();
+          }
+
+
 	}
 //*********************************************************************************************************************
 
@@ -367,7 +390,7 @@ void senddata( void ){
 
 void ICACHE_FLASH_ATTR initPeriph( void ) {
 
-//	ets_wdt_enable();
+	ets_wdt_enable();
 	ets_wdt_disable();
 
 	system_soft_wdt_stop();

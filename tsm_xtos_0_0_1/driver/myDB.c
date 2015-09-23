@@ -61,15 +61,22 @@ LOCAL ICACHE_FLASH_ATTR uint8_t CompareStrings( uint8_t* firstString, uint8_t* s
 static uint8_t tmp[SPI_FLASH_SEC_SIZE];
 
 
+
 /*
- *  writeres ICACHE_FLASH_ATTR insert( uint8_t *line )
- *  @Description:
- *    - длинна записи должна быть меньше величины сектора, а также
- *      длина записи должна быть равна LINE_SIZE (установленная длинна записи)
- *    - проверяем не находиться ли данная запись в куче (защита от повторения)
- * 	  - поиск свободного места - если нет то ничего не пишем и выходим из функции
+ ****************************************************************************************************************
+ *  result ICACHE_FLASH_ATTR insert( uint8_t *line )
+ *  Функция возвращает:
+ * WRONG_LENGHT       - длинна входной строки отличается от установленой LINE_SIZE
+ * OPERATION_FAIL     - не получилось прочитать/записать сектор
+ * LINE_ALREADY_EXIST - такия запись уже есть
+ * NOT_ENOUGH_MEMORY  - память заполнена
  *
- * 	    Подробное описание механизма поиска свободного места:
+ *  @Description:
+ *  	Проверки:
+ *    - длина записи должна быть равна LINE_SIZE (установленная длинна записи)
+ *    - проверяем не находиться ли данная запись в куче (защита от повторения)
+ *
+ * 	    Подробное описание механизма поиск свободного места:
  * 	    1) читается первый сектор кучи (START_SECTOR), проверяем пустой ли сектор ( 0 - байт
  * 	       кучи - если равен MARKER_ENABLE то значит сектор пустой, если равен MARKER_DISABLE
  * 	       то в секторе имеются записи)
@@ -83,21 +90,20 @@ static uint8_t tmp[SPI_FLASH_SEC_SIZE];
  * 	       	- если влезает то маркер последней записи делаем MARKER_DISABLE вносим новую запись и
  * 	       	  последний байт новой записи делаем MARKER_ENABLE, на этом функция заканчивает свою работу
  * 	       	- если не влезает, то тогда читаем след сектор и повтоярем действия начиная с первого пункта
- *
+ ****************************************************************************************************************
 */
 result ICACHE_FLASH_ATTR
 insert( uint8_t *line ) {
 
+	uint8_t alignLine[ALIGN_STRING_SIZE];
 	uint8_t currentSector;
-	uint8_t alignLine[ALIGN_LINE_SIZE];
 	uint16_t i;
 
-
-	if ( strlen(line) + 1 != LINE_SIZE ) {                   // длинна входящей записи не должна быть больше установленой длинны LINE_SIZE
-		return WRONG_LENGHT;					// функция возвращает длинну без учета \0
+	if ( strlen( line ) + 1 != STRING_SIZE ) {     // длинна входящей записи не должна быть больше установленой длинны LINE_SIZE
+		return WRONG_LENGHT;				     // функция strlen возвращает длинну без учета \0
 	}
 
-/*	switch ( findLine( line ) ) {               // такая запись уже существует
+	switch ( findLine( line ) ) {                // такая запись уже существует
 		case OPERATION_FAIL:
 			 return OPERATION_FAIL;
 		case WRONG_LENGHT:
@@ -107,31 +113,39 @@ insert( uint8_t *line ) {
 		default:
 		    return LINE_ALREADY_EXIST;
 	}
-*/
-	for ( i = 0; i < ALIGN_LINE_SIZE; i++){
+
+	for ( i = STRING_SIZE; i < ALIGN_STRING_SIZE; i++ ) {
 		alignLine[i] = 0xff;
 	}
 
-	memcpy( alignLine, line, LINE_SIZE );
+	memcpy( alignLine, line, STRING_SIZE );
 
 	for ( currentSector = START_SECTOR; currentSector <= END_SECTOR; currentSector++ ) {
 
-		if ( SPI_FLASH_RESULT_OK != spi_flash_read( SPI_FLASH_SEC_SIZE*currentSector , (uint32 *)tmp, SPI_FLASH_SEC_SIZE ) ){
+		if ( SPI_FLASH_RESULT_OK != spi_flash_read( SPI_FLASH_SEC_SIZE * currentSector , (uint32 *)tmp, SPI_FLASH_SEC_SIZE ) ) {
 			return OPERATION_FAIL;
 		}
 
-		for ( i = 0; i + LINE_SIZE < SPI_FLASH_SEC_SIZE ; i += LINE_SIZE ){   // ищем последнюю запись
+		for ( i = 0; i + ALIGN_STRING_SIZE < SPI_FLASH_SEC_SIZE ; i += ALIGN_STRING_SIZE ) {// ищем последнюю запись в текущем секторе
 
-			if ( END_OF_SRING != tmp[i + LINE_SIZE - 1] ) {                   // строка отсутствует
-
-				  spi_flash_write( currentSector*SPI_FLASH_SEC_SIZE + i, (uint32 *)alignLine,  ALIGN_LINE_SIZE);
+#if STRING_SIZE % 4 == 0
+			if ( END_OF_SRING != tmp[i + ALIGN_STRING_SIZE - 1] ) {                            // строка отсутствует
+#else
+			if ( END_OF_SRING != tmp[i + ALIGN_STRING_SIZE -  ( 4 - ( STRING_SIZE % 4 ) + 1 ) ]  ) {
+#endif
+				if ( SPI_FLASH_RESULT_OK !=  \
+							       spi_flash_write( currentSector*SPI_FLASH_SEC_SIZE + i, (uint32 *)alignLine, ALIGN_STRING_SIZE ) ){
+						return OPERATION_FAIL;
+					}
 
 				  return OPERATION_OK;
 
 			}
 		}
 	}
+
 	return NOT_ENOUGH_MEMORY;
+
  }
 
 
@@ -374,7 +388,7 @@ clearSectorsDB( void ) {
 
 	uint8_t currentSector = START_SECTOR;
 
-	for ( ; currentSector <= END_SECTOR; currentSector++ ){
+	for ( ; currentSector <= END_SECTOR; currentSector++ ) {
 
 		if ( SPI_FLASH_RESULT_OK != spi_flash_erase_sector( currentSector )  ) {
 			return OPERATION_FAIL;
@@ -410,20 +424,20 @@ findLine( uint8_t *line ) {
 	uint8_t currentSector = START_SECTOR;
 	uint16_t i;
 
-	if ( ( strlen( line ) + 1 ) != LINE_SIZE ) { // длинна входящей строки не должна быть больше установленой длинны LINE_SIZE
+	if ( ( strlen( line ) + 1 ) != STRING_SIZE ) { // длинна входящей строки не должна быть больше установленой длинны LINE_SIZE
 		return WRONG_LENGHT;
 	}
 
-	for ( ; currentSector <= END_SECTOR;  currentSector++) {                // пока не дошли до конца выделенной памяти
+	for ( ; currentSector <= END_SECTOR;  currentSector++ ) {                // пока не дошли до конца выделенной памяти
 
 		if ( SPI_FLASH_RESULT_OK != spi_flash_read( SPI_FLASH_SEC_SIZE*currentSector , (uint32 *)tmp, SPI_FLASH_SEC_SIZE ) ){
 				return OPERATION_FAIL;
 		}
 
-		if ( END_OF_SRING == tmp[LINE_SIZE - 1] ) {                                          // сектор не пустой
+		if ( END_OF_SRING == tmp[STRING_SIZE - 1] ) {                                          // сектор не пустой
 
 			                                                                                 // пока не дошли до конца сектора
-		    for ( i = 0; i < SPI_FLASH_SEC_SIZE && END_OF_SRING == tmp[LINE_SIZE - 1]; i += LINE_SIZE ) {
+		    for ( i = 0; i < SPI_FLASH_SEC_SIZE && END_OF_SRING == tmp[STRING_SIZE - 1]; i += STRING_SIZE ) {
 
 			    if ( 0 == strcmp( line, &tmp[i] ) ) {
 			    	return currentSector*SPI_FLASH_SEC_SIZE + i;                            // найдено совпадение
@@ -450,7 +464,7 @@ void maskBitsInField ( uint8_t* adressOfField, uint16_t startAbsovuleAdress, uin
 
 	uint16_t i;
 
-	for ( i = 0; i < LINE_SIZE - 1; i++ ) {
+	for ( i = 0; i < STRING_SIZE - 1; i++ ) {
 		if ( i == startAbsovuleAdress ) {
 			i = endAbsovuleAdress + 1;
 		}
