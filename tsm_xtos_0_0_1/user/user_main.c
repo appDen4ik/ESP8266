@@ -212,20 +212,17 @@ user_init(void) {
 	//тест findLine
 	//
 	{
-	/*	uint8_t *data = "qwertyuiopQWERTYUIOPasdfghjkl;ASDFGHJKL;zxcvbnm,./ZXCVBNM,./1234567890!@#$%^&*()test linesLIFE GOOD";
+		uint8_t *data = "qwertyuiopQWERTYUIOPasdfghjkl;ASDFGHJKL;zxcvbnm,./ZXCVBNM,./1234567890!@#$%^&*()test linesLIFE GOOD12";
 		uint16_t c;
 		uint32_t a, i;
-        uint8_t null[4] = { 0, 0xff, 0xff, 0xff };
 
 		clearSectorsDB();
 
 		os_printf( " \n %s \n Size %d", data, (strlen(data) + 1) );
 
-		for( i = LINE_SIZE - 1; i < 39 * LINE_SIZE; i +=LINE_SIZE ) {
-			spi_flash_write( SPI_FLASH_SEC_SIZE * END_SECTOR + i, (uint32 *)null, 1 );
-		}
 
-		spi_flash_write( SPI_FLASH_SEC_SIZE * END_SECTOR + LINE_SIZE*39, (uint32 *)data, strlen(data) + 1 );
+
+		spi_flash_write( SPI_FLASH_SEC_SIZE * END_SECTOR, (uint32 *)data, strlen(data) + 1 );
 
 		spi_flash_read( SPI_FLASH_SEC_SIZE * END_SECTOR, (uint32 *)tmpTest, SPI_FLASH_SEC_SIZE );
 
@@ -251,7 +248,7 @@ user_init(void) {
 			ets_uart_printf("OPERATION_OK");
 			break;
 
-		}*/
+		}
 
 
 	}
@@ -259,10 +256,10 @@ user_init(void) {
 
 	// тест insert DB
 	{
-			uint8_t *data = "qwertyuiopQWERTYUIOPasdfghjkl;ASDFGHJKL;zxcvbnm,./ZXCVBNM,./1234567890!@#$%^&*()test linesLIFE GOOD23";
+/*			uint8_t *data = "1111yuiopQWERTYUIOPasdfghjkl;ASDFGHJKL;zxcvbnm,./ZXCVBNM,./1234567890!@#$%^&*()test linesLIFE GOOD231";
 
 			uint16_t c;
-				uint32_t a, i;
+				uint16_t a, i = 100;
 		        uint8_t alignLine[ALIGN_STRING_SIZE];
 
 				clearSectorsDB();
@@ -271,28 +268,9 @@ user_init(void) {
 
 				os_printf( " \n %s \n Size %d", data, (strlen(data) + 1) );
 
-				for ( i = 0; i < ALIGN_STRING_SIZE; i++){
-					alignLine[i] = 0xff;
-				}
-
-				memcpy( alignLine, data, STRING_SIZE );
-
-	/*			c = spi_flash_write( SPI_FLASH_SEC_SIZE * START_SECTOR + 6, (uint32 *)alignLine, ALIGN_LINE_SIZE );
-					switch (c) {
-										case SPI_FLASH_RESULT_ERR :
-											ets_uart_printf("SPI_FLASH_RESULT_ERR");
-											break;
-										case SPI_FLASH_RESULT_TIMEOUT :
-											ets_uart_printf("SPI_FLASH_RESULT_TIMEOUT");
-											break;
-										case SPI_FLASH_RESULT_OK :
-											ets_uart_printf("SPI_FLASH_RESULT_OK");
-											break;
-					}*/
-          for ( a = START_SECTOR; a <= END_SECTOR; a += 1 ) {
-        	  os_printf( " Sector %d    ", a );
-				for ( i = 0; i + ALIGN_STRING_SIZE < SPI_FLASH_SEC_SIZE; i += ALIGN_STRING_SIZE ) {
-					c = insert(data);
+             for ( ; 1;i++ ) {
+            	 os_printf( " Output string %s", data );
+				c = insert(data);
 				switch (c) {
 									case OPERATION_OK :
 										ets_uart_printf("OPERATION_OK");
@@ -308,16 +286,18 @@ user_init(void) {
 										break;
 									case NOT_ENOUGH_MEMORY :
 										ets_uart_printf("NOT_ENOUGH_MEMORY");
-										break;
+										goto pt;
 
 				}
-
-					os_delay_us(10000);
+//				os_delay_us(1000);
+				if (i < 60000) {
+					( *( (uint16_t *)data) ) = i;
+				} else {
+					( *( (uint16_t *)&data[5]) ) = i;
 				}
-				os_delay_us(50000);
-
+				system_soft_wdt_stop();
           }
-
+pt:
           for ( a = START_SECTOR; a <= END_SECTOR; a += 1 ) {
         	  os_printf( " Current sector %d    ", a );
 					spi_flash_read( SPI_FLASH_SEC_SIZE * START_SECTOR, (uint32 *)tmpTest, SPI_FLASH_SEC_SIZE );
@@ -328,8 +308,107 @@ user_init(void) {
 					os_delay_us(500000);
 					system_soft_wdt_stop();
           }
+*/
 
 
+	}
+
+
+	{ //test update
+
+/*		uint8_t *data1    = "1111yuiopQWERTYUIOPasdfghjkl;ASDFGHJKL;zxcvbnm,./ZXCVBNM,./1234567890!@#$%^&*()test linesLIFE GOOD231";
+		uint8_t *data2    = "2222yuiopQWERTYUIOPasdfghjkl;ASDFGHJKL;zxcvbnm,./ZXCVBNM,./1234567890!@#$%^&*()test linesLIFE GOOD231";
+		uint8_t *data3    = "3333yuiopQWERTYUIOPasdfghjkl;ASDFGHJKL;zxcvbnm,./ZXCVBNM,./1234567890!@#$%^&*()test linesLIFE GOOD231";
+
+		uint8_t *dataNew1  = "testyuiopQWERTYUIOPasdfghjkl;ASDFGHJKL;zxcvbnm,./ZXCVBNM,./1234567890!@#$%^&*()test linesLIFE GOOtest";
+		uint8_t *dataNew2  = "testyuiopQWERTYUIOPasdfghjkl;ASDFGHJKL;zxcvbnm,./ZXCVBNM,./1234567890!@#$%^&*()test linesLIFE GOtest2";
+		uint16_t c;
+
+		clearSectorsDB();
+
+		os_printf( " Тест 1 check  OPERATION_OK check    ");
+		os_delay_us(500000);
+		insert(data1);
+		insert(data2);
+		insert(data3);
+
+		spi_flash_read( SPI_FLASH_SEC_SIZE * START_SECTOR, (uint32 *)tmpTest, SPI_FLASH_SEC_SIZE );
+
+			for ( c = 0; SPI_FLASH_SEC_SIZE > c; c++ ) {
+					uart_tx_one_char(tmpTest[c]);
+			}
+
+		os_delay_us(500000);
+
+
+		switch (c = update (data1, dataNew1)) {
+						case OPERATION_OK :
+							ets_uart_printf("OPERATION_OK");
+							break;
+						case WRONG_LENGHT :
+							ets_uart_printf("WRONG_LENGHT");
+							break;
+						case OPERATION_FAIL :
+							ets_uart_printf("OPERATION_FAIL");
+							break;
+						case LINE_ALREADY_EXIST :
+							ets_uart_printf("LINE_ALREADY_EXIST");
+							break;
+						case NOTHING_FOUND :
+							ets_uart_printf("NOTHING_FOUND");
+							break;
+
+					}
+		spi_flash_read( SPI_FLASH_SEC_SIZE * START_SECTOR, (uint32 *)tmpTest, SPI_FLASH_SEC_SIZE );
+
+			for ( c = 0; SPI_FLASH_SEC_SIZE > c; c++ ) {
+					uart_tx_one_char(tmpTest[c]);
+			}
+
+		os_delay_us(500000);
+
+		os_printf( " Тест 2  check  LINE_ALREADY_EXIST check ");
+		os_delay_us(500000);
+		switch (c = update (data1, dataNew1)) {
+							case OPERATION_OK :
+								ets_uart_printf("OPERATION_OK");
+								break;
+							case WRONG_LENGHT :
+								ets_uart_printf("WRONG_LENGHT");
+								break;
+							case OPERATION_FAIL :
+								ets_uart_printf("OPERATION_FAIL");
+								break;
+							case LINE_ALREADY_EXIST :
+								ets_uart_printf("LINE_ALREADY_EXIST");
+								break;
+							case NOTHING_FOUND :
+								ets_uart_printf("NOTHING_FOUND");
+								break;
+
+						}
+
+
+		os_printf( " Тест 3  check  NOTHING_FOUND check ");
+				os_delay_us(500000);
+				switch (c = update (data1, dataNew2)) {
+									case OPERATION_OK :
+										ets_uart_printf("OPERATION_OK");
+										break;
+									case WRONG_LENGHT :
+										ets_uart_printf("WRONG_LENGHT");
+										break;
+									case OPERATION_FAIL :
+										ets_uart_printf("OPERATION_FAIL");
+										break;
+									case LINE_ALREADY_EXIST :
+										ets_uart_printf("LINE_ALREADY_EXIST");
+										break;
+									case NOTHING_FOUND :
+										ets_uart_printf("NOTHING_FOUND");
+										break;
+
+	*/
 	}
 //*********************************************************************************************************************
 

@@ -45,13 +45,12 @@
 #endif
 
 #if STRING_SIZE > SPI_FLASH_SEC_SIZE || STRING_SIZE == 0
-#error STRING_SIZE wrong lenght
+	#error STRING_SIZE wrong lenght
 #endif
 
 
 
-
-#define START_OF_TEXT	2
+#define START_OF_TEXT	 2
 
 #define END_OF_SRING     0
 
@@ -67,11 +66,11 @@ typedef enum {
 
 
 
-result ICACHE_FLASH_ATTR insert( uint8_t *line );                         //tested
-uint32_t ICACHE_FLASH_ATTR findLine( uint8_t *line );                     //tested
+result ICACHE_FLASH_ATTR insert( uint8_t *line );                         	 //tested
+uint32_t ICACHE_FLASH_ATTR findLine( uint8_t *line );
 result ICACHE_FLASH_ATTR delete( uint8_t *line );
-result ICACHE_FLASH_ATTR clearSectorsDB( void );  					      //tested
-result ICACHE_FLASH_ATTR update( uint8_t *oldLine, uint8_t *newLine );
+result ICACHE_FLASH_ATTR clearSectorsDB( void );  					      	 //tested
+result ICACHE_FLASH_ATTR update( uint8_t *oldString, uint8_t *newString );
 result ICACHE_FLASH_ATTR requestLine( uint8_t *line );
 
 #endif /* INCLUDE_DRIVER_MYDB_H_ */

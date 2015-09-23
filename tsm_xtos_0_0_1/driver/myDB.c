@@ -126,7 +126,8 @@ insert( uint8_t *line ) {
 		for ( i = 0; i + ALIGN_STRING_SIZE < SPI_FLASH_SEC_SIZE ; i += ALIGN_STRING_SIZE ) {// ищем последнюю запись в текущем секторе
 
 #if STRING_SIZE % 4 == 0
-			if ( END_OF_SRING != tmp[i + ALIGN_STRING_SIZE - 1] ) {                         // строка отсутствует
+			if ( END_OF_SRING != tmp[i + ALIGN_STRING_SIZE - 1] ) {                         // строка отсувствует
+			}
 #else
 			if ( END_OF_SRING != tmp[ i + ALIGN_STRING_SIZE - ( 4 - ( STRING_SIZE % 4 ) + 1 ) ] ) {
 #endif
@@ -153,47 +154,61 @@ insert( uint8_t *line ) {
  * далее необходимо определить адресс записи в буффере, переписать эту запись, очистить текущий сектор, а
  * заполнить его снова данными из буффера
  */
-/*result ICACHE_FLASH_ATTR
-update( uint8_t *oldLine, uint8_t *newLine ) {
+result ICACHE_FLASH_ATTR
+update( uint8_t *oldString, uint8_t *newString ) {
+
 	uint32_t adress;
-	uint8_t sectorNumber;
-	uint8_t *lineAdressInTmp;
-	uint8_t lineLemght;
+	uint8_t currentSector;
+	uint8_t stringLenght;
 
-	if ( (lineLemght = strlen(newLine)) != strlen(oldLine) ){
-		return OPERATION_FAIL;   								 		// проверка что длинны записей равны
+	if ( ( stringLenght = strlen( newString ) ) != strlen( oldString ) ) {
+		return WRONG_LENGHT;   								 	           // записи имеют одинаковую длинну
 	}
-	if ( lineLemght != LINE_SIZE ){
-			return OPERATION_FAIL;   							 		// проверка что длинна обновляемой записи не больше
-																 	 	 	// заданой длинны записи во время компиляции
-		}
+	if ( ( stringLenght + 1 ) != STRING_SIZE ) {                        //strlen возвращает длинну без учета \0
+		return WRONG_LENGHT;   							 		           // длинна обновляемой записи не больше заданой
+	}
 
-	if ( OPERATION_FAIL == ( adress = findLine(oldLine) ) ){
-		return OPERATION_FAIL;												// если запись не найдено, то завершаем работу
-	} else {
-
-		sectorNumber = (adress / SPI_FLASH_SEC_SIZE) * SPI_FLASH_SEC_SIZE ;							// определяем в каком секторе находится запись
-
-		if ( SPI_FLASH_RESULT_OK != spi_flash_read( sectorNumber , (uint32 *)tmp, SPI_FLASH_SEC_SIZE ) ) {
+	switch ( adress = findLine( newString ) ) {                            // если newString уже есть ничего обновлять не нужно
+		case NOTHING_FOUND:
+			break ;
+		case WRONG_LENGHT:
+			return WRONG_LENGHT;
+		case OPERATION_FAIL:
 			return OPERATION_FAIL;
-		}
-
-		lineAdressInTmp = &tmp[ adress - ( SPI_FLASH_SEC_SIZE * sectorNumber )];		// определяем адресс записи в буфферe
-
-		memcpy( lineAdressInTmp, newLine, strlen(newLine) );				// обновляем запись (все кроме последнего байта)
-
-																			// очищаем сектор flash где находиться запрашива -
-																			// емая запись
-		if ( SPI_FLASH_RESULT_OK != spi_flash_erase_sector( sectorNumber )  ) {
-					return OPERATION_FAIL;
-				}
-																				// записываем буффер в flash память
-		spi_flash_write( sectorNumber, (uint32 *)&tmp,  SPI_FLASH_SEC_SIZE);
-
-		return OPERATION_OK;
+		default:
+			return LINE_ALREADY_EXIST;
 	}
+
+	switch ( adress = findLine( oldString ) ) {                            // если oldString отсувствует ничего обновлять не нужно
+		case NOTHING_FOUND:
+			return NOTHING_FOUND;
+		case WRONG_LENGHT:
+			return WRONG_LENGHT;
+		case OPERATION_FAIL:
+			return OPERATION_FAIL;
+		default:
+			break;
+	}
+
+	currentSector = (adress / SPI_FLASH_SEC_SIZE) * SPI_FLASH_SEC_SIZE ;					// начало сектора в котором находится запись
+
+	if ( SPI_FLASH_RESULT_OK != spi_flash_read( currentSector , (uint32 *)tmp, SPI_FLASH_SEC_SIZE ) ) {
+		return OPERATION_FAIL;
+	}
+
+	memcpy( &tmp[ adress - currentSector ], newString, strlen( newString ) );
+
+
+	if ( SPI_FLASH_RESULT_OK != spi_flash_erase_sector( currentSector /  SPI_FLASH_SEC_SIZE ) ) {            // обновление сектора
+		return OPERATION_FAIL;
+	}
+
+	spi_flash_write( currentSector, (uint32 *)&tmp,  SPI_FLASH_SEC_SIZE);
+
+	return OPERATION_OK;
+
  }
-*/
+
 
 /*
  * operationres ICACHE_FLASH_ATTR delete( uint8_t *line )
@@ -380,6 +395,9 @@ requestLine( uint8_t *line) {
  *
  ****************************************************************************************************************
  */
+
+
+
 result ICACHE_FLASH_ATTR
 clearSectorsDB( void ) {
 
@@ -429,13 +447,26 @@ findLine( uint8_t *line ) {
 				return OPERATION_FAIL;
 		}
 
-		if ( END_OF_SRING == tmp[STRING_SIZE - 1] ) {                                          // сектор не пустой
+#if STRING_SIZE % 4 == 0
+			if ( END_OF_SRING != tmp[ ALIGN_STRING_SIZE - 1 ] ) {                         // сектор не пустой
+#else
+			if ( END_OF_SRING != tmp[ ALIGN_STRING_SIZE - ( 4 - ( STRING_SIZE % 4 ) + 1 ) ] ) {
+#endif
 
-			                                                                                 // пока не дошли до конца сектора
-		    for ( i = 0; i < SPI_FLASH_SEC_SIZE && END_OF_SRING == tmp[STRING_SIZE - 1]; i += STRING_SIZE ) {
+		    for ( i = 0; i + ALIGN_STRING_SIZE < SPI_FLASH_SEC_SIZE; i += ALIGN_STRING_SIZE ) {    // пока не дошли до конца сектора
+
+#if STRING_SIZE % 4 == 0
+			if ( END_OF_SRING != tmp[ i + ALIGN_STRING_SIZE - 1 ] ) {                              // сектор пустой
+				break;
+			}
+#else
+			if ( END_OF_SRING != tmp[ i + ALIGN_STRING_SIZE - ( 4 - ( STRING_SIZE % 4 ) + 1 ) ] ) {
+				break;
+			}
+#endif
 
 			    if ( 0 == strcmp( line, &tmp[i] ) ) {
-			    	return currentSector * SPI_FLASH_SEC_SIZE + i;                            // найдено совпадение
+			    	return currentSector * SPI_FLASH_SEC_SIZE + i;                                 // найдено совпадение
 			    }
 
 		    }
