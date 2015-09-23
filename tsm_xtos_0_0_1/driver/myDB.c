@@ -49,7 +49,8 @@
 #include "espconn.h"
 
 
-ICACHE_FLASH_ATTR static void maskBitsInField ( uint8_t* adressOfField, uint16_t startAbsovuleAdress, uint16_t endAbsovuleAdress );
+LOCAL ICACHE_FLASH_ATTR void maskBitsInField ( uint8_t* adressOfField, uint16_t startAbsovuleAdress, uint16_t endAbsovuleAdress );
+LOCAL ICACHE_FLASH_ATTR uint8_t CompareStrings( uint8_t* firstString, uint8_t* secondString );
 
 
 // константы необходимо переносить в ОЗУ, без этого не работает spi_flash_write,
@@ -457,9 +458,20 @@ void maskBitsInField ( uint8_t* adressOfField, uint16_t startAbsovuleAdress, uin
 		adressOfField[i] = '\r';
 	}
 
-
 }
 
+// Сравнение строк (строки должны заканчиваться на \r либо \n либо \0)
+// 1 - true
+// 0 - false
+ICACHE_FLASH_ATTR
+uint8_t CompareStrings( uint8_t* firstString, uint8_t* secondString ) {
 
+	while( *firstString != '\r' && *firstString != '\n' && *firstString != '\0' ) {
+		if ( *firstString++ != *secondString++ ) { return 0; }
+	}
+
+	if ( *(firstString - 1) == *(secondString - 1) ) { return 1; }
+	else { return 0; }
+}
 
 
