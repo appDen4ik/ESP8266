@@ -76,20 +76,17 @@ static uint8_t tmp[SPI_FLASH_SEC_SIZE];
  *    - длина записи должна быть равна LINE_SIZE (установленная длинна записи)
  *    - проверяем не находиться ли данная запись в куче (защита от повторения)
  *
- * 	    Подробное описание механизма поиск свободного места:
- * 	    1) читается первый сектор кучи (START_SECTOR), проверяем пустой ли сектор ( 0 - байт
- * 	       кучи - если равен MARKER_ENABLE то значит сектор пустой, если равен MARKER_DISABLE
- * 	       то в секторе имеются записи)
- * 	    2) если 0 - й байт кучи равен MARKER_ENABLE, то в 0 - й  байт пишем MARKER_DISABLE и
- * 	       делается первая запись в этом секторе (начиная с первого адресса), а последний байт
- * 	       записи устанавливается MARKER_ENABLE (что свидетильствует о том что эта запись
- * 	       последняя)
- * 	    3) если 0 - й байт кучи равен MARKER_DISABLE (сектор не пустой), то производится поиск
- * 	       последней записи в этом секторе, далее проверяется проверяется влезает ли туда еще
- * 	       одна запись:
- * 	       	- если влезает то маркер последней записи делаем MARKER_DISABLE вносим новую запись и
- * 	       	  последний байт новой записи делаем MARKER_ENABLE, на этом функция заканчивает свою работу
- * 	       	- если не влезает, то тогда читаем след сектор и повтоярем действия начиная с первого пункта
+ * 	    Поиск свободного места:
+ * 	    - читается первый сектор выделенной памяти (START_SECTOR), ищется последняя запись в секторе. Для этого
+ * 	      со сдвигом:
+ * 	         1) ALIGN_STRING_SIZE * i - 1,  либо
+ * 	         2) ALIGN_STRING_SIZE * i - ( 4 - ( STRING_SIZE % 4 ) + 1 ),                     (i = 1, 2...n)
+ *		          1 - длинна записи кратна 4, 2 - длинна записи не кратна 4
+ *        проверяется наличие нуль терминального символа, если его нет то проверяется влезет ли еще одна запись
+ *        в этот сектор, если да - то производится запись в текущий сектор и функция заканчивает свою работу.
+ *        Если же еще одна запись не влезает, то читается следующий сектор и повторяется вся процедура поиска
+ *        с начала. Если дошли до конца последнего выделенного сектора то значит в кучу больше записей произвести
+ *        нельзя - тоесть функция ничего не пишет и завершает свою работу.
  ****************************************************************************************************************
 */
 result ICACHE_FLASH_ATTR
@@ -129,9 +126,9 @@ insert( uint8_t *line ) {
 		for ( i = 0; i + ALIGN_STRING_SIZE < SPI_FLASH_SEC_SIZE ; i += ALIGN_STRING_SIZE ) {// ищем последнюю запись в текущем секторе
 
 #if STRING_SIZE % 4 == 0
-			if ( END_OF_SRING != tmp[i + ALIGN_STRING_SIZE - 1] ) {                            // строка отсутствует
+			if ( END_OF_SRING != tmp[i + ALIGN_STRING_SIZE - 1] ) {                         // строка отсутствует
 #else
-			if ( END_OF_SRING != tmp[i + ALIGN_STRING_SIZE -  ( 4 - ( STRING_SIZE % 4 ) + 1 ) ]  ) {
+			if ( END_OF_SRING != tmp[ i + ALIGN_STRING_SIZE - ( 4 - ( STRING_SIZE % 4 ) + 1 ) ] ) {
 #endif
 				if ( SPI_FLASH_RESULT_OK !=  \
 							       spi_flash_write( currentSector*SPI_FLASH_SEC_SIZE + i, (uint32 *)alignLine, ALIGN_STRING_SIZE ) ){
@@ -395,10 +392,8 @@ clearSectorsDB( void ) {
 		}
 
 	}
-
 	return OPERATION_OK;
  }
-
 
 
 
@@ -430,7 +425,7 @@ findLine( uint8_t *line ) {
 
 	for ( ; currentSector <= END_SECTOR;  currentSector++ ) {                // пока не дошли до конца выделенной памяти
 
-		if ( SPI_FLASH_RESULT_OK != spi_flash_read( SPI_FLASH_SEC_SIZE*currentSector , (uint32 *)tmp, SPI_FLASH_SEC_SIZE ) ){
+		if ( SPI_FLASH_RESULT_OK != spi_flash_read( SPI_FLASH_SEC_SIZE*currentSector , (uint32 *)tmp, SPI_FLASH_SEC_SIZE ) ) {
 				return OPERATION_FAIL;
 		}
 
@@ -440,16 +435,16 @@ findLine( uint8_t *line ) {
 		    for ( i = 0; i < SPI_FLASH_SEC_SIZE && END_OF_SRING == tmp[STRING_SIZE - 1]; i += STRING_SIZE ) {
 
 			    if ( 0 == strcmp( line, &tmp[i] ) ) {
-			    	return currentSector*SPI_FLASH_SEC_SIZE + i;                            // найдено совпадение
+			    	return currentSector * SPI_FLASH_SEC_SIZE + i;                            // найдено совпадение
 			    }
 
 		    }
-		}
-	}
 
+		}
+
+	}
 	return NOTHING_FOUND;                                 // если дошло до этой строчки значит совпадений не было найдено
  }
-
 
 
 

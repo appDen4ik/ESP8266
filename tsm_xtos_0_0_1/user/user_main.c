@@ -259,7 +259,7 @@ user_init(void) {
 
 	// тест insert DB
 	{
-			uint8_t *data = "qwertyuiopQWERTYUIOPasdfghjkl;ASDFGHJKL;zxcvbnm,./ZXCVBNM,./1234567890!@#$%^&*()test linesLIFE GOOD";
+			uint8_t *data = "qwertyuiopQWERTYUIOPasdfghjkl;ASDFGHJKL;zxcvbnm,./ZXCVBNM,./1234567890!@#$%^&*()test linesLIFE GOOD23";
 
 			uint16_t c;
 				uint32_t a, i;
