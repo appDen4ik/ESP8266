@@ -1,0 +1,244 @@
+/тест findLine
+тест 1. Находит ли функция записи 
+меняя длину строки 100..103
+..................................................................................................................................
+		uint8_t *data0 = "1TESTqwertyuiopQWERTYUIOPasdfghjkl;ASDFGHJKL;zxcvbnm,./ZXCVBNM,./1234567890!@#$%^&*()testlines TEST122";
+        static uint8_t nul[100];
+
+		uint16_t c, currentSector;
+		uint32_t a, i;
+
+		clearSectorsDB();
+
+		os_printf( " \n %s \n String Size %d", data0, (strlen(data0) + 1) );
+
+		ets_uart_printf(" Тест 1 запись строки и дальнейший поиск ее же, и так по всей памяти: ");
+
+		for ( currentSector = START_SECTOR; currentSector <= END_SECTOR;  currentSector++ ) {
+			os_printf( " currentSector   %d", currentSector);
+			for ( i = 0; i + ALIGN_STRING_SIZE < SPI_FLASH_SEC_SIZE; i += ALIGN_STRING_SIZE ) {
+
+				spi_flash_write( SPI_FLASH_SEC_SIZE * currentSector + i, (uint32 *)data0, ALIGN_STRING_SIZE );
+
+				switch ( a = findLine( data0 ) ){
+
+						case WRONG_LENGHT:
+							ets_uart_printf("WRONG_LENGHT");
+							spi_flash_read( SPI_FLASH_SEC_SIZE * currentSector, (uint32 *)tmpTest, SPI_FLASH_SEC_SIZE );
+							for ( c = 0; SPI_FLASH_SEC_SIZE > c; c++ ) {
+								uart_tx_one_char(tmpTest[c]);
+							}
+							goto m;
+
+						case NOTHING_FOUND:
+							ets_uart_printf("NOTHING_FOUND");
+							spi_flash_read( SPI_FLASH_SEC_SIZE * currentSector, (uint32 *)tmpTest, SPI_FLASH_SEC_SIZE );
+							for ( c = 0; SPI_FLASH_SEC_SIZE > c; c++ ) {
+							     uart_tx_one_char(tmpTest[c]);
+							}
+							goto m;
+
+						case OPERATION_FAIL:
+							ets_uart_printf("OPERATION_FAIL");
+							spi_flash_read( SPI_FLASH_SEC_SIZE * currentSector, (uint32 *)tmpTest, SPI_FLASH_SEC_SIZE );
+							for ( c = 0; SPI_FLASH_SEC_SIZE > c; c++ ) {
+									uart_tx_one_char(tmpTest[c]);
+							}
+							goto m;
+
+						default:
+							ets_uart_printf("OPERATION_OK");
+							break;
+
+				}
+
+				spi_flash_write( SPI_FLASH_SEC_SIZE * currentSector + i, (uint32 *)nul, ALIGN_STRING_SIZE );
+
+			}			
+
+			os_printf( " Проверка %d сектора закончена", currentSector );
+			spi_flash_read( SPI_FLASH_SEC_SIZE * currentSector, (uint32 *)tmpTest, SPI_FLASH_SEC_SIZE );
+				for ( c = 0; SPI_FLASH_SEC_SIZE > c; c++ ) {
+					uart_tx_one_char(tmpTest[c]);
+			}
+		}
+
+m:
+................................................................................................................................
+тест 2. Проверка находит ли запись, а также не находит ли записи которых реально нет в куче. Сначала куча наполняется значениями 
+        1... до конца кучи выровняные по длине в 50 байт. Далее эти же значение запрашиваются. Далее запрашивается рад разных 
+        значаний и проверяется факт не нахождения строк. 
+	{	//тест findLine
+	//
+
+		uint32_t data0 = 0;
+		uint16_t data3 = 0;
+		uint8_t ascii[10];
+		static uint8_t string[STRING_SIZE];
+		uint8_t alignString[ALIGN_STRING_SIZE];
+		uint8_t *p;
+
+		uint16_t c, currentSector;
+		uint32_t a, i;
+
+
+		alignString[ STRING_SIZE - 1 ] = '\0';
+
+		for ( i = STRING_SIZE; i < ALIGN_STRING_SIZE; i++ ) {
+			alignString[i] = 0xff;
+		}
+
+		string[STRING_SIZE - 1] = '\0';
+		clearSectorsDB();
+
+	//	os_printf( " \n %s \n String Size %d", data0, (strlen(data0) + 1) );
+
+		os_delay_us(500000);
+
+		ets_uart_printf(" Проверка findLine Тест 2 ");
+
+		os_delay_us(500000);
+
+		ets_uart_printf(" П.1 Заполняем память значениями (ASCII) выравнеными по 50 символов  ");
+
+		for ( currentSector = START_SECTOR; currentSector <= END_SECTOR;  currentSector++ ) {
+			os_printf( " currentSector   %d", currentSector);
+
+			for ( i = 0; i + ALIGN_STRING_SIZE < SPI_FLASH_SEC_SIZE; i += ALIGN_STRING_SIZE ) {
+
+				for ( a = 0; a < STRING_SIZE - 1; a++ ) {
+							alignString[a] = '0';
+				}
+
+				data0++;
+				p = ShortIntToString(data0, ascii);
+
+				memcpy( &alignString[ STRING_SIZE - 1 - (p - ascii) ], ascii, (p - ascii) );
+
+				spi_flash_write( SPI_FLASH_SEC_SIZE * currentSector + i, (uint32 *)alignString, ALIGN_STRING_SIZE );
+
+			}
+
+
+/*			spi_flash_read( SPI_FLASH_SEC_SIZE * currentSector, (uint32 *)tmpTest, SPI_FLASH_SEC_SIZE );
+				for ( c = 0; SPI_FLASH_SEC_SIZE > c; c++ ) {
+					uart_tx_one_char(tmpTest[c]);
+			}
+*/
+		}
+
+		data3 = data0 + 1;
+		ets_uart_printf(" П.2 Поиск всех значений в обратном порядке ");
+
+		for ( ; data0 > 0; data0-- ) {
+			os_printf( " data %d", data0);
+			p = ShortIntToString(data0, ascii);
+			for ( a = 0; a < STRING_SIZE - 1; a++ ) {
+						string[a] = '0';
+			}
+			memcpy( &string[ STRING_SIZE - 1 - (p - ascii) ], ascii, (p - ascii) );
+			os_printf( " data %s", string);
+		switch ( a = findLine( string ) ){
+
+					case WRONG_LENGHT:
+						ets_uart_printf("WRONG_LENGHT");
+						spi_flash_read( SPI_FLASH_SEC_SIZE * currentSector, (uint32 *)tmpTest, SPI_FLASH_SEC_SIZE );
+						for ( c = 0; SPI_FLASH_SEC_SIZE > c; c++ ) {
+							uart_tx_one_char(tmpTest[c]);
+						}
+						goto m;
+
+					case NOTHING_FOUND:
+						ets_uart_printf("NOTHING_FOUND");
+						spi_flash_read( SPI_FLASH_SEC_SIZE * currentSector, (uint32 *)tmpTest, SPI_FLASH_SEC_SIZE );
+						for ( c = 0; SPI_FLASH_SEC_SIZE > c; c++ ) {
+						     uart_tx_one_char(tmpTest[c]);
+						}
+						goto m;
+
+					case OPERATION_FAIL:
+						ets_uart_printf("OPERATION_FAIL");
+						spi_flash_read( SPI_FLASH_SEC_SIZE * currentSector, (uint32 *)tmpTest, SPI_FLASH_SEC_SIZE );
+						for ( c = 0; SPI_FLASH_SEC_SIZE > c; c++ ) {
+								uart_tx_one_char(tmpTest[c]);
+						}
+						goto m;
+
+					default:
+						ets_uart_printf("OPERATION_OK");
+						break;
+
+			}
+		system_soft_wdt_stop();
+
+		}
+
+		ets_uart_printf(" П.3 Поиск всех несуществующих значений uint16_t ");
+
+		for ( ; data3 != 0; data3++ ) {
+			os_printf( " data %d", data3);
+			p = ShortIntToString(data3, ascii);
+			memcpy( &string[ STRING_SIZE - 1 - (p - ascii) ], ascii, (p - ascii) );
+		switch ( a = findLine( string ) ){
+
+					case WRONG_LENGHT:
+						ets_uart_printf("WRONG_LENGHT");
+						spi_flash_read( SPI_FLASH_SEC_SIZE * currentSector, (uint32 *)tmpTest, SPI_FLASH_SEC_SIZE );
+						for ( c = 0; SPI_FLASH_SEC_SIZE > c; c++ ) {
+							uart_tx_one_char(tmpTest[c]);
+						}
+						goto m;
+
+					case NOTHING_FOUND:
+						ets_uart_printf("NOTHING_FOUND");
+						break;
+
+					case OPERATION_FAIL:
+						ets_uart_printf("OPERATION_FAIL");
+						spi_flash_read( SPI_FLASH_SEC_SIZE * currentSector, (uint32 *)tmpTest, SPI_FLASH_SEC_SIZE );
+						for ( c = 0; SPI_FLASH_SEC_SIZE > c; c++ ) {
+								uart_tx_one_char(tmpTest[c]);
+						}
+						goto m;
+
+					default:
+						ets_uart_printf("OPERATION_OK");
+						spi_flash_read( SPI_FLASH_SEC_SIZE * currentSector, (uint32 *)tmpTest, SPI_FLASH_SEC_SIZE );
+						for ( c = 0; SPI_FLASH_SEC_SIZE > c; c++ ) {
+						     uart_tx_one_char(tmpTest[c]);
+						}
+						goto m;
+
+
+			}
+		system_soft_wdt_stop();
+
+		}
+
+		ets_uart_printf(" Тест успешно окончен ");
+
+
+
+
+	}
+m:
+................................................................................................................................
+................................................................................................................................
+................................................................................................................................
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

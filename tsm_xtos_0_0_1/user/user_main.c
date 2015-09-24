@@ -209,49 +209,6 @@ user_init(void) {
 
 //*********************************************************************************************************************
 
-	//тест findLine
-	//
-	{
-		uint8_t *data = "qwertyuiopQWERTYUIOPasdfghjkl;ASDFGHJKL;zxcvbnm,./ZXCVBNM,./1234567890!@#$%^&*()test linesLIFE GOOD12";
-		uint16_t c;
-		uint32_t a, i;
-
-		clearSectorsDB();
-
-		os_printf( " \n %s \n Size %d", data, (strlen(data) + 1) );
-
-
-
-		spi_flash_write( SPI_FLASH_SEC_SIZE * END_SECTOR, (uint32 *)data, strlen(data) + 1 );
-
-		spi_flash_read( SPI_FLASH_SEC_SIZE * END_SECTOR, (uint32 *)tmpTest, SPI_FLASH_SEC_SIZE );
-
-		for ( c = 0; SPI_FLASH_SEC_SIZE > c; c++ ) {
-					uart_tx_one_char(tmpTest[c]);
-		}
-
-		switch (a = findLine(data) ){
-
-		case WRONG_LENGHT:
-			ets_uart_printf("WRONG_LENGHT");
-			break;
-
-		case NOTHING_FOUND:
-			ets_uart_printf("NOTHING_FOUND");
-			break;
-
-		case OPERATION_FAIL:
-			ets_uart_printf("OPERATION_FAIL");
-			break;
-
-		default:
-			ets_uart_printf("OPERATION_OK");
-			break;
-
-		}
-
-
-	}
 
 
 	// тест insert DB
