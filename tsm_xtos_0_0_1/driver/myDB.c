@@ -94,13 +94,15 @@ insert( uint8_t *line ) {
 
 	uint8_t alignLine[ALIGN_STRING_SIZE];
 	uint8_t currentSector;
-	uint16_t i;
+	uint32_t i;
+
 
 	if ( strlen( line ) + 1 != STRING_SIZE ) {     // длинна входящей записи не должна быть больше установленой длинны LINE_SIZE
-		return WRONG_LENGHT;				     // функция strlen возвращает длинну без учета \0
+		return WRONG_LENGHT;				       // функция strlen возвращает длинну без учета \0
 	}
 
-	switch ( findLine( line ) ) {                // такая запись уже существует
+
+	switch ( findLine( line ) ) {                  // такая запись уже существует
 		case OPERATION_FAIL:
 			 return OPERATION_FAIL;
 		case WRONG_LENGHT:
@@ -123,7 +125,7 @@ insert( uint8_t *line ) {
 			return OPERATION_FAIL;
 		}
 
-		for ( i = 0; i + ALIGN_STRING_SIZE < SPI_FLASH_SEC_SIZE ; i += ALIGN_STRING_SIZE ) {// ищем последнюю запись в текущем секторе
+		for ( i = 0; i + ALIGN_STRING_SIZE < SPI_FLASH_SEC_SIZE ; i += ALIGN_STRING_SIZE ) {    // ищем последнюю запись в текущем секторе
 
 #if STRING_SIZE % 4 == 0
 			if ( END_OF_SRING != tmp[i + ALIGN_STRING_SIZE - 1] ) {                         // строка отсувствует
@@ -132,19 +134,20 @@ insert( uint8_t *line ) {
 			if ( END_OF_SRING != tmp[ i + ALIGN_STRING_SIZE - ( 4 - ( STRING_SIZE % 4 ) + 1 ) ] ) {
 #endif
 				if ( SPI_FLASH_RESULT_OK !=  \
-							       spi_flash_write( currentSector*SPI_FLASH_SEC_SIZE + i, (uint32 *)alignLine, ALIGN_STRING_SIZE ) ){
+							       spi_flash_write( currentSector*SPI_FLASH_SEC_SIZE + i, (uint32 *)alignLine, ALIGN_STRING_SIZE ) ) {
 						return OPERATION_FAIL;
 					}
 
 				  return OPERATION_OK;
 
 			}
-		}
-	}
+
+	    }
+
+   }
 
 	return NOT_ENOUGH_MEMORY;
-
- }
+}
 
 
 /*
@@ -158,7 +161,7 @@ result ICACHE_FLASH_ATTR
 update( uint8_t *oldString, uint8_t *newString ) {
 
 	uint32_t adressRequestingString;
-	uint8_t  startAdressSector;							// начало сектора в котором находится запрашиваемая запись
+	uint32_t  startAdressSector;							// начало сектора в котором находится запрашиваемая запись
 	uint8_t  stringLenght;
 
 	if ( ( stringLenght = strlen( newString ) ) != strlen( oldString ) ) {
@@ -167,6 +170,8 @@ update( uint8_t *oldString, uint8_t *newString ) {
 	if ( ( stringLenght + 1 ) != STRING_SIZE ) {                           //strlen возвращает длинну без учета \0
 		return WRONG_LENGHT;   							 		           // длинна обновляемой записи не больше заданой
 	}
+
+	ets_uart_printf("chek point  1   ");
 
 	switch ( adressRequestingString = findLine( newString ) ) {               // если newString уже есть ничего обновлять не нужно
 		case NOTHING_FOUND:
@@ -179,6 +184,8 @@ update( uint8_t *oldString, uint8_t *newString ) {
 			return LINE_ALREADY_EXIST;
 	}
 
+	ets_uart_printf("chek point  2   ");
+
 	switch ( adressRequestingString = findLine( oldString ) ) {             // если oldString отсувствует ничего обновлять не нужно
 		case NOTHING_FOUND:
 			return NOTHING_FOUND;
@@ -189,21 +196,39 @@ update( uint8_t *oldString, uint8_t *newString ) {
 		default:
 			break;
 	}
-
+	os_printf( " currentSector %d",  adressRequestingString );
+	ets_uart_printf("chek point  3   ");
 	startAdressSector = ( adressRequestingString / SPI_FLASH_SEC_SIZE ) * SPI_FLASH_SEC_SIZE;
 
 	if ( SPI_FLASH_RESULT_OK != spi_flash_read( startAdressSector , (uint32 *)tmp, SPI_FLASH_SEC_SIZE ) ) {
 		return OPERATION_FAIL;
 	}
 
+	ets_uart_printf("chek point  4   ");
+
 	memcpy( &tmp[ adressRequestingString - startAdressSector ], newString, strlen( newString ) );
 
+	ets_uart_printf("chek point  5   ");
 
-	if ( SPI_FLASH_RESULT_OK != spi_flash_erase_sector( startAdressSector /  SPI_FLASH_SEC_SIZE ) ) {            // обновление сектора
+	//debug
+	{
+
+		uint32_t deb = startAdressSector /  SPI_FLASH_SEC_SIZE;
+		os_printf( " currentSector %d",  deb);
+	}
+	//debug
+																					// обновление сектора
+	if ( SPI_FLASH_RESULT_OK != spi_flash_erase_sector( startAdressSector /  SPI_FLASH_SEC_SIZE ) ) {
 		return OPERATION_FAIL;
 	}
 
-	spi_flash_write( startAdressSector, (uint32 *)&tmp,  SPI_FLASH_SEC_SIZE);
+	ets_uart_printf("chek point  6   ");
+																					// обновление сектора
+	if ( SPI_FLASH_RESULT_OK != spi_flash_write( startAdressSector, (uint32 *)&tmp,  SPI_FLASH_SEC_SIZE ) ) {
+		return OPERATION_FAIL;
+	}
+
+	ets_uart_printf("chek point  7   ");
 
 	return OPERATION_OK;
 

@@ -209,164 +209,154 @@ user_init(void) {
 
 //*********************************************************************************************************************
 
+	uint32_t data0 = 0;
+	uint32_t data3 = 0;
+	uint8_t ascii[10];
+	static uint8_t string[STRING_SIZE];
+
+	uint8_t alignString[ALIGN_STRING_SIZE];
+	uint8_t alignStr[ALIGN_STRING_SIZE];
+
+	uint8_t *p;
+
+	uint16_t c, currentSector;
+	uint32_t a, i;
+
+	result res;
 
 
-	// тест insert DB
-	{
-/*			uint8_t *data = "1111yuiopQWERTYUIOPasdfghjkl;ASDFGHJKL;zxcvbnm,./ZXCVBNM,./1234567890!@#$%^&*()test linesLIFE GOOD231";
+	for ( i = STRING_SIZE; i < ALIGN_STRING_SIZE; i++ ) {
+		alignString[i] = 0xff;
+	}
 
-			uint16_t c;
-				uint16_t a, i = 100;
-		        uint8_t alignLine[ALIGN_STRING_SIZE];
+	clearSectorsDB();
 
-				clearSectorsDB();
+	os_delay_us(500000);
 
-				os_printf( " Align line size %d    ", ALIGN_STRING_SIZE );
+	ets_uart_printf(" Проверка updateLine Тест 1 ");
 
-				os_printf( " \n %s \n Size %d", data, (strlen(data) + 1) );
+	os_delay_us(500000);
 
-             for ( ; 1;i++ ) {
-            	 os_printf( " Output string %s", data );
-				c = insert(data);
-				switch (c) {
-									case OPERATION_OK :
-										ets_uart_printf("OPERATION_OK");
-										break;
-									case WRONG_LENGHT :
-										ets_uart_printf("WRONG_LENGHT");
-										break;
-									case OPERATION_FAIL :
-										ets_uart_printf("OPERATION_FAIL");
-										break;
-									case LINE_ALREADY_EXIST :
-										ets_uart_printf("LINE_ALREADY_EXIST");
-										break;
-									case NOT_ENOUGH_MEMORY :
-										ets_uart_printf("NOT_ENOUGH_MEMORY");
-										goto pt;
+	ets_uart_printf(" П.1 Заполняем память значениями (ASCII) выровнеными по 101 символов  ");
 
-				}
-//				os_delay_us(1000);
-				if (i < 60000) {
-					( *( (uint16_t *)data) ) = i;
-				} else {
-					( *( (uint16_t *)&data[5]) ) = i;
-				}
+	for ( ; res != NOT_ENOUGH_MEMORY; ) {
+
+
+		for ( a = 0; a < STRING_SIZE - 1; a++ ) {
+				alignString[a] = '0';
+		}
+		data0++;
+		p = ShortIntToString(data0, ascii);
+		memcpy( &alignString[ STRING_SIZE - 1 - (p - ascii) ], ascii, (p - ascii) );
+		alignString[STRING_SIZE - 1] = '\0';
+
+//		os_printf( " \n %s \n String lenght %d", alignString, (strlen(alignString) + 1) );
+
+		switch ( res = insert( alignString ) ) {
+			case OPERATION_OK:
+				//ets_uart_printf("OPERATION_OK");
 				system_soft_wdt_stop();
-          }
-pt:
-          for ( a = START_SECTOR; a <= END_SECTOR; a += 1 ) {
-        	  os_printf( " Current sector %d    ", a );
-					spi_flash_read( SPI_FLASH_SEC_SIZE * START_SECTOR, (uint32 *)tmpTest, SPI_FLASH_SEC_SIZE );
+				break;
+			case WRONG_LENGHT:
+				ets_uart_printf("WRONG_LENGHT");
+				goto m;
+			case OPERATION_FAIL:
+				ets_uart_printf("OPERATION_FAIL");
+				goto m;
+			case LINE_ALREADY_EXIST:
+				ets_uart_printf("LINE_ALREADY_EXIST");
+				goto m;
+			case NOT_ENOUGH_MEMORY:
+				ets_uart_printf("NOT_ENOUGH_MEMORY");
+				system_soft_wdt_stop();
+				break;
 
-					for ( c = 0; SPI_FLASH_SEC_SIZE > c; c++ ) {
-						uart_tx_one_char(tmpTest[c]);
-					}
-					os_delay_us(500000);
-					system_soft_wdt_stop();
-          }
+		}
+
+	}
+
+	os_delay_us(500000);
+	ets_uart_printf(" Запрос db ");
+	os_delay_us(500000);
+
+
+/*	for ( currentSector = START_SECTOR; currentSector <= END_SECTOR; currentSector++ ) {
+		os_printf( " currentSector   %d", currentSector);
+		spi_flash_read( SPI_FLASH_SEC_SIZE * currentSector, (uint32 *)tmpTest, SPI_FLASH_SEC_SIZE );
+		for ( c = 0; SPI_FLASH_SEC_SIZE > c; c++ ) {
+			uart_tx_one_char(tmpTest[c]);
+		}
+		system_soft_wdt_stop();
+	}
 */
-
-
-	}
-
-
-	{ //test update
-
-/*		uint8_t *data1    = "1111yuiopQWERTYUIOPasdfghjkl;ASDFGHJKL;zxcvbnm,./ZXCVBNM,./1234567890!@#$%^&*()test linesLIFE GOOD231";
-		uint8_t *data2    = "2222yuiopQWERTYUIOPasdfghjkl;ASDFGHJKL;zxcvbnm,./ZXCVBNM,./1234567890!@#$%^&*()test linesLIFE GOOD231";
-		uint8_t *data3    = "3333yuiopQWERTYUIOPasdfghjkl;ASDFGHJKL;zxcvbnm,./ZXCVBNM,./1234567890!@#$%^&*()test linesLIFE GOOD231";
-
-		uint8_t *dataNew1  = "testyuiopQWERTYUIOPasdfghjkl;ASDFGHJKL;zxcvbnm,./ZXCVBNM,./1234567890!@#$%^&*()test linesLIFE GOOtest";
-		uint8_t *dataNew2  = "testyuiopQWERTYUIOPasdfghjkl;ASDFGHJKL;zxcvbnm,./ZXCVBNM,./1234567890!@#$%^&*()test linesLIFE GOtest2";
-		uint16_t c;
-
-		clearSectorsDB();
-
-		os_printf( " Тест 1 check  OPERATION_OK check    ");
 		os_delay_us(500000);
-		insert(data1);
-		insert(data2);
-		insert(data3);
+		ets_uart_printf(" Проверка updateLine Тест 1 . Увеличения значения в каждой записи");
+		os_delay_us(500000);
 
-		spi_flash_read( SPI_FLASH_SEC_SIZE * START_SECTOR, (uint32 *)tmpTest, SPI_FLASH_SEC_SIZE );
+		data0--;
 
-			for ( c = 0; SPI_FLASH_SEC_SIZE > c; c++ ) {
-					uart_tx_one_char(tmpTest[c]);
+		for ( data3 = 1; data3 <= data0; data3++ ) {
+
+
+			for ( a = 0; a < STRING_SIZE - 1; a++ ) {
+					alignString[a] = '0';
 			}
 
-		os_delay_us(500000);
 
-
-		switch (c = update (data1, dataNew1)) {
-						case OPERATION_OK :
-							ets_uart_printf("OPERATION_OK");
-							break;
-						case WRONG_LENGHT :
-							ets_uart_printf("WRONG_LENGHT");
-							break;
-						case OPERATION_FAIL :
-							ets_uart_printf("OPERATION_FAIL");
-							break;
-						case LINE_ALREADY_EXIST :
-							ets_uart_printf("LINE_ALREADY_EXIST");
-							break;
-						case NOTHING_FOUND :
-							ets_uart_printf("NOTHING_FOUND");
-							break;
-
-					}
-		spi_flash_read( SPI_FLASH_SEC_SIZE * START_SECTOR, (uint32 *)tmpTest, SPI_FLASH_SEC_SIZE );
-
-			for ( c = 0; SPI_FLASH_SEC_SIZE > c; c++ ) {
-					uart_tx_one_char(tmpTest[c]);
+			for ( a = 0; a < STRING_SIZE - 1; a++ ) {
+					alignStr[a] = '0';
 			}
 
-		os_delay_us(500000);
+			p = ShortIntToString(data3, ascii);
+			memcpy( &alignString[ STRING_SIZE - 1 - (p - ascii) ], ascii, (p - ascii) );
+			alignString[STRING_SIZE - 1] = '\0';
 
-		os_printf( " Тест 2  check  LINE_ALREADY_EXIST check ");
-		os_delay_us(500000);
-		switch (c = update (data1, dataNew1)) {
-							case OPERATION_OK :
-								ets_uart_printf("OPERATION_OK");
-								break;
-							case WRONG_LENGHT :
-								ets_uart_printf("WRONG_LENGHT");
-								break;
-							case OPERATION_FAIL :
-								ets_uart_printf("OPERATION_FAIL");
-								break;
-							case LINE_ALREADY_EXIST :
-								ets_uart_printf("LINE_ALREADY_EXIST");
-								break;
-							case NOTHING_FOUND :
-								ets_uart_printf("NOTHING_FOUND");
-								break;
+			a = data0 + data3;
 
-						}
+			p = ShortIntToString(a, ascii);
+			memcpy( &alignStr[ STRING_SIZE - 1 - (p - ascii) ], ascii, (p - ascii) );
+			alignStr[STRING_SIZE - 1] = '\0';
+
+			os_printf( " \n %s \n String 1 lenght %d", alignString, (strlen(alignString) + 1) );
+			os_printf( " \n %s \n String 2 lenght %d", alignStr, (strlen(alignStr) + 1) );
+
+			switch ( res = update( alignString, alignStr ) ) {
+				case OPERATION_OK:
+					ets_uart_printf("OPERATION_OK");
+					system_soft_wdt_stop();
+					break;
+				case WRONG_LENGHT:
+					ets_uart_printf("WRONG_LENGHT");
+					goto m;
+				case OPERATION_FAIL:
+					ets_uart_printf("OPERATION_FAIL");
+					goto m;
+				case LINE_ALREADY_EXIST:
+					ets_uart_printf("LINE_ALREADY_EXIST");
+					goto m;
+				case NOTHING_FOUND:
+					ets_uart_printf("NOTHING_FOUND");
+					goto m;
+			}
+
+		}
 
 
-		os_printf( " Тест 3  check  NOTHING_FOUND check ");
-				os_delay_us(500000);
-				switch (c = update (data1, dataNew2)) {
-									case OPERATION_OK :
-										ets_uart_printf("OPERATION_OK");
-										break;
-									case WRONG_LENGHT :
-										ets_uart_printf("WRONG_LENGHT");
-										break;
-									case OPERATION_FAIL :
-										ets_uart_printf("OPERATION_FAIL");
-										break;
-									case LINE_ALREADY_EXIST :
-										ets_uart_printf("LINE_ALREADY_EXIST");
-										break;
-									case NOTHING_FOUND :
-										ets_uart_printf("NOTHING_FOUND");
-										break;
+		for ( currentSector = START_SECTOR; currentSector <= END_SECTOR; currentSector++ ) {
+			os_printf( " currentSector   %d", currentSector);
+			spi_flash_read( SPI_FLASH_SEC_SIZE * currentSector, (uint32 *)tmpTest, SPI_FLASH_SEC_SIZE );
+			for ( c = 0; SPI_FLASH_SEC_SIZE > c; c++ ) {
+				uart_tx_one_char(tmpTest[c]);
+			}
+			system_soft_wdt_stop();
+		}
 
-	*/
-	}
+
+
+		ets_uart_printf(" Тестирование успешно завершено ");
+
+m:
+
 //*********************************************************************************************************************
 
 	os_printf( "SDK version: %s", system_get_sdk_version() );
