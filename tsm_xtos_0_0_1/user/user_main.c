@@ -237,7 +237,7 @@ user_init(void) {
 
 	os_delay_us(500000);
 
-	ets_uart_printf(" П.1 Заполняем память значениями (ASCII) выровнеными по 101 символов  ");
+	ets_uart_printf(" П.1 Заполняем память значениями (ASCII) выровняными по 256 символов  ");
 
 	for ( ; res != NOT_ENOUGH_MEMORY; ) {
 
@@ -275,27 +275,15 @@ user_init(void) {
 
 	}
 
-	os_delay_us(500000);
-	ets_uart_printf(" Запрос db ");
-	os_delay_us(500000);
-
-
-/*	for ( currentSector = START_SECTOR; currentSector <= END_SECTOR; currentSector++ ) {
-		os_printf( " currentSector   %d", currentSector);
-		spi_flash_read( SPI_FLASH_SEC_SIZE * currentSector, (uint32 *)tmpTest, SPI_FLASH_SEC_SIZE );
-		for ( c = 0; SPI_FLASH_SEC_SIZE > c; c++ ) {
-			uart_tx_one_char(tmpTest[c]);
-		}
-		system_soft_wdt_stop();
-	}
-*/
 		os_delay_us(500000);
-		ets_uart_printf(" Проверка updateLine Тест 1 . Увеличения значения в каждой записи");
+		ets_uart_printf(" Проверка updateLine Тест 1 . Проверка что при обновлении несуществующей записи функция корректно отработает");
 		os_delay_us(500000);
 
-		data0--;
 
-		for ( data3 = 1; data3 <= data0; data3++ ) {
+		data0 = 700;
+		data3 = 16;
+
+		for ( i = 0; i < 2; i++, data0++, data3++ ) {
 
 
 			for ( a = 0; a < STRING_SIZE - 1; a++ ) {
@@ -311,9 +299,9 @@ user_init(void) {
 			memcpy( &alignString[ STRING_SIZE - 1 - (p - ascii) ], ascii, (p - ascii) );
 			alignString[STRING_SIZE - 1] = '\0';
 
-			a = data0 + data3;
 
-			p = ShortIntToString(a, ascii);
+
+			p = ShortIntToString(data0, ascii);
 			memcpy( &alignStr[ STRING_SIZE - 1 - (p - ascii) ], ascii, (p - ascii) );
 			alignStr[STRING_SIZE - 1] = '\0';
 
@@ -323,8 +311,7 @@ user_init(void) {
 			switch ( res = update( alignString, alignStr ) ) {
 				case OPERATION_OK:
 					ets_uart_printf("OPERATION_OK");
-					system_soft_wdt_stop();
-					break;
+					goto m;
 				case WRONG_LENGHT:
 					ets_uart_printf("WRONG_LENGHT");
 					goto m;
@@ -333,10 +320,10 @@ user_init(void) {
 					goto m;
 				case LINE_ALREADY_EXIST:
 					ets_uart_printf("LINE_ALREADY_EXIST");
-					goto m;
+					break;
 				case NOTHING_FOUND:
 					ets_uart_printf("NOTHING_FOUND");
-					goto m;
+					break;
 			}
 
 		}
@@ -355,7 +342,13 @@ user_init(void) {
 
 		ets_uart_printf(" Тестирование успешно завершено ");
 
+
 m:
+
+while ( 1 ) {
+	system_soft_wdt_stop();
+}
+
 
 //*********************************************************************************************************************
 
@@ -557,7 +550,7 @@ broadcastBuilder( void ){
 		count += sizeof( PHY_MODE ) - 1;
 		{
 			uint8_t phyMode;
-			if ( PHY_MODE_11B == (phyMode = wifi_get_phy_mode()) ){
+			if ( PHY_MODE_11B == (phyMode = wifi_get_phy_mode() ) ) {
 				memcpy( count, PHY_MODE_B, ( sizeof( PHY_MODE_B ) - 1 ) );
 				    count += sizeof( PHY_MODE_B ) - 1;
 			} else if ( PHY_MODE_11G == phyMode ) {

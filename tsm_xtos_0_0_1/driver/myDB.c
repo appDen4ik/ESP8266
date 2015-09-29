@@ -58,7 +58,7 @@ LOCAL ICACHE_FLASH_ATTR uint8_t CompareStrings( uint8_t* firstString, uint8_t* s
 
 
 // когда делаю локальной переменной программа зависает на функции spi_flash_write
-static uint8_t tmp[SPI_FLASH_SEC_SIZE];
+LOCAL uint8_t tmp[SPI_FLASH_SEC_SIZE];
 
 
 
@@ -66,10 +66,11 @@ static uint8_t tmp[SPI_FLASH_SEC_SIZE];
  ****************************************************************************************************************
  *  result ICACHE_FLASH_ATTR insert( uint8_t *line )
  *  Функция возвращает:
- * WRONG_LENGHT       - длинна входной строки отличается от установленой LINE_SIZE
- * OPERATION_FAIL     - не получилось прочитать/записать сектор
- * LINE_ALREADY_EXIST - такия запись уже есть
- * NOT_ENOUGH_MEMORY  - память заполнена
+ *  WRONG_LENGHT       - длинна входной строки отличается от установленой LINE_SIZE
+ *  OPERATION_FAIL     - не получилось прочитать/записать сектор
+ *  LINE_ALREADY_EXIST - такия запись уже есть
+ *  NOT_ENOUGH_MEMORY  - память заполнена
+ *  OPERATION_OK
  *
  *  @Description:
  *  	Проверки:
@@ -90,19 +91,18 @@ static uint8_t tmp[SPI_FLASH_SEC_SIZE];
  ****************************************************************************************************************
 */
 result ICACHE_FLASH_ATTR
-insert( uint8_t *line ) {
+insert( uint8_t *string ) {
 
 	uint8_t alignLine[ALIGN_STRING_SIZE];
 	uint8_t currentSector;
 	uint32_t i;
 
 
-	if ( strlen( line ) + 1 != STRING_SIZE ) {     // длинна входящей записи не должна быть больше установленой длинны LINE_SIZE
+	if ( strlen( string ) + 1 != STRING_SIZE ) {     // длинна входящей записи не должна быть больше установленой длинны LINE_SIZE
 		return WRONG_LENGHT;				       // функция strlen возвращает длинну без учета \0
 	}
 
-
-	switch ( findLine( line ) ) {                  // такая запись уже существует
+	switch ( findString( string ) ) {                  // такая запись уже существует
 		case OPERATION_FAIL:
 			 return OPERATION_FAIL;
 		case WRONG_LENGHT:
@@ -117,7 +117,7 @@ insert( uint8_t *line ) {
 		alignLine[i] = 0xff;
 	}
 
-	memcpy( alignLine, line, STRING_SIZE );
+	memcpy( alignLine, string, STRING_SIZE );
 
 	for ( currentSector = START_SECTOR; currentSector <= END_SECTOR; currentSector++ ) {
 
@@ -125,7 +125,7 @@ insert( uint8_t *line ) {
 			return OPERATION_FAIL;
 		}
 
-		for ( i = 0; i + ALIGN_STRING_SIZE < SPI_FLASH_SEC_SIZE ; i += ALIGN_STRING_SIZE ) {    // ищем последнюю запись в текущем секторе
+		for ( i = 0; i + ALIGN_STRING_SIZE <= SPI_FLASH_SEC_SIZE ; i += ALIGN_STRING_SIZE ) { // ищем последнюю запись в текущем секторе
 
 #if STRING_SIZE % 4 == 0
 			if ( END_OF_SRING != tmp[i + ALIGN_STRING_SIZE - 1] ) {                         // строка отсувствует
@@ -151,18 +151,34 @@ insert( uint8_t *line ) {
 
 
 /*
- * operationres ICACHE_FLASH_ATTR update( uint8_t *oldLine, uint8_t *newLine )
- * Сначала поиск записи во flash памяти, если запись не найдено то ничего не делаем, и выходим из функции;
- * если же запись найдено то нужно определить сектор в котором находиться запись, вычитать сектор в буффер,
- * далее необходимо определить адресс записи в буффере, переписать эту запись, очистить текущий сектор, а
- * заполнить его снова данными из буффера
+ ****************************************************************************************************************
+ * result ICACHE_FLASH_ATTR update( uint8_t *oldString, uint8_t *newString )
+ * Функция возвращает:
+ * WRONG_LENGHT			-	неверная длинна одной из входящих строк
+ * NOTHING_FOUND		- 	oldString записи не существует
+ * OPERATION_FAIL		-	ошибка одной из функций работы с флешь памятью
+ * LINE_ALREADY_EXIST	-   newString запись уже существует
+ * OPERATION_OK
+ *
+ * @Description:
+ *	Проверки:
+ *	- Проверка входящих строк на равенство по длинне
+ *	- Проверка что newString равна установленной длинне записи
+ *	- Проверка что oldString существует в бд
+ *	- Проверка что newString не существует в бд
+ *
+ *
+ *		Вычитывается полностью сектор в котором находится запись в буффер. В буффере oldString заменяется на
+ *	newString. Сектор в котором находиться обновляемая запись затирается. Данные из буффера записиваются в этот
+ *  сектор.
+ ****************************************************************************************************************
  */
 result ICACHE_FLASH_ATTR
 update( uint8_t *oldString, uint8_t *newString ) {
 
-	uint32_t adressRequestingString;
+	uint32_t  adressRequestingString;
 	uint32_t  startAdressSector;							// начало сектора в котором находится запрашиваемая запись
-	uint8_t  stringLenght;
+	uint8_t   stringLenght;
 
 	if ( ( stringLenght = strlen( newString ) ) != strlen( oldString ) ) {
 		return WRONG_LENGHT;   								 	           // записи имеют одинаковую длинну
@@ -171,9 +187,18 @@ update( uint8_t *oldString, uint8_t *newString ) {
 		return WRONG_LENGHT;   							 		           // длинна обновляемой записи не больше заданой
 	}
 
-	ets_uart_printf("chek point  1   ");
+	switch ( adressRequestingString = findString( oldString ) ) {       // если oldString отсувствует ничего обновлять не нужно
+		case NOTHING_FOUND:
+			return NOTHING_FOUND;
+		case WRONG_LENGHT:
+			return WRONG_LENGHT;
+		case OPERATION_FAIL:
+			return OPERATION_FAIL;
+		default:
+			break;
+	}
 
-	switch ( adressRequestingString = findLine( newString ) ) {               // если newString уже есть ничего обновлять не нужно
+	switch ( findString( newString ) ) {        // если newString уже есть ничего обновлять не нужно
 		case NOTHING_FOUND:
 			break ;
 		case WRONG_LENGHT:
@@ -184,51 +209,21 @@ update( uint8_t *oldString, uint8_t *newString ) {
 			return LINE_ALREADY_EXIST;
 	}
 
-	ets_uart_printf("chek point  2   ");
-
-	switch ( adressRequestingString = findLine( oldString ) ) {             // если oldString отсувствует ничего обновлять не нужно
-		case NOTHING_FOUND:
-			return NOTHING_FOUND;
-		case WRONG_LENGHT:
-			return WRONG_LENGHT;
-		case OPERATION_FAIL:
-			return OPERATION_FAIL;
-		default:
-			break;
-	}
-	os_printf( " currentSector %d",  adressRequestingString );
-	ets_uart_printf("chek point  3   ");
 	startAdressSector = ( adressRequestingString / SPI_FLASH_SEC_SIZE ) * SPI_FLASH_SEC_SIZE;
 
 	if ( SPI_FLASH_RESULT_OK != spi_flash_read( startAdressSector , (uint32 *)tmp, SPI_FLASH_SEC_SIZE ) ) {
 		return OPERATION_FAIL;
 	}
 
-	ets_uart_printf("chek point  4   ");
-
 	memcpy( &tmp[ adressRequestingString - startAdressSector ], newString, strlen( newString ) );
-
-	ets_uart_printf("chek point  5   ");
-
-	//debug
-	{
-
-		uint32_t deb = startAdressSector /  SPI_FLASH_SEC_SIZE;
-		os_printf( " currentSector %d",  deb);
-	}
-	//debug
-																					// обновление сектора
+																					                      // обновление сектора
 	if ( SPI_FLASH_RESULT_OK != spi_flash_erase_sector( startAdressSector /  SPI_FLASH_SEC_SIZE ) ) {
 		return OPERATION_FAIL;
 	}
 
-	ets_uart_printf("chek point  6   ");
-																					// обновление сектора
 	if ( SPI_FLASH_RESULT_OK != spi_flash_write( startAdressSector, (uint32 *)&tmp,  SPI_FLASH_SEC_SIZE ) ) {
 		return OPERATION_FAIL;
 	}
-
-	ets_uart_printf("chek point  7   ");
 
 	return OPERATION_OK;
 
@@ -242,69 +237,81 @@ update( uint8_t *oldString, uint8_t *newString ) {
  * найти начало следующей записи после запрашиваемой в буфере, сместить данные начиная с адресса который
  * определили на одну запись влево, затереть сектор, записать данные с буффера в сектор flash
  */
-/*result ICACHE_FLASH_ATTR
-delete( uint8_t *removableLine ) {
-	uint8_t   strAdrOfSecThatContRemLine;     // startAdressOfSectorThatContainsRemovableLine
-	uint32_t  absAdrOfRemLineInFlash;         // absoluteAdressOfRemovableLineInFlash
-	uint16_t  reltAdrOfRemLine;               // relativeAdressOfRemovableLine адрес удаляемой записи относительно
-	                                          // начала сектора ( тоже самое что относительно начала tmp[] )
+result ICACHE_FLASH_ATTR
+delete( uint8_t *removableString ) {
+
+	uint32_t  strAdrOfSecThatContRemLine;      // startAdressOfSectorThatContainsRemovableLine
+	uint32_t  absAdrOfRemLineInFlash;          // absoluteAdressOfRemovableLineInFlash
+	uint16_t  reltAdrOfRemLine;                // relativeAdressOfRemovableLine адрес удаляемой записи относительно
+	                                           // начала сектора ( тоже самое что относительно начала tmp[] )
+	uint8_t step;
+	uint16_t lastStr;
 	uint16_t i;
 
-	if ( strlen( removableLine ) != LINE_SIZE ){		// длинна обновляемой записи не больше
+	if ( strlen( removableString ) + 1 != STRING_SIZE ) {		// длинна обновляемой записи не больше
 			return OPERATION_FAIL;   					// заданой длинны LINE_SIZE во время компиляции
 	}
 
-	if ( OPERATION_FAIL == ( absAdrOfRemLineInFlash = findLine( removableLine ) ) ){
-		return OPERATION_FAIL;							// если запись не найдено, то работа функции на этом завершается
-	} else {
-		                                                // начальный адресс сектора в котором находится запись
-		strAdrOfSecThatContRemLine = ( absAdrOfRemLineInFlash / SPI_FLASH_SEC_SIZE ) * SPI_FLASH_SEC_SIZE;
+	switch ( absAdrOfRemLineInFlash = findString( removableString ) ) {  // если oldString отсувствует ничего обновлять не нужно
+		case NOTHING_FOUND:
+			return NOTHING_FOUND;
+		case WRONG_LENGHT:
+			return WRONG_LENGHT;
+		case OPERATION_FAIL:
+			return OPERATION_FAIL;
+		default:
+			break;
+	}
+          	                                                        // начальный адресс сектора в котором находится запись
+	strAdrOfSecThatContRemLine = ( absAdrOfRemLineInFlash / SPI_FLASH_SEC_SIZE ) * SPI_FLASH_SEC_SIZE;
 
-		if ( SPI_FLASH_RESULT_OK != spi_flash_read( strAdrOfSecThatContRemLine, (uint32 *)tmp, SPI_FLASH_SEC_SIZE ) ) {
+	if ( SPI_FLASH_RESULT_OK != spi_flash_read( strAdrOfSecThatContRemLine, (uint32 *)tmp, SPI_FLASH_SEC_SIZE ) ) {
 				return OPERATION_FAIL;
+	}
+
+#if STRING_SIZE % 4 == 0
+	step = 1;
+#else
+	step = 4 - ( STRING_SIZE % 4 ) + 1;
+#endif
+
+	reltAdrOfRemLine = absAdrOfRemLineInFlash - strAdrOfSecThatContRemLine;                          // начало записи в буффере
+
+											                    // если эта запись последняя в секторе ее нужно просто затереть
+	if ( ( reltAdrOfRemLine + 2 * ALIGN_STRING_SIZE ) > SPI_FLASH_SEC_SIZE \
+			                           || tmp[ reltAdrOfRemLine + 2 * ALIGN_STRING_SIZE - step ] !=  END_OF_SRING ) {
+
+		for ( i = 0; i < ALIGN_STRING_SIZE; i++ ) {
+			tmp[ reltAdrOfRemLine + i ] = 0xff;
 		}
 
-		reltAdrOfRemLine = absAdrOfRemLineInFlash - strAdrOfSecThatContRemLine;
+	} else {
+																								      // конец последней записи
+	    for ( lastStr = reltAdrOfRemLine + ALIGN_STRING_SIZE - step; lastStr == END_OF_SRING; lastStr += ALIGN_STRING_SIZE ) {
 
-		                                                           // не является ли удаляемая запись последней
-		if ( MARKER_ENABLE == tmp[ reltAdrOfRemLine + LINE_SIZE - 1 ] ) {
+	    }
 
-			tmp[ reltAdrOfRemLine - 1 ] = MARKER_DISABLE;          // предыдущая запись стает последней
+	    lastStr -= ALIGN_STRING_SIZE;
+			                               //записи которые находятся справа от удаляемой сместить на длинну одной строки влево
+	    for ( i = 0; i <= lastStr; i++ ) {
+			    tmp[ reltAdrOfRemLine + i ] = tmp[ reltAdrOfRemLine + ALIGN_STRING_SIZE + i ];
+	   }
 
-			i = 1;
+	}
+																		// перезапись сектора с удаляемой записью
+	if ( SPI_FLASH_RESULT_OK != spi_flash_erase_sector( strAdrOfSecThatContRemLine / SPI_FLASH_SEC_SIZE ) ) {
+		return OPERATION_FAIL;
+	}
 
-		} else {
-			                                                   // необходимо все записи которые находятся справа
-			                                                   // от удаляемой сместить на длинну одной строки влево
-			for ( i = 0; tmp[ reltAdrOfRemLine + LINE_SIZE + i ] != MARKER_ENABLE; i++ ){
-				tmp[ reltAdrOfRemLine + i ] = tmp[ reltAdrOfRemLine + LINE_SIZE + i ];
-			}
-			tmp[ reltAdrOfRemLine + LINE_SIZE + i ] = MARKER_ENABLE;
-
-			i++;
-
-		}
-		                                               	   // необходимо заполнить все биты справа от последней записи 0xFF
-		for ( ; ( reltAdrOfRemLine + i ) < LINE_SIZE; i++ ){
-			tmp[ reltAdrOfRemLine + i ] = 0xFF;
-		}
-
-													   	   	   	   	   	   // перезапись сектора с удаляемой записью
-		if ( SPI_FLASH_RESULT_OK != spi_flash_erase_sector( strAdrOfSecThatContRemLine / SPI_FLASH_SEC_SIZE ) ) {
-			return OPERATION_FAIL;
-		}
-
-		if ( SPI_FLASH_RESULT_OK != \
+	if ( SPI_FLASH_RESULT_OK != \
 				spi_flash_write( ( strAdrOfSecThatContRemLine / SPI_FLASH_SEC_SIZE ), (uint32 *)tmp, SPI_FLASH_SEC_SIZE ) ) {
-
-			return OPERATION_FAIL;
-		}
+		return OPERATION_FAIL;
 	}
 
 	return OPERATION_OK;
  }
 
-*\
+
 
 /*
  * operationres ICACHE_FLASH_ATTR requestLine( uint8_t *line)
@@ -439,7 +446,7 @@ clearSectorsDB( void ) {
 
 /*
  ****************************************************************************************************************
- * uint32_t ICACHE_FLASH_ATTR findLine( uint8_t *line )
+ * uint32_t ICACHE_FLASH_ATTR findString( uint8_t *string )
  * Функция возвращает:
  * WRONG_LENGHT    - длинна входной строки не совпала с установленой
  * OPERATION_FAIL  - не получилось прочитать сектор
@@ -456,12 +463,12 @@ clearSectorsDB( void ) {
  ***************************************************************************************************************
  */
 uint32_t ICACHE_FLASH_ATTR
-findLine( uint8_t *line ) {
+findString( uint8_t *string ) {
 
 	uint8_t currentSector = START_SECTOR;
 	uint16_t i;
 
-	if ( ( strlen( line ) + 1 ) != STRING_SIZE ) {     // длинна входящей строки не должна быть больше установленой длинны LINE_SIZE
+	if ( ( strlen( string ) + 1 ) != STRING_SIZE ) {     // длинна входящей строки не должна быть больше установленой длинны LINE_SIZE
 		return WRONG_LENGHT;
 	}
 
@@ -476,7 +483,7 @@ findLine( uint8_t *line ) {
 #else
 			if ( END_OF_SRING == tmp[ ALIGN_STRING_SIZE - ( 4 - ( STRING_SIZE % 4 ) + 1 ) ] ) {
 #endif
-				for ( i = 0; i + ALIGN_STRING_SIZE < SPI_FLASH_SEC_SIZE; i += ALIGN_STRING_SIZE ) {   // пока не дошли до конца сектора
+				for ( i = 0; i + ALIGN_STRING_SIZE <= SPI_FLASH_SEC_SIZE; i += ALIGN_STRING_SIZE ) {   // пока не дошли до конца сектора
 
 #if STRING_SIZE % 4 == 0
 					if ( END_OF_SRING != tmp[ i + ALIGN_STRING_SIZE - 1 ] ) {                              // сектор пустой
@@ -488,7 +495,7 @@ findLine( uint8_t *line ) {
 					}
 #endif
 
-					if ( 0 == strcmp( line, &tmp[i] ) ) {
+					if ( 0 == strcmp( string, &tmp[i] ) ) {
 						return currentSector * SPI_FLASH_SEC_SIZE + i;                                 // найдено совпадение
 					}
 

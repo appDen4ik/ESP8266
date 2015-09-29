@@ -263,7 +263,7 @@ m:
 
 	os_delay_us(500000);
 
-	ets_uart_printf(" П.1 Заполняем память значениями (ASCII) выравнеными по 100 символов  ");
+	ets_uart_printf(" П.1 Заполняем память значениями (ASCII) выравняными по 100 символов  ");
 
 	for ( ; res != NOT_ENOUGH_MEMORY; ) {
 
@@ -461,9 +461,286 @@ m:
 
 Проверка функции update( uint8_t *line ). Заполнения бд с помощью функции insert, далее увеличение каждого значения на вели -
 чину количества записей.
+	uint32_t data0 = 0;
+	uint32_t data3 = 0;
+	uint8_t ascii[10];
+	static uint8_t string[STRING_SIZE];
+
+	uint8_t alignString[ALIGN_STRING_SIZE];
+	uint8_t alignStr[ALIGN_STRING_SIZE];
+
+	uint8_t *p;
+
+	uint16_t c, currentSector;
+	uint32_t a, i;
+
+	result res;
+
+
+	for ( i = STRING_SIZE; i < ALIGN_STRING_SIZE; i++ ) {
+		alignString[i] = 0xff;
+	}
+
+	clearSectorsDB();
+
+	os_delay_us(500000);
+
+	ets_uart_printf(" Проверка updateLine Тест 1 ");
+
+	os_delay_us(500000);
+
+	ets_uart_printf(" П.1 Заполняем память значениями (ASCII) выровняными по 101 символов  ");
+
+	for ( ; res != NOT_ENOUGH_MEMORY; ) {
+
+
+		for ( a = 0; a < STRING_SIZE - 1; a++ ) {
+				alignString[a] = '0';
+		}
+		data0++;
+		p = ShortIntToString(data0, ascii);
+		memcpy( &alignString[ STRING_SIZE - 1 - (p - ascii) ], ascii, (p - ascii) );
+		alignString[STRING_SIZE - 1] = '\0';
+
+//		os_printf( " \n %s \n String lenght %d", alignString, (strlen(alignString) + 1) );
+
+		switch ( res = insert( alignString ) ) {
+			case OPERATION_OK:
+				//ets_uart_printf("OPERATION_OK");
+				system_soft_wdt_stop();
+				break;
+			case WRONG_LENGHT:
+				ets_uart_printf("WRONG_LENGHT");
+				goto m;
+			case OPERATION_FAIL:
+				ets_uart_printf("OPERATION_FAIL");
+				goto m;
+			case LINE_ALREADY_EXIST:
+				ets_uart_printf("LINE_ALREADY_EXIST");
+				goto m;
+			case NOT_ENOUGH_MEMORY:
+				ets_uart_printf("NOT_ENOUGH_MEMORY");
+				system_soft_wdt_stop();
+				break;
+
+		}
+
+	}
+
+	os_delay_us(500000);
+	ets_uart_printf(" Запрос db ");
+	os_delay_us(500000);
+
+
+	for ( currentSector = START_SECTOR; currentSector <= END_SECTOR; currentSector++ ) {
+		os_printf( " currentSector   %d", currentSector);
+		spi_flash_read( SPI_FLASH_SEC_SIZE * currentSector, (uint32 *)tmpTest, SPI_FLASH_SEC_SIZE );
+		for ( c = 0; SPI_FLASH_SEC_SIZE > c; c++ ) {
+			uart_tx_one_char(tmpTest[c]);
+		}
+		system_soft_wdt_stop();
+	}
+	
+		os_delay_us(500000);
+		ets_uart_printf(" Проверка updateLine Тест 1 . Увеличения значения в каждой записи");
+		os_delay_us(500000);
+
+		data0--;
+
+		for ( data3 = 1; data3 <= data0; data3++ ) {
+
+
+			for ( a = 0; a < STRING_SIZE - 1; a++ ) {
+					alignString[a] = '0';
+			}
+
+
+			for ( a = 0; a < STRING_SIZE - 1; a++ ) {
+					alignStr[a] = '0';
+			}
+
+			p = ShortIntToString(data3, ascii);
+			memcpy( &alignString[ STRING_SIZE - 1 - (p - ascii) ], ascii, (p - ascii) );
+			alignString[STRING_SIZE - 1] = '\0';
+
+			a = data0 + data3;
+
+			p = ShortIntToString(a, ascii);
+			memcpy( &alignStr[ STRING_SIZE - 1 - (p - ascii) ], ascii, (p - ascii) );
+			alignStr[STRING_SIZE - 1] = '\0';
+
+			os_printf( " \n %s \n String 1 lenght %d", alignString, (strlen(alignString) + 1) );
+			os_printf( " \n %s \n String 2 lenght %d", alignStr, (strlen(alignStr) + 1) );
+
+			switch ( res = update( alignString, alignStr ) ) {
+				case OPERATION_OK:
+					ets_uart_printf("OPERATION_OK");
+					system_soft_wdt_stop();
+					break;
+				case WRONG_LENGHT:
+					ets_uart_printf("WRONG_LENGHT");
+					goto m;
+				case OPERATION_FAIL:
+					ets_uart_printf("OPERATION_FAIL");
+					goto m;
+				case LINE_ALREADY_EXIST:
+					ets_uart_printf("LINE_ALREADY_EXIST");
+					goto m;
+				case NOTHING_FOUND:
+					ets_uart_printf("NOTHING_FOUND");
+					goto m;
+			}
+
+		}
+
+
+		for ( currentSector = START_SECTOR; currentSector <= END_SECTOR; currentSector++ ) {
+			os_printf( " currentSector   %d", currentSector);
+			spi_flash_read( SPI_FLASH_SEC_SIZE * currentSector, (uint32 *)tmpTest, SPI_FLASH_SEC_SIZE );
+			for ( c = 0; SPI_FLASH_SEC_SIZE > c; c++ ) {
+				uart_tx_one_char(tmpTest[c]);
+			}
+			system_soft_wdt_stop();
+		}
+
+--------------Проверка что при обновлении несуществующей записи функция корректно отработает---------------------
+
+	uint32_t data0 = 0;
+	uint32_t data3 = 0;
+	uint8_t ascii[10];
+	static uint8_t string[STRING_SIZE];
+
+	uint8_t alignString[ALIGN_STRING_SIZE];
+	uint8_t alignStr[ALIGN_STRING_SIZE];
+
+	uint8_t *p;
+
+	uint16_t c, currentSector;
+	uint32_t a, i;
+
+	result res;
+
+
+	for ( i = STRING_SIZE; i < ALIGN_STRING_SIZE; i++ ) {
+		alignString[i] = 0xff;
+	}
+
+	clearSectorsDB();
+
+	os_delay_us(500000);
+
+	ets_uart_printf(" Проверка updateLine Тест 1 ");
+
+	os_delay_us(500000);
+
+	ets_uart_printf(" П.1 Заполняем память значениями (ASCII) выровняными по 100 символов  ");
+
+	for ( ; res != NOT_ENOUGH_MEMORY; ) {
+
+
+		for ( a = 0; a < STRING_SIZE - 1; a++ ) {
+				alignString[a] = '0';
+		}
+		data0++;
+		p = ShortIntToString(data0, ascii);
+		memcpy( &alignString[ STRING_SIZE - 1 - (p - ascii) ], ascii, (p - ascii) );
+		alignString[STRING_SIZE - 1] = '\0';
+
+//		os_printf( " \n %s \n String lenght %d", alignString, (strlen(alignString) + 1) );
+
+		switch ( res = insert( alignString ) ) {
+			case OPERATION_OK:
+				//ets_uart_printf("OPERATION_OK");
+				system_soft_wdt_stop();
+				break;
+			case WRONG_LENGHT:
+				ets_uart_printf("WRONG_LENGHT");
+				goto m;
+			case OPERATION_FAIL:
+				ets_uart_printf("OPERATION_FAIL");
+				goto m;
+			case LINE_ALREADY_EXIST:
+				ets_uart_printf("LINE_ALREADY_EXIST");
+				goto m;
+			case NOT_ENOUGH_MEMORY:
+				ets_uart_printf("NOT_ENOUGH_MEMORY");
+				system_soft_wdt_stop();
+				break;
+
+		}
+
+	}
+
+		os_delay_us(500000);
+		ets_uart_printf(" Проверка updateLine Тест 1 . Проверка что при обновлении несуществующей записи функция корректно отработает");
+		os_delay_us(500000);
+
+
+		data0 = data3;
+
+		for ( i = 0; i < 2; i++, data0++, data3++ ) {
+
+
+			for ( a = 0; a < STRING_SIZE - 1; a++ ) {
+					alignString[a] = '0';
+			}
+
+
+			for ( a = 0; a < STRING_SIZE - 1; a++ ) {
+					alignStr[a] = '0';
+			}
+
+			p = ShortIntToString(data3, ascii);
+			memcpy( &alignString[ STRING_SIZE - 1 - (p - ascii) ], ascii, (p - ascii) );
+			alignString[STRING_SIZE - 1] = '\0';
 
 
 
+			p = ShortIntToString(data0, ascii);
+			memcpy( &alignStr[ STRING_SIZE - 1 - (p - ascii) ], ascii, (p - ascii) );
+			alignStr[STRING_SIZE - 1] = '\0';
+
+			os_printf( " \n %s \n String 1 lenght %d", alignString, (strlen(alignString) + 1) );
+			os_printf( " \n %s \n String 2 lenght %d", alignStr, (strlen(alignStr) + 1) );
+
+			switch ( res = update( alignString, alignStr ) ) {
+				case OPERATION_OK:
+					ets_uart_printf("OPERATION_OK");
+					goto m;
+				case WRONG_LENGHT:
+					ets_uart_printf("WRONG_LENGHT");
+					goto m;
+				case OPERATION_FAIL:
+					ets_uart_printf("OPERATION_FAIL");
+					goto m;
+				case LINE_ALREADY_EXIST:
+					ets_uart_printf("LINE_ALREADY_EXIST");
+					break;
+				case NOTHING_FOUND:
+					ets_uart_printf("NOTHING_FOUND");
+					break;
+			}
+
+		}
+
+
+		for ( currentSector = START_SECTOR; currentSector <= END_SECTOR; currentSector++ ) {
+			os_printf( " currentSector   %d", currentSector);
+			spi_flash_read( SPI_FLASH_SEC_SIZE * currentSector, (uint32 *)tmpTest, SPI_FLASH_SEC_SIZE );
+			for ( c = 0; SPI_FLASH_SEC_SIZE > c; c++ ) {
+				uart_tx_one_char(tmpTest[c]);
+			}
+			system_soft_wdt_stop();
+		}
+
+
+
+		ets_uart_printf(" Тестирование успешно завершено ");
+		
+m:
+--------------------------------------------------------------------------------------------------------------------------
+--------------------------------------------------------------------------------------------------------------------------
+--------------------------------------------------------------------------------------------------------------------------
         
 
 
