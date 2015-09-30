@@ -534,7 +534,7 @@ result stringEqual( uint8_t* firstString, uint8_t* secondString ) {
 		}
 	}
 
-	if ( *( firstString - 1 ) == *( secondString - 1 ) ) {
+	if ( *firstString == *secondString ) {
 
 		return OPERATION_OK;
 	}
