@@ -17,11 +17,11 @@
 #include "spi_flash.h"
 
 
-#define STRING_SIZE	    256              // длинна записи
+#define STRING_SIZE	    100			        // длинна записи
 
-#define START_SECTOR 	19               // начальный сектор
+#define START_SECTOR 	19                  // начальный сектор
 
-#define END_SECTOR 		58               // последний сектор
+#define END_SECTOR 		58                 // последний сектор
 
 
 /*
@@ -48,7 +48,9 @@
 
 
 
-#define START_OF_TEXT	 2
+#define START_OF_FIELD	 2
+
+#define END_OF_FIELD	'\n'
 
 #define END_OF_SRING    '\0'
 
@@ -64,9 +66,9 @@ typedef enum {
 
 
 
-result ICACHE_FLASH_ATTR insert( uint8_t *string );							   //tested
-uint32_t ICACHE_FLASH_ATTR findString( uint8_t *string );					   //tested
-result ICACHE_FLASH_ATTR delete( uint8_t *removableString );
+result ICACHE_FLASH_ATTR insert( uint8_t *string );
+uint32_t ICACHE_FLASH_ATTR findString( uint8_t *string );
+result ICACHE_FLASH_ATTR delete( uint8_t *removableString );                   //tested
 result ICACHE_FLASH_ATTR clearSectorsDB( void );                               //tested
 result ICACHE_FLASH_ATTR update( uint8_t *oldString, uint8_t *newString );     //tested
 result ICACHE_FLASH_ATTR requestString( uint8_t *string );

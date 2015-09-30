@@ -52,7 +52,7 @@ uint8_t tmpTest[SPI_FLASH_SEC_SIZE];
 extern void ets_wdt_enable (void);
 extern void ets_wdt_disable (void);
 
-
+uint8_t alignString[ALIGN_STRING_SIZE];
 
 LOCAL struct espconn broadcast;
 LOCAL esp_udp udp;
@@ -214,7 +214,7 @@ user_init(void) {
 	uint8_t ascii[10];
 	static uint8_t string[STRING_SIZE];
 
-	uint8_t alignString[ALIGN_STRING_SIZE];
+
 	uint8_t alignStr[ALIGN_STRING_SIZE];
 
 	uint8_t *p;
@@ -233,28 +233,27 @@ user_init(void) {
 
 	os_delay_us(500000);
 
-	ets_uart_printf(" Проверка updateLine Тест 1 ");
+	ets_uart_printf(" Проверка insert  и  find ");
 
 	os_delay_us(500000);
 
-	ets_uart_printf(" П.1 Заполняем память значениями (ASCII) выровняными по 256 символов  ");
+	ets_uart_printf(" П.1 Заполняем начальный сектор значениями (ASCII) выровняными по 256 символов  ");
 
-	for ( ; res != NOT_ENOUGH_MEMORY; ) {
-
+	for ( i = 1; ; i++ ) {
 
 		for ( a = 0; a < STRING_SIZE - 1; a++ ) {
 				alignString[a] = '0';
 		}
-		data0++;
-		p = ShortIntToString(data0, ascii);
+
+		p = ShortIntToString( i, ascii );
 		memcpy( &alignString[ STRING_SIZE - 1 - (p - ascii) ], ascii, (p - ascii) );
 		alignString[STRING_SIZE - 1] = '\0';
 
-//		os_printf( " \n %s \n String lenght %d", alignString, (strlen(alignString) + 1) );
+		os_printf( " \n %s \n String lenght %d", alignString, (strlen(alignString) + 1) );
 
 		switch ( res = insert( alignString ) ) {
 			case OPERATION_OK:
-				//ets_uart_printf("OPERATION_OK");
+				ets_uart_printf("OPERATION_OK");
 				system_soft_wdt_stop();
 				break;
 			case WRONG_LENGHT:
@@ -267,81 +266,59 @@ user_init(void) {
 				ets_uart_printf("LINE_ALREADY_EXIST");
 				goto m;
 			case NOT_ENOUGH_MEMORY:
-				ets_uart_printf("NOT_ENOUGH_MEMORY");
-				system_soft_wdt_stop();
-				break;
+			ets_uart_printf("NOT_ENOUGH_MEMORY");
+			goto c;
 
 		}
 
 	}
 
-		os_delay_us(500000);
-		ets_uart_printf(" Проверка updateLine Тест 1 . Проверка что при обновлении несуществующей записи функция корректно отработает");
-		os_delay_us(500000);
-
-
-		data0 = 700;
-		data3 = 16;
-
-		for ( i = 0; i < 2; i++, data0++, data3++ ) {
-
-
-			for ( a = 0; a < STRING_SIZE - 1; a++ ) {
-					alignString[a] = '0';
+c:
+	os_delay_us(1000000);
+		for ( currentSector = START_SECTOR; currentSector <= END_SECTOR; currentSector++ ) {
+			os_printf( " currentSector   %d", currentSector);
+			spi_flash_read( SPI_FLASH_SEC_SIZE * currentSector, (uint32 *)tmpTest, SPI_FLASH_SEC_SIZE );
+			system_soft_wdt_stop();
+			for ( c = 0; SPI_FLASH_SEC_SIZE > c; c++ ) {
+				uart_tx_one_char(tmpTest[c]);
 			}
+		}
+
+	os_delay_us(500000);
+	ets_uart_printf( " П.П. " );
+	os_delay_us(500000);
 
 
-			for ( a = 0; a < STRING_SIZE - 1; a++ ) {
-					alignStr[a] = '0';
-			}
+	for ( i =  1; i <= ( SPI_FLASH_SEC_SIZE / ALIGN_STRING_SIZE ) * ( END_SECTOR - START_SECTOR + 1 ); i++ ) {
 
-			p = ShortIntToString(data3, ascii);
-			memcpy( &alignString[ STRING_SIZE - 1 - (p - ascii) ], ascii, (p - ascii) );
-			alignString[STRING_SIZE - 1] = '\0';
+		for ( a = 0; a < STRING_SIZE - 1; a++ ) {
+				alignString[a] = '0';
+		}
 
+		p = ShortIntToString( i, ascii );
+		memcpy( &alignString[ STRING_SIZE - 1 - ( p - ascii ) ], ascii, ( p - ascii ) );
+		alignString[ STRING_SIZE - 1 ] = '\0';
 
+		os_printf( " \n %s \n String 1 lenght %d", alignString, (strlen(alignString) + 1) );
 
-			p = ShortIntToString(data0, ascii);
-			memcpy( &alignStr[ STRING_SIZE - 1 - (p - ascii) ], ascii, (p - ascii) );
-			alignStr[STRING_SIZE - 1] = '\0';
-
-			os_printf( " \n %s \n String 1 lenght %d", alignString, (strlen(alignString) + 1) );
-			os_printf( " \n %s \n String 2 lenght %d", alignStr, (strlen(alignStr) + 1) );
-
-			switch ( res = update( alignString, alignStr ) ) {
-				case OPERATION_OK:
-					ets_uart_printf("OPERATION_OK");
-					goto m;
+			switch ( a = findString( alignString ) ) {
 				case WRONG_LENGHT:
 					ets_uart_printf("WRONG_LENGHT");
 					goto m;
 				case OPERATION_FAIL:
 					ets_uart_printf("OPERATION_FAIL");
 					goto m;
-				case LINE_ALREADY_EXIST:
-					ets_uart_printf("LINE_ALREADY_EXIST");
-					break;
 				case NOTHING_FOUND:
 					ets_uart_printf("NOTHING_FOUND");
+					goto m;
+				default:
+					os_printf( " \n String aderess %d", a );
 					break;
 			}
-
-		}
-
-
-		for ( currentSector = START_SECTOR; currentSector <= END_SECTOR; currentSector++ ) {
-			os_printf( " currentSector   %d", currentSector);
-			spi_flash_read( SPI_FLASH_SEC_SIZE * currentSector, (uint32 *)tmpTest, SPI_FLASH_SEC_SIZE );
-			for ( c = 0; SPI_FLASH_SEC_SIZE > c; c++ ) {
-				uart_tx_one_char(tmpTest[c]);
-			}
-			system_soft_wdt_stop();
-		}
+	}
 
 
-
-		ets_uart_printf(" Тестирование успешно завершено ");
-
+	ets_uart_printf(" Тестирование успешно завершено ");
 
 m:
 

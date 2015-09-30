@@ -8,8 +8,8 @@
  ************************************************************************************************************************
  * @info:
  * 		Реализованы функции необходимые для работы с кучей
- * 		- найти запись по записи 	(static)	- findLine();
- * 		- найти запись по полю/полям			- requestLine();
+ * 		- найти запись по записи 		        - findString();
+ * 		- найти запись по полю/полям			- requestString();
  * 		И для работы с базой данных:
  * 		- очистить выделенную область под хранение кучи		- clearSectorsDB();
  * 		- сделать запись                       				- insert();
@@ -49,8 +49,7 @@
 #include "espconn.h"
 
 
-LOCAL ICACHE_FLASH_ATTR void maskBitsInField ( uint8_t* adressOfField, uint16_t startAbsovuleAdress, uint16_t endAbsovuleAdress );
-LOCAL ICACHE_FLASH_ATTR uint8_t CompareStrings( uint8_t* firstString, uint8_t* secondString );
+static ICACHE_FLASH_ATTR result stringEqual( uint8_t* firstString, uint8_t* secondString ); // сравнение не ноль терминальных строк
 
 
 // константы необходимо переносить в ОЗУ, без этого не работает spi_flash_write,
@@ -96,7 +95,13 @@ insert( uint8_t *string ) {
 	uint8_t alignLine[ALIGN_STRING_SIZE];
 	uint8_t currentSector;
 	uint32_t i;
+	uint8_t step;
 
+#if STRING_SIZE % 4 == 0
+	step = 1;
+#else
+	step = ( 4 - ( STRING_SIZE % 4 ) + 1 );
+#endif
 
 	if ( strlen( string ) + 1 != STRING_SIZE ) {     // длинна входящей записи не должна быть больше установленой длинны LINE_SIZE
 		return WRONG_LENGHT;				       // функция strlen возвращает длинну без учета \0
@@ -127,12 +132,8 @@ insert( uint8_t *string ) {
 
 		for ( i = 0; i + ALIGN_STRING_SIZE <= SPI_FLASH_SEC_SIZE ; i += ALIGN_STRING_SIZE ) { // ищем последнюю запись в текущем секторе
 
-#if STRING_SIZE % 4 == 0
-			if ( END_OF_SRING != tmp[i + ALIGN_STRING_SIZE - 1] ) {                         // строка отсувствует
+			if ( END_OF_SRING != tmp[ i + ALIGN_STRING_SIZE - step ] ) {                         // строка отсувствует
 
-#else
-			if ( END_OF_SRING != tmp[ i + ALIGN_STRING_SIZE - ( 4 - ( STRING_SIZE % 4 ) + 1 ) ] ) {
-#endif
 				if ( SPI_FLASH_RESULT_OK !=  \
 							       spi_flash_write( currentSector*SPI_FLASH_SEC_SIZE + i, (uint32 *)alignLine, ALIGN_STRING_SIZE ) ) {
 						return OPERATION_FAIL;
@@ -187,7 +188,7 @@ update( uint8_t *oldString, uint8_t *newString ) {
 		return WRONG_LENGHT;   							 		           // длинна обновляемой записи не больше заданой
 	}
 
-	switch ( adressRequestingString = findString( oldString ) ) {       // если oldString отсувствует ничего обновлять не нужно
+	switch ( adressRequestingString = findString( oldString ) ) {          // если oldString отсувствует ничего обновлять не нужно
 		case NOTHING_FOUND:
 			return NOTHING_FOUND;
 		case WRONG_LENGHT:
@@ -216,8 +217,8 @@ update( uint8_t *oldString, uint8_t *newString ) {
 	}
 
 	memcpy( &tmp[ adressRequestingString - startAdressSector ], newString, strlen( newString ) );
-																					                      // обновление сектора
-	if ( SPI_FLASH_RESULT_OK != spi_flash_erase_sector( startAdressSector /  SPI_FLASH_SEC_SIZE ) ) {
+
+	if ( SPI_FLASH_RESULT_OK != spi_flash_erase_sector( startAdressSector /  SPI_FLASH_SEC_SIZE ) ) {  // обновление сектора
 		return OPERATION_FAIL;
 	}
 
@@ -227,15 +228,29 @@ update( uint8_t *oldString, uint8_t *newString ) {
 
 	return OPERATION_OK;
 
- }
+}
 
 
 /*
- * operationres ICACHE_FLASH_ATTR delete( uint8_t *line )
- * Сначала поиск записи во flash памяти, если запись не найдено то ничего не делаем, и выходим из функции;
- * если же запись найдено то нужно определить сектор в котором находиться запись, вычитать сектор в буффер,
- * найти начало следующей записи после запрашиваемой в буфере, сместить данные начиная с адресса который
- * определили на одну запись влево, затереть сектор, записать данные с буффера в сектор flash
+ ****************************************************************************************************************
+ * result ICACHE_FLASH_ATTR delete( uint8_t *removableString )
+ * Функция возвращает:
+ * WRONG_LENGHT			-	неверная длинна входной строки
+ * NOTHING_FOUND		- 	такой записи не существует
+ * OPERATION_FAIL		-	ошибка одной из функций работы с флешь памятью
+ * OPERATION_OK
+ *
+ * @Description:
+ *	Проверки:
+ *	- длинна входной строки равна установленной
+ *	- входная строка есть в куче
+ *
+ * 		По адрессу которой возвращает функция findString опредиляется сектор в котором находится удаляемая запись.
+ * Вычитывается сектор в буффур. Если запись последняя, то она просто затирается в буффере (заполняется 0хff).
+ * Если же запись не является последней тогда все записи, которые находяться справа от удаляемой сдвигаются на
+ * длинну одной выровнянной строки влево. Самая крайняя запись справа затирается, так как последняя запись в ре -
+ * зультате сдвига последняя запсь в секторе дублируется.
+ ****************************************************************************************************************
  */
 result ICACHE_FLASH_ATTR
 delete( uint8_t *removableString ) {
@@ -244,12 +259,12 @@ delete( uint8_t *removableString ) {
 	uint32_t  absAdrOfRemLineInFlash;          // absoluteAdressOfRemovableLineInFlash
 	uint16_t  reltAdrOfRemLine;                // relativeAdressOfRemovableLine адрес удаляемой записи относительно
 	                                           // начала сектора ( тоже самое что относительно начала tmp[] )
-	uint8_t step;
+	uint8_t  step;
 	uint16_t lastStr;
 	uint16_t i;
 
 	if ( strlen( removableString ) + 1 != STRING_SIZE ) {		// длинна обновляемой записи не больше
-			return OPERATION_FAIL;   					// заданой длинны LINE_SIZE во время компиляции
+			return OPERATION_FAIL;   					        // заданой длинны LINE_SIZE во время компиляции
 	}
 
 	switch ( absAdrOfRemLineInFlash = findString( removableString ) ) {  // если oldString отсувствует ничего обновлять не нужно
@@ -262,7 +277,7 @@ delete( uint8_t *removableString ) {
 		default:
 			break;
 	}
-          	                                                        // начальный адресс сектора в котором находится запись
+          	                                                              // начальный адресс сектора в котором находится запись
 	strAdrOfSecThatContRemLine = ( absAdrOfRemLineInFlash / SPI_FLASH_SEC_SIZE ) * SPI_FLASH_SEC_SIZE;
 
 	if ( SPI_FLASH_RESULT_OK != spi_flash_read( strAdrOfSecThatContRemLine, (uint32 *)tmp, SPI_FLASH_SEC_SIZE ) ) {
@@ -272,39 +287,41 @@ delete( uint8_t *removableString ) {
 #if STRING_SIZE % 4 == 0
 	step = 1;
 #else
-	step = 4 - ( STRING_SIZE % 4 ) + 1;
+	step = ( 4 - ( STRING_SIZE % 4 ) + 1 );
 #endif
 
 	reltAdrOfRemLine = absAdrOfRemLineInFlash - strAdrOfSecThatContRemLine;                          // начало записи в буффере
 
-											                    // если эта запись последняя в секторе ее нужно просто затереть
+											                    // если эта запись последняя в секторе она просто затирается
 	if ( ( reltAdrOfRemLine + 2 * ALIGN_STRING_SIZE ) > SPI_FLASH_SEC_SIZE \
-			                           || tmp[ reltAdrOfRemLine + 2 * ALIGN_STRING_SIZE - step ] !=  END_OF_SRING ) {
+			                                          || tmp[ reltAdrOfRemLine + 2 * ALIGN_STRING_SIZE - step ] !=  END_OF_SRING ) {
 
 		for ( i = 0; i < ALIGN_STRING_SIZE; i++ ) {
 			tmp[ reltAdrOfRemLine + i ] = 0xff;
 		}
 
 	} else {
-																								      // конец последней записи
-	    for ( lastStr = reltAdrOfRemLine + ALIGN_STRING_SIZE - step; lastStr == END_OF_SRING; lastStr += ALIGN_STRING_SIZE ) {
-
+																				        // конец последней записи + ALIGN_STRING_SIZE
+	    for ( lastStr = reltAdrOfRemLine + ALIGN_STRING_SIZE - step; \
+	                         lastStr + step <= SPI_FLASH_SEC_SIZE && tmp[ lastStr ] == END_OF_SRING; lastStr += ALIGN_STRING_SIZE ) {
 	    }
 
-	    lastStr -= ALIGN_STRING_SIZE;
-			                               //записи которые находятся справа от удаляемой сместить на длинну одной строки влево
-	    for ( i = 0; i <= lastStr; i++ ) {
+	    lastStr = lastStr - ALIGN_STRING_SIZE + step;
+	                                             //записи которые находятся справа от удаляемой сместить на длинну одной строки влево
+	    for ( i = 0; i < lastStr - reltAdrOfRemLine - ALIGN_STRING_SIZE; i++ ) {
 			    tmp[ reltAdrOfRemLine + i ] = tmp[ reltAdrOfRemLine + ALIGN_STRING_SIZE + i ];
-	   }
+	    }
 
+	    for ( i = lastStr - 1; i >= ( lastStr - ALIGN_STRING_SIZE ); i-- ) {   // последняя запись затирается
+	    		tmp[ i ] = 0xff;
+	    }
 	}
 																		// перезапись сектора с удаляемой записью
 	if ( SPI_FLASH_RESULT_OK != spi_flash_erase_sector( strAdrOfSecThatContRemLine / SPI_FLASH_SEC_SIZE ) ) {
 		return OPERATION_FAIL;
 	}
 
-	if ( SPI_FLASH_RESULT_OK != \
-				spi_flash_write( ( strAdrOfSecThatContRemLine / SPI_FLASH_SEC_SIZE ), (uint32 *)tmp, SPI_FLASH_SEC_SIZE ) ) {
+	if ( SPI_FLASH_RESULT_OK != spi_flash_write( strAdrOfSecThatContRemLine, (uint32 *)tmp, SPI_FLASH_SEC_SIZE ) ) {
 		return OPERATION_FAIL;
 	}
 
@@ -314,13 +331,12 @@ delete( uint8_t *removableString ) {
 
 
 /*
- * operationres ICACHE_FLASH_ATTR requestLine( uint8_t *line)
- * - на вход приходит строка в которой заполнены часть полей и необходимо найти в куче запись в
- *   которой хотя бы одно поле будет такое же как в искомой записи. В пустые поля искомой строки
- *   должны быть записаны \r
- *@Description:
- *    - Проверки
- *        - длинна запрашиваемой строки должна быть равна заданной (LINE_SIZE)
+ *****************************************************************************************************************
+ * result ICACHE_FLASH_ATTR requestString( uint8_t *string )
+ *
+ * @Description:
+ *  - Проверки
+ *       - длинна запрашиваемой строки должна быть равна заданной (LINE_SIZE)
  *   	  - в запрашиваемой строке должно быть заполнено хотя бы одно поле
  *    - Если во входящей строке заполнено больше одного поля то необходимо
  *      сначала маскировать все кроме первого, далее искать во флеше по всем
@@ -328,93 +344,70 @@ delete( uint8_t *removableString ) {
  *      кроме второго и происходит поиск во флеше, и так далее, до тех пор
  *      пока не будет найдено запись с таким же полем, либо ее не будет найдено
  *      вообще.
- *
+ *****************************************************************************************************************
  */
-/*result ICACHE_FLASH_ATTR
-requestLine( uint8_t *line) {
+result ICACHE_FLASH_ATTR
+requestString( uint8_t *string ) {
 
 	uint8_t currentSector = START_SECTOR;
-	uint16_t i, c;
-	uint8_t endAdressOfCarrentField, startAdressOfCarrentField;
-	uint8_t copyLine[LINE_SIZE];
+	uint16_t i = 0;
+	uint16_t c;
 
-	                                      // длинна входящей строки не должна быть больше установленой длинны LINE_SIZE
-	if ( ( strlen( line ) + 1 ) != LINE_SIZE ) { return OPERATION_FAIL; }
+	uint16_t relativeShift;
+	uint8_t  step;
 
-	                                // в искомой строке должно быть заполнено хотя бы одно поле
-	for ( i = 0; i <= LINE_SIZE; i++ ){
-		if ( '\n' != tmp[i] || MARKER_ENABLE != tmp[i] ) {		                                // ищется окончание первого попавшего поля
-			break;
-		} else if ( LINE_SIZE == i ){
-			return OPERATION_FAIL;
-		}
+
+#if STRING_SIZE % 4 == 0
+	step = 1;
+#else
+	step = ( 4 - ( STRING_SIZE % 4 ) + 1 );
+#endif
+
+	if ( ( strlen( string ) + 1 ) != STRING_SIZE ) {        // длинна входящей строки не должна быть больше установленой длинны
+
+		return OPERATION_FAIL;
 	}
-//***********************************************************************************************************************************************
 
 
+    while ( i < ALIGN_STRING_SIZE ) {
 
-				// подготовка запрашеваемой строки (маскировка необходимых полей)
-	for ( i = 0; i < LINE_SIZE; ) {
+		for ( ; i < ALIGN_STRING_SIZE; i++ ) {            // в искомой строке должно быть заполнено хотя бы одно поле
 
-				// копируем запрашиваемую строку
-		memcpy( copyLine, line, LINE_SIZE );
+			if ( START_OF_FIELD != tmp[ i ] ) {
 
-				// находим начало следующей строки  START_OF_TEXT
-		for ( i = 0; ; i++) {
-			if ( START_OF_TEXT == copyLine[i] ) {
-				startAdressOfCarrentField = i;
+				relativeShift = i;
+
 				break;
-			} else if ( '\0' == copyLine[i] || MARKER_ENABLE != copyLine[i] || LINE_SIZE == i) {
+			}
+			else if ( STRING_SIZE == i ) {
+
 				return OPERATION_FAIL;
 			}
 		}
 
-			    // находим конец следующей строки \n
-		for ( ; ; i++ ) {
-			if ( START_OF_TEXT == copyLine[i] ) {
-				endAdressOfCarrentField = i;
-					break;
-				} else if ( '\0' == copyLine[i] || MARKER_ENABLE != copyLine[i] || LINE_SIZE == i) {
-					return OPERATION_FAIL;
-				}
-		}
+		for ( ; currentSector <= END_SECTOR;  currentSector++ ) {     // пока не дошли до конца выделенной памяти
 
+			if ( SPI_FLASH_RESULT_OK != spi_flash_read( SPI_FLASH_SEC_SIZE * currentSector , (uint32 *)tmp, SPI_FLASH_SEC_SIZE ) ) {
 
-		maskBitsInField( copyLine, startAdressOfCarrentField, endAdressOfCarrentField );
-
-//************************************************************************************************************************************************
-
-
-		for ( ; currentSector <= END_SECTOR;  currentSector++) {                  						// пока не дошли до конца выделенной памяти
-
-																												//чтение сектора
-			if ( SPI_FLASH_RESULT_OK != spi_flash_read( SPI_FLASH_SEC_SIZE*currentSector , (uint32 *)tmp, SPI_FLASH_SEC_SIZE ) ){
 					return OPERATION_FAIL;
 			}
 
-			if ( MARKER_DISABLE == tmp[0] ) {   // сектор не пустой
-				for ( c = 1; c < SPI_FLASH_SEC_SIZE; c += LINE_SIZE ) { // пока не дошли до конца сектора
+			for ( c = relativeShift; c + ALIGN_STRING_SIZE < SPI_FLASH_SEC_SIZE; \
+					                                                  c += ALIGN_STRING_SIZE ) { // пока не дошли до конца сектора
 
-					maskBitsInField ( &tmp[c], startAdressOfCarrentField, endAdressOfCarrentField );
+				if ( OPERATION_OK == stringEqual( &string[ relativeShift ], &tmp[ c ] ) ) {
 
-					if ( 0 == strcmp( copyLine, &tmp[c] ) ) { return currentSector*SPI_FLASH_SEC_SIZE + c;      // найдено совпадение
-					}
-					else if ( MARKER_ENABLE == tmp[c] ) {
-						tmp[c - 1] = MARKER_DISABLE;
-						if ( 0 == strcmp( copyLine, &tmp[c] ) ) { return currentSector*SPI_FLASH_SEC_SIZE + c;  // найдено совпадение
-						} else { break; }
-					}
-
+					return OPERATION_OK;                             // найдено совпадение
 				}
 			}
 		}
-
-	}
+    }
 
 	return OPERATION_FAIL;        // если дошли до этой строчки значит совпадений не было найдено
+
 }
 
-*\
+
 
 /*
  ****************************************************************************************************************
@@ -467,44 +460,44 @@ findString( uint8_t *string ) {
 
 	uint8_t currentSector = START_SECTOR;
 	uint16_t i;
+	uint8_t step;
 
-	if ( ( strlen( string ) + 1 ) != STRING_SIZE ) {     // длинна входящей строки не должна быть больше установленой длинны LINE_SIZE
+#if STRING_SIZE % 4 == 0
+	step = 1;
+#else
+	step = ( 4 - ( STRING_SIZE % 4 ) + 1 );
+#endif
+
+	if ( ( strlen( string ) + 1 ) != STRING_SIZE ) {   // длинна входящей строки не должна быть больше установленой длинны LINE_SIZE
+
 		return WRONG_LENGHT;
 	}
 
 	for ( ; currentSector <= END_SECTOR; currentSector++ ) {                // пока не дошли до конца выделенной памяти
 
 		if ( SPI_FLASH_RESULT_OK != spi_flash_read( SPI_FLASH_SEC_SIZE * currentSector , (uint32 *)tmp, SPI_FLASH_SEC_SIZE ) ) {
+
 			return OPERATION_FAIL;
 		}
 
-#if STRING_SIZE % 4 == 0
-			if ( END_OF_SRING == tmp[ ALIGN_STRING_SIZE - 1 ] ) {                         // сектор не пустой
-#else
-			if ( END_OF_SRING == tmp[ ALIGN_STRING_SIZE - ( 4 - ( STRING_SIZE % 4 ) + 1 ) ] ) {
-#endif
-				for ( i = 0; i + ALIGN_STRING_SIZE <= SPI_FLASH_SEC_SIZE; i += ALIGN_STRING_SIZE ) {   // пока не дошли до конца сектора
+		if ( END_OF_SRING == tmp[ ALIGN_STRING_SIZE - step ] ) {                         // сектор не пустой
 
-#if STRING_SIZE % 4 == 0
-					if ( END_OF_SRING != tmp[ i + ALIGN_STRING_SIZE - 1 ] ) {                              // сектор пустой
-						break;
-					}
-#else
-					if ( END_OF_SRING != tmp[ i + ALIGN_STRING_SIZE - ( 4 - ( STRING_SIZE % 4 ) + 1 ) ] ) {
-						break;
-					}
-#endif
+			for ( i = 0; i + ALIGN_STRING_SIZE <= SPI_FLASH_SEC_SIZE; i += ALIGN_STRING_SIZE ) { // пока не дошли до конца сектора
 
-					if ( 0 == strcmp( string, &tmp[i] ) ) {
-						return currentSector * SPI_FLASH_SEC_SIZE + i;                                 // найдено совпадение
-					}
+				if ( END_OF_SRING != tmp[ i + ALIGN_STRING_SIZE - step ] ) {                     // сектор пустой
 
+					break;
+				}
+
+				if ( 0 == strcmp( string, &tmp[i] ) ) {
+
+				    return currentSector * SPI_FLASH_SEC_SIZE + i;                                // найдено совпадение
+				}
 		    }
-
 		}
-
 	}
-	return NOTHING_FOUND;                                 // если дошло до этой строчки значит совпадений не было найдено
+
+	return NOTHING_FOUND;
  }
 
 
@@ -515,33 +508,41 @@ query( struct espconn* transmiter ) {
  return 0;
 }
 
+
+
+/*
+ ****************************************************************************************************************
+ * Сравнение не ноль терминальных строк
+ * ICACHE_FLASH_ATTR result stringEqual( uint8_t* firstString, uint8_t* secondString )
+ *
+ * Функция возвращает:
+ * OPERATION_FAIL  - строки не равны
+ * OPERATION_OK    - строки равны
+ *
+ * @Description:
+
+ ***************************************************************************************************************
+ */
 ICACHE_FLASH_ATTR
-void maskBitsInField ( uint8_t* adressOfField, uint16_t startAbsovuleAdress, uint16_t endAbsovuleAdress ) {
-
-	uint16_t i;
-
-	for ( i = 0; i < STRING_SIZE - 1; i++ ) {
-		if ( i == startAbsovuleAdress ) {
-			i = endAbsovuleAdress + 1;
-		}
-
-		adressOfField[i] = '\r';
-	}
-
-}
-
-// Сравнение строк (строки должны заканчиваться на \r либо \n либо \0)
-// 1 - true
-// 0 - false
-ICACHE_FLASH_ATTR
-uint8_t CompareStrings( uint8_t* firstString, uint8_t* secondString ) {
+result stringEqual( uint8_t* firstString, uint8_t* secondString ) {
 
 	while( *firstString != '\r' && *firstString != '\n' && *firstString != '\0' ) {
-		if ( *firstString++ != *secondString++ ) { return 0; }
+
+		if ( *firstString++ != *secondString++ ) {
+
+			return OPERATION_FAIL;
+		}
 	}
 
-	if ( *(firstString - 1) == *(secondString - 1) ) { return 1; }
-	else { return 0; }
+	if ( *( firstString - 1 ) == *( secondString - 1 ) ) {
+
+		return OPERATION_OK;
+	}
+	else {
+
+		return OPERATION_FAIL;
+	}
+
 }
 
 
