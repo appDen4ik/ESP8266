@@ -355,7 +355,6 @@ requestString( uint8_t *string ) {
 	uint8_t currentSector;
 	uint16_t i = 0;
 	uint16_t c;
-
 	uint16_t relativeShift;
 
 
