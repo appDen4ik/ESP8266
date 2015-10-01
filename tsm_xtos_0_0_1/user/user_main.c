@@ -212,8 +212,11 @@ user_init(void) {
 	uint32_t data0 = 0;
 	uint32_t data3 = 0;
 	uint8_t ascii[10];
-	static uint8_t string[STRING_SIZE];
+	static uint8_t string[] = "HELLO";
+	static uint8_t string1[] = "Тестирование";
 
+	uint8_t string2[] = "HELLO1";
+	uint8_t string3[] = "Тестирование1";
 
 	uint8_t alignStr[ALIGN_STRING_SIZE];
 
@@ -233,23 +236,36 @@ user_init(void) {
 
 	os_delay_us(500000);
 
-	ets_uart_printf(" Проверка insert  и  find ");
+	ets_uart_printf(" Проверка requestString. Тест 2 ");
 
 	os_delay_us(500000);
 
-	ets_uart_printf(" П.1 Заполняем начальный сектор значениями (ASCII) выровняными по 256 символов  ");
+	ets_uart_printf(" П.1 Заполняем значениями (ASCII) выровняными по 100 символов  ");
 
-	for ( i = 1; ; i++ ) {
+	for ( i = 1; i <= ( SPI_FLASH_SEC_SIZE / ALIGN_STRING_SIZE ) * ( END_SECTOR - START_SECTOR + 1 ) ; i++ ) {
 
 		for ( a = 0; a < STRING_SIZE - 1; a++ ) {
 				alignString[a] = '0';
 		}
 
 		p = ShortIntToString( i, ascii );
-		memcpy( &alignString[ STRING_SIZE - 1 - (p - ascii) ], ascii, (p - ascii) );
-		alignString[STRING_SIZE - 1] = '\0';
 
-		os_printf( " \n %s \n String lenght %d", alignString, (strlen(alignString) + 1) );
+		memcpy( &alignString[ STRING_SIZE - 95 ], string, strlen(string) );
+		alignString[ STRING_SIZE - 96 ] = START_OF_FIELD;
+		alignString[ STRING_SIZE - 80 ]  = END_OF_FIELD;
+
+
+		memcpy( &alignString[ STRING_SIZE - 1 - (p - ascii) - 1 ], ascii, (p - ascii) );
+		alignString[ STRING_SIZE - 15 ] = START_OF_FIELD;
+		alignString[ STRING_SIZE - 2  ]  = END_OF_FIELD;
+		alignString[ STRING_SIZE - 1 ]  = END_OF_STRING;
+
+
+		memcpy( &alignString[ STRING_SIZE - 40 - 15 - 20 ], string1, strlen( string1 ) );
+		alignString[ STRING_SIZE - 40 - 20 - 15 - 1 ] = START_OF_FIELD;
+		alignString[ STRING_SIZE - 41 - 15 ]  = END_OF_FIELD;
+
+		os_printf( " \n %s \n String lenght %d", alignString, ( strlen( alignString ) + 1 ) );
 
 		switch ( res = insert( alignString ) ) {
 			case OPERATION_OK:
@@ -275,54 +291,134 @@ user_init(void) {
 
 c:
 	os_delay_us(1000000);
-		for ( currentSector = START_SECTOR; currentSector <= END_SECTOR; currentSector++ ) {
-			os_printf( " currentSector   %d", currentSector);
-			spi_flash_read( SPI_FLASH_SEC_SIZE * currentSector, (uint32 *)tmpTest, SPI_FLASH_SEC_SIZE );
-			system_soft_wdt_stop();
-			for ( c = 0; SPI_FLASH_SEC_SIZE > c; c++ ) {
-				uart_tx_one_char(tmpTest[c]);
-			}
+
+//	for ( currentSector = START_SECTOR; currentSector <= END_SECTOR; currentSector++ ) {
+		os_printf( " currentSector   %d", currentSector);
+		spi_flash_read( SPI_FLASH_SEC_SIZE * START_SECTOR, (uint32 *)tmpTest, SPI_FLASH_SEC_SIZE );
+		for ( c = 0; SPI_FLASH_SEC_SIZE > c; c++ ) {
+			uart_tx_one_char(tmpTest[c]);
 		}
+/*		os_delay_us(1000000);
+		system_soft_wdt_stop();
+	}
+*/
+
 
 	os_delay_us(500000);
-	ets_uart_printf( " П.П. " );
+	ets_uart_printf( " П. 2 - Поиск всех записей переданых в прошлом пункте" );
 	os_delay_us(500000);
 
 
-	for ( i =  1; i <= ( SPI_FLASH_SEC_SIZE / ALIGN_STRING_SIZE ) * ( END_SECTOR - START_SECTOR + 1 ); i++ ) {
+
+	for ( i = 1; i <= ( SPI_FLASH_SEC_SIZE / ALIGN_STRING_SIZE ) * ( END_SECTOR - START_SECTOR + 1 ) ; i++ ) {
 
 		for ( a = 0; a < STRING_SIZE - 1; a++ ) {
 				alignString[a] = '0';
 		}
 
 		p = ShortIntToString( i, ascii );
-		memcpy( &alignString[ STRING_SIZE - 1 - ( p - ascii ) ], ascii, ( p - ascii ) );
-		alignString[ STRING_SIZE - 1 ] = '\0';
 
-		os_printf( " \n %s \n String 1 lenght %d", alignString, (strlen(alignString) + 1) );
 
-			switch ( a = findString( alignString ) ) {
-				case WRONG_LENGHT:
-					ets_uart_printf("WRONG_LENGHT");
+		memcpy( &alignString[ STRING_SIZE - 95 ], string, strlen(string) );
+		alignString[ STRING_SIZE - 96 ] = START_OF_FIELD;
+		alignString[ STRING_SIZE - 80 ]  = END_OF_FIELD;
+
+
+		memcpy( &alignString[ STRING_SIZE - 1 - (p - ascii) - 1 ], ascii, (p - ascii) );
+		alignString[ STRING_SIZE - 15 ] = START_OF_FIELD;
+		alignString[ STRING_SIZE - 2  ]  = END_OF_FIELD;
+		alignString[ STRING_SIZE - 1 ]  = END_OF_STRING;
+
+
+		memcpy( &alignString[ STRING_SIZE - 40 - 15 - 20 ], string1, strlen( string1 ) );
+		alignString[ STRING_SIZE - 40 - 20 - 15 - 1 ] = START_OF_FIELD;
+		alignString[ STRING_SIZE - 41 - 15 ]  = END_OF_FIELD;
+
+		os_printf( " \n %s \n String lenght %d", alignString, ( strlen( alignString ) + 1 ) );
+
+		switch ( res = requestString( alignString ) ) {
+			case OPERATION_OK:
+				ets_uart_printf("OPERATION_OK");
+				system_soft_wdt_stop();
+				break;
+			case OPERATION_FAIL:
+				ets_uart_printf("OPERATION_FAIL");
+				goto m;
+			case WRONG_LENGHT:
+				ets_uart_printf("WRONG_LENGHT");
+				goto m;
+			case NOTHING_FOUND:
+				ets_uart_printf("NOTHING_FOUND");
+				goto m;
+
+		}
+	}
+
+
+
+	os_delay_us(500000);
+		ets_uart_printf( " П. 3 - Проверка что функция не находит записи когда поля такого рельно нету " );
+		os_delay_us(500000);
+
+
+
+		for ( ; i <= 2500; i++ ) {
+
+			for ( a = 0; a < STRING_SIZE - 1; a++ ) {
+					alignString[a] = '0';
+			}
+
+			if ( i == 2500 ) {
+				p = ShortIntToString( 0, ascii );
+			} else {
+				p = ShortIntToString( i, ascii );
+			}
+
+
+			memcpy( &alignString[ STRING_SIZE - 95 ], string2, strlen(string2) );
+			alignString[ STRING_SIZE - 96 ] = START_OF_FIELD;
+			alignString[ STRING_SIZE - 80 ]  = END_OF_FIELD;
+
+
+			memcpy( &alignString[ STRING_SIZE - 1 - (p - ascii) - 1 ], ascii, (p - ascii) );
+			alignString[ STRING_SIZE - 15 ] = START_OF_FIELD;
+			alignString[ STRING_SIZE - 2  ]  = END_OF_FIELD;
+			alignString[ STRING_SIZE - 1 ]  = END_OF_STRING;
+
+
+			memcpy( &alignString[ STRING_SIZE - 40 - 15 - 20 ], string3, strlen( string3 ) );
+			alignString[ STRING_SIZE - 40 - 20 - 15 - 1 ] = START_OF_FIELD;
+			alignString[ STRING_SIZE - 41 - 15 ]  = END_OF_FIELD;
+
+			os_printf( " \n %s \n String lenght %d", alignString, ( strlen( alignString ) + 1 ) );
+
+			switch ( res = requestString( alignString ) ) {
+				case OPERATION_OK:
+					ets_uart_printf("OPERATION_OK");
 					goto m;
 				case OPERATION_FAIL:
 					ets_uart_printf("OPERATION_FAIL");
 					goto m;
+				case WRONG_LENGHT:
+					ets_uart_printf("WRONG_LENGHT");
+					goto m;
 				case NOTHING_FOUND:
 					ets_uart_printf("NOTHING_FOUND");
-					goto m;
-				default:
-					os_printf( " \n String aderess %d", a );
+					system_soft_wdt_stop();
 					break;
-			}
-	}
 
+			}
+		}
 
 	ets_uart_printf(" Тестирование успешно завершено ");
+
+
+
 
 m:
 
 while ( 1 ) {
+	os_delay_us(500000);
 	system_soft_wdt_stop();
 }
 

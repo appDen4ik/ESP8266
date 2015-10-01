@@ -132,7 +132,7 @@ insert( uint8_t *string ) {
 
 		for ( i = 0; i + ALIGN_STRING_SIZE <= SPI_FLASH_SEC_SIZE ; i += ALIGN_STRING_SIZE ) { // ищем последнюю запись в текущем секторе
 
-			if ( END_OF_SRING != tmp[ i + ALIGN_STRING_SIZE - step ] ) {                         // строка отсувствует
+			if ( END_OF_STRING != tmp[ i + ALIGN_STRING_SIZE - step ] ) {                         // строка отсувствует
 
 				if ( SPI_FLASH_RESULT_OK !=  \
 							       spi_flash_write( currentSector*SPI_FLASH_SEC_SIZE + i, (uint32 *)alignLine, ALIGN_STRING_SIZE ) ) {
@@ -294,7 +294,7 @@ delete( uint8_t *removableString ) {
 
 											                    // если эта запись последняя в секторе она просто затирается
 	if ( ( reltAdrOfRemLine + 2 * ALIGN_STRING_SIZE ) > SPI_FLASH_SEC_SIZE \
-			                                          || tmp[ reltAdrOfRemLine + 2 * ALIGN_STRING_SIZE - step ] !=  END_OF_SRING ) {
+			                                          || tmp[ reltAdrOfRemLine + 2 * ALIGN_STRING_SIZE - step ] !=  END_OF_STRING ) {
 
 		for ( i = 0; i < ALIGN_STRING_SIZE; i++ ) {
 			tmp[ reltAdrOfRemLine + i ] = 0xff;
@@ -303,7 +303,7 @@ delete( uint8_t *removableString ) {
 	} else {
 																				        // конец последней записи + ALIGN_STRING_SIZE
 	    for ( lastStr = reltAdrOfRemLine + ALIGN_STRING_SIZE - step; \
-	                         lastStr + step <= SPI_FLASH_SEC_SIZE && tmp[ lastStr ] == END_OF_SRING; lastStr += ALIGN_STRING_SIZE ) {
+	                         lastStr + step <= SPI_FLASH_SEC_SIZE && tmp[ lastStr ] == END_OF_STRING; lastStr += ALIGN_STRING_SIZE ) {
 	    }
 
 	    lastStr = lastStr - ALIGN_STRING_SIZE + step;
@@ -334,10 +334,13 @@ delete( uint8_t *removableString ) {
  *****************************************************************************************************************
  * result ICACHE_FLASH_ATTR requestString( uint8_t *string )
  *
+ * Функция возвращает:
+ *  WRONG_LENGHT       - нвеверная длинна входной строки
+ *  NOTHING_FOUND      - строка с искомым полем не найдено
+ *  OPERATION_OK       - строка найдена
+ *  OPERATION_FAIL
+ *
  * @Description:
- *  - Проверки
- *       - длинна запрашиваемой строки должна быть равна заданной (LINE_SIZE)
- *   	  - в запрашиваемой строке должно быть заполнено хотя бы одно поле
  *    - Если во входящей строке заполнено больше одного поля то необходимо
  *      сначала маскировать все кроме первого, далее искать во флеше по всем
  *      записям совпадение, если его не найдено то тогда маскируются все поля
@@ -349,51 +352,41 @@ delete( uint8_t *removableString ) {
 result ICACHE_FLASH_ATTR
 requestString( uint8_t *string ) {
 
-	uint8_t currentSector = START_SECTOR;
+	uint8_t currentSector;
 	uint16_t i = 0;
 	uint16_t c;
 
 	uint16_t relativeShift;
-	uint8_t  step;
 
-
-#if STRING_SIZE % 4 == 0
-	step = 1;
-#else
-	step = ( 4 - ( STRING_SIZE % 4 ) + 1 );
-#endif
 
 	if ( ( strlen( string ) + 1 ) != STRING_SIZE ) {        // длинна входящей строки не должна быть больше установленой длинны
 
-		return OPERATION_FAIL;
+		return WRONG_LENGHT;
 	}
 
+	while ( i < STRING_SIZE ) {
 
-    while ( i < ALIGN_STRING_SIZE ) {
+		for ( ; i <= STRING_SIZE; i++ ) {                   // в искомой строке должно быть хотя бы одно поле
 
-		for ( ; i < ALIGN_STRING_SIZE; i++ ) {            // в искомой строке должно быть заполнено хотя бы одно поле
+			if ( START_OF_FIELD == string[ i ] ) {
 
-			if ( START_OF_FIELD != tmp[ i ] ) {
-
-				relativeShift = i;
-
+				relativeShift = i++;
 				break;
 			}
-			else if ( STRING_SIZE == i ) {
+			else if ( i >= STRING_SIZE ) {
 
-				return OPERATION_FAIL;
+				return NOTHING_FOUND;
 			}
 		}
-
-		for ( ; currentSector <= END_SECTOR;  currentSector++ ) {     // пока не дошли до конца выделенной памяти
+		                                                              // пока не дошли до конца выделенной памяти
+		for ( currentSector = START_SECTOR; currentSector <= END_SECTOR; currentSector++ ) {
 
 			if ( SPI_FLASH_RESULT_OK != spi_flash_read( SPI_FLASH_SEC_SIZE * currentSector , (uint32 *)tmp, SPI_FLASH_SEC_SIZE ) ) {
 
 					return OPERATION_FAIL;
 			}
 
-			for ( c = relativeShift; c + ALIGN_STRING_SIZE < SPI_FLASH_SEC_SIZE; \
-					                                                  c += ALIGN_STRING_SIZE ) { // пока не дошли до конца сектора
+			for ( c = relativeShift; c < SPI_FLASH_SEC_SIZE; c += ALIGN_STRING_SIZE ) { // пока не дошли до конца сектора
 
 				if ( OPERATION_OK == stringEqual( &string[ relativeShift ], &tmp[ c ] ) ) {
 
@@ -401,10 +394,9 @@ requestString( uint8_t *string ) {
 				}
 			}
 		}
-    }
+	}
 
-	return OPERATION_FAIL;        // если дошли до этой строчки значит совпадений не было найдено
-
+	return NOTHING_FOUND;        // если дошли до этой строчки значит совпадений не было найдено
 }
 
 
@@ -412,6 +404,7 @@ requestString( uint8_t *string ) {
 /*
  ****************************************************************************************************************
  * result ICACHE_FLASH_ATTR clearSectorsDB( void )
+ *
  * Функция возвращает:
  * OPERATION_FAIL  - не получилось очистить сектор
  * OPERATION_OK    - память готова к использованию
@@ -480,11 +473,11 @@ findString( uint8_t *string ) {
 			return OPERATION_FAIL;
 		}
 
-		if ( END_OF_SRING == tmp[ ALIGN_STRING_SIZE - step ] ) {                         // сектор не пустой
+		if ( END_OF_STRING == tmp[ ALIGN_STRING_SIZE - step ] ) {                                  // сектор не пустой
 
 			for ( i = 0; i + ALIGN_STRING_SIZE <= SPI_FLASH_SEC_SIZE; i += ALIGN_STRING_SIZE ) { // пока не дошли до конца сектора
 
-				if ( END_OF_SRING != tmp[ i + ALIGN_STRING_SIZE - step ] ) {                     // сектор пустой
+				if ( END_OF_STRING != tmp[ i + ALIGN_STRING_SIZE - step ] ) {                     // сектор пустой
 
 					break;
 				}
@@ -499,14 +492,6 @@ findString( uint8_t *string ) {
 
 	return NOTHING_FOUND;
  }
-
-
-
-result ICACHE_FLASH_ATTR
-query( struct espconn* transmiter ) {
-
- return 0;
-}
 
 
 
@@ -545,4 +530,24 @@ result stringEqual( uint8_t* firstString, uint8_t* secondString ) {
 
 }
 
+
+
+/*
+ ****************************************************************************************************************
+ * result ICACHE_FLASH_ATTR query( struct espconn* transmiter )
+ *
+ * Функция возвращает:
+ * OPERATION_FAIL
+ * OPERATION_OK     - это последний блок данных
+ * либо абсолютный адресс на котором закончилось чтение.
+ *
+ * @Description:
+
+ ***************************************************************************************************************
+ */
+uint32_t ICACHE_FLASH_ATTR
+query( uint8_t *buf ) {
+
+ return OPERATION_OK;
+}
 
