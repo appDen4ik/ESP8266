@@ -72,5 +72,6 @@ result ICACHE_FLASH_ATTR delete( uint8_t *removableString );                   /
 result ICACHE_FLASH_ATTR clearSectorsDB( void );                               //tested
 result ICACHE_FLASH_ATTR update( uint8_t *oldString, uint8_t *newString );     //tested
 result ICACHE_FLASH_ATTR requestString( uint8_t *string );
+uint32_t ICACHE_FLASH_ATTR query( uint8_t *repository );
 
 #endif /* INCLUDE_DRIVER_MYDB_H_ */
