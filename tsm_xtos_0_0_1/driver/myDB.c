@@ -341,12 +341,17 @@ delete( uint8_t *removableString ) {
  *  OPERATION_FAIL
  *
  * @Description:
- *    - Если во входящей строке заполнено больше одного поля то необходимо
- *      сначала маскировать все кроме первого, далее искать во флеше по всем
- *      записям совпадение, если его не найдено то тогда маскируются все поля
- *      кроме второго и происходит поиск во флеше, и так далее, до тех пор
- *      пока не будет найдено запись с таким же полем, либо ее не будет найдено
- *      вообще.
+ *  Входные проверки:
+ *  - длинна входной строки соответствует установленой
+ *
+ *  	Во входной строке должно быть заполнено хотя бы одно поле ( их может быть несколько ). Каждое поле начинается
+ *  символом START_OF_FIELD, а заканчивается символом END_OF_FIELD. Сначала происходит поиск первого попавшегося
+ *  поля ( символа START_OF_FIELD ), сохраняется смещение относительно начала строки. Потом последовательно
+ *  вычитываются сектора кучи, и со смещением  смещение поля относительно начала строки + ALIGN_STRING_SIZE
+ *  сравниваются поля запрашиваемой строки и текущей до тех пор пока не проверится вся выделенная память, или не
+ *  найдется совпадение. Если совпадений не было найдено то проверяется есть ли в запрашиваемой строке еще одно
+ *  поле, если есть то операции по проверке повторяются, если нет то функция завершает свою работу и возвращает
+ *  NOTHING_FOUND
  *****************************************************************************************************************
  */
 result ICACHE_FLASH_ATTR
@@ -365,14 +370,14 @@ requestString( uint8_t *string ) {
 
 	while ( i < STRING_SIZE ) {
 
-		for ( ; i <= STRING_SIZE; i++ ) {                   // в искомой строке должно быть хотя бы одно поле
+		for ( ; i < STRING_SIZE; i++ ) {                   // в искомой строке должно быть хотя бы одно поле
 
 			if ( START_OF_FIELD == string[ i ] ) {
 
 				relativeShift = i++;
 				break;
 			}
-			else if ( i >= STRING_SIZE ) {
+			else if ( END_OF_STRING == string[ i ] ) {
 
 				return NOTHING_FOUND;
 			}
@@ -526,27 +531,99 @@ result stringEqual( uint8_t* firstString, uint8_t* secondString ) {
 
 		return OPERATION_FAIL;
 	}
-
 }
 
 
 
 /*
  ****************************************************************************************************************
- * result ICACHE_FLASH_ATTR query( struct espconn* transmiter )
+ * result ICACHE_FLASH_ATTR query( uint8_t *storage, uint16_t *lenght, uint32_t absAdrInFlash )
+ * storage       - хранилище для вычитанных данных 1КБ
+ * lenght        - количество вычитанных байт
+ * absAdrInFlash - на каком адрессе закончилось предыдущее чтение, если это первый запрос то 0
+ *
  *
  * Функция возвращает:
  * OPERATION_FAIL
  * OPERATION_OK     - это последний блок данных
- * либо абсолютный адресс на котором закончилось чтение.
+ * READ_DONE        - чтение закончено
  *
  * @Description:
 
  ***************************************************************************************************************
  */
-uint32_t ICACHE_FLASH_ATTR
-query( uint8_t *buf ) {
+result ICACHE_FLASH_ATTR
+query( uint8_t *storage, uint16_t *lenght, uint32_t *absAdrInFlash ) {
 
- return OPERATION_OK;
+	uint16_t i;
+	uint16_t relAdrEndStr;
+	uint8_t step;
+	uint32_t strAdrOfSec;
+	uint8_t currentSector = START_SECTOR;
+
+
+#if STRING_SIZE % 4 == 0
+	step = 1;
+#else
+	step = ( 4 - ( STRING_SIZE % 4 ) + 1 );
+#endif
+
+
+	if ( 0 == *absAdrInFlash ) {
+
+		*absAdrInFlash = START_SECTOR * SPI_FLASH_SEC_SIZE;
+	}
+
+
+	for ( *lenght = 0; *absAdrInFlash <= ( END_SECTOR + 1 ) * SPI_FLASH_SEC_SIZE; ) {
+
+		strAdrOfSec = ( *absAdrInFlash / SPI_FLASH_SEC_SIZE ) * SPI_FLASH_SEC_SIZE;
+
+		os_printf( " absAdrInFlash   %d", *absAdrInFlash );
+		os_delay_us(100000);
+
+		os_printf( " strAdrOfSec   %d", strAdrOfSec );
+		os_delay_us(100000);
+
+		if ( SPI_FLASH_RESULT_OK != spi_flash_read( strAdrOfSec, (uint32 *)tmp, SPI_FLASH_SEC_SIZE ) ) {
+
+			return OPERATION_FAIL;
+		}
+		                                                                          // относительный адресс конца n + 1 записи
+		for ( relAdrEndStr = 0; relAdrEndStr <= SPI_FLASH_SEC_SIZE; relAdrEndStr +=  ALIGN_STRING_SIZE ) {
+
+			if ( END_OF_STRING != tmp[ relAdrEndStr + ALIGN_STRING_SIZE - step ] ) {
+
+//				relAdrEndStr -= ALIGN_STRING_SIZE;
+				break;
+			}
+		}
+
+		os_printf( " relAdrEndStr   %d", relAdrEndStr );
+		os_delay_us(100000);
+
+		if ( 0 != relAdrEndStr && *absAdrInFlash <= ( strAdrOfSec + relAdrEndStr ) ) {
+
+			os_printf( " check point ");
+			os_delay_us(100000);
+
+			i = *absAdrInFlash - strAdrOfSec;
+
+			for ( ; *lenght < STORAGE_SIZE && i < relAdrEndStr; (*lenght)++, i++, (*absAdrInFlash)++ ) {
+
+				storage[ *lenght ] = tmp[ i ];
+			}
+
+			if ( STORAGE_SIZE == *lenght ) {
+
+				return OPERATION_OK;
+			}
+		}
+
+		currentSector++;
+		*absAdrInFlash =  currentSector * SPI_FLASH_SEC_SIZE;
+	}
+
+	return READ_DONE;
 }
 
