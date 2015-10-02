@@ -575,7 +575,7 @@ query( uint8_t *storage, uint16_t *lenght, uint32_t *absAdrInFlash ) {
 	}
 
 
-	for ( *lenght = 0; *absAdrInFlash <= ( END_SECTOR + 1 ) * SPI_FLASH_SEC_SIZE; ) {
+	for ( *lenght = 0; *absAdrInFlash < ( END_SECTOR + 1 ) * SPI_FLASH_SEC_SIZE; ) {
 
 		strAdrOfSec = ( *absAdrInFlash / SPI_FLASH_SEC_SIZE ) * SPI_FLASH_SEC_SIZE;
 
@@ -590,7 +590,7 @@ query( uint8_t *storage, uint16_t *lenght, uint32_t *absAdrInFlash ) {
 			return OPERATION_FAIL;
 		}
 		                                                                          // относительный адресс конца n + 1 записи
-		for ( relAdrEndStr = 0; relAdrEndStr <= SPI_FLASH_SEC_SIZE; relAdrEndStr +=  ALIGN_STRING_SIZE ) {
+		for ( relAdrEndStr = 0; relAdrEndStr < SPI_FLASH_SEC_SIZE; relAdrEndStr +=  ALIGN_STRING_SIZE ) {
 
 			if ( END_OF_STRING != tmp[ relAdrEndStr + ALIGN_STRING_SIZE - step ] ) {
 				os_printf( " check ");
