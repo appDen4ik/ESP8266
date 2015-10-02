@@ -593,8 +593,7 @@ query( uint8_t *storage, uint16_t *lenght, uint32_t *absAdrInFlash ) {
 		for ( relAdrEndStr = 0; relAdrEndStr <= SPI_FLASH_SEC_SIZE; relAdrEndStr +=  ALIGN_STRING_SIZE ) {
 
 			if ( END_OF_STRING != tmp[ relAdrEndStr + ALIGN_STRING_SIZE - step ] ) {
-
-//				relAdrEndStr -= ALIGN_STRING_SIZE;
+				os_printf( " check ");
 				break;
 			}
 		}
