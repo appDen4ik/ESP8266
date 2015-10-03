@@ -11,13 +11,12 @@
 #ifndef INCLUDE_DRIVER_MYDB_H_
 #define INCLUDE_DRIVER_MYDB_H_
 
-#define DB_DEBUG
 
 #include "c_types.h"
 #include "spi_flash.h"
 
 
-#define STRING_SIZE	   4096 	                // длинна записи
+#define STRING_SIZE	    100 	            // длинна записи
 
 #define START_SECTOR 	19                  // начальный сектор
 
@@ -74,6 +73,6 @@ result ICACHE_FLASH_ATTR delete( uint8_t *removableString );                   	
 result ICACHE_FLASH_ATTR clearSectorsDB( void );                              					 	//tested
 result ICACHE_FLASH_ATTR update( uint8_t *oldString, uint8_t *newString );     						//tested
 result ICACHE_FLASH_ATTR requestString( uint8_t *string );                     						//tested
-result ICACHE_FLASH_ATTR query( uint8_t *storage, uint16_t *lenght, uint32_t *absAdrInFlash );
+result ICACHE_FLASH_ATTR query( uint8_t *storage, uint16_t *lenght, uint32_t *absAdrInFlash );      //tested
 
 #endif /* INCLUDE_DRIVER_MYDB_H_ */

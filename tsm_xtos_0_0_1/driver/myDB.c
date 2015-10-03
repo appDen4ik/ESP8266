@@ -509,7 +509,7 @@ findString( uint8_t *string ) {
  * OPERATION_OK    - строки равны
  *
  * @Description:
-
+ *
  ***************************************************************************************************************
  */
 ICACHE_FLASH_ATTR
@@ -549,17 +549,19 @@ result stringEqual( uint8_t* firstString, uint8_t* secondString ) {
  * READ_DONE        - чтение закончено
  *
  * @Description:
-
+ *     Функция последовательно читает данные из секторв по STORAGE_SIZE байт. Читаются только записи, если
+ * сектор не полностью заполнен то оставшиеся байты игнорируются. Если вычитались все данные в текущем секторе
+ * а storage не заполнен то читается след сектор. Функцию необходимо вызывать до тех пор пока она не вернет
+ * READ_DONE
  ***************************************************************************************************************
  */
 result ICACHE_FLASH_ATTR
 query( uint8_t *storage, uint16_t *lenght, uint32_t *absAdrInFlash ) {
 
-	uint16_t i;
 	uint16_t relAdrEndStr;
 	uint8_t step;
 	uint32_t strAdrOfSec;
-	uint8_t currentSector = START_SECTOR;
+	uint8_t currentSector;
 
 
 #if STRING_SIZE % 4 == 0
@@ -574,43 +576,29 @@ query( uint8_t *storage, uint16_t *lenght, uint32_t *absAdrInFlash ) {
 		*absAdrInFlash = START_SECTOR * SPI_FLASH_SEC_SIZE;
 	}
 
-
-	for ( *lenght = 0; *absAdrInFlash < ( END_SECTOR + 1 ) * SPI_FLASH_SEC_SIZE; ) {
+	for ( *lenght = 0, currentSector = *absAdrInFlash / SPI_FLASH_SEC_SIZE; *absAdrInFlash < ( END_SECTOR + 1 ) * SPI_FLASH_SEC_SIZE; ) {
 
 		strAdrOfSec = ( *absAdrInFlash / SPI_FLASH_SEC_SIZE ) * SPI_FLASH_SEC_SIZE;
 
-		os_printf( " absAdrInFlash   %d", *absAdrInFlash );
-		os_delay_us(100000);
-
-		os_printf( " strAdrOfSec   %d", strAdrOfSec );
-		os_delay_us(100000);
 
 		if ( SPI_FLASH_RESULT_OK != spi_flash_read( strAdrOfSec, (uint32 *)tmp, SPI_FLASH_SEC_SIZE ) ) {
 
 			return OPERATION_FAIL;
 		}
-		                                                                          // относительный адресс конца n + 1 записи
+		                                                                          // относительный адресс конца последней записи + 1 байт
 		for ( relAdrEndStr = 0; relAdrEndStr < SPI_FLASH_SEC_SIZE; relAdrEndStr +=  ALIGN_STRING_SIZE ) {
 
 			if ( END_OF_STRING != tmp[ relAdrEndStr + ALIGN_STRING_SIZE - step ] ) {
-				os_printf( " check ");
+
 				break;
 			}
 		}
 
-		os_printf( " relAdrEndStr   %d", relAdrEndStr );
-		os_delay_us(100000);
+		if ( 0 != relAdrEndStr ) {
 
-		if ( 0 != relAdrEndStr && *absAdrInFlash <= ( strAdrOfSec + relAdrEndStr ) ) {
+			for ( ; *lenght < STORAGE_SIZE && ( *absAdrInFlash - strAdrOfSec ) < relAdrEndStr; ( *lenght )++, ( *absAdrInFlash )++ ) {
 
-			os_printf( " check point ");
-			os_delay_us(100000);
-
-			i = *absAdrInFlash - strAdrOfSec;
-
-			for ( ; *lenght < STORAGE_SIZE && i < relAdrEndStr; (*lenght)++, i++, (*absAdrInFlash)++ ) {
-
-				storage[ *lenght ] = tmp[ i ];
+				storage[ *lenght ] = tmp[ *absAdrInFlash - strAdrOfSec ];
 			}
 
 			if ( STORAGE_SIZE == *lenght ) {
@@ -620,7 +608,7 @@ query( uint8_t *storage, uint16_t *lenght, uint32_t *absAdrInFlash ) {
 		}
 
 		currentSector++;
-		*absAdrInFlash =  currentSector * SPI_FLASH_SEC_SIZE;
+		*absAdrInFlash = currentSector * SPI_FLASH_SEC_SIZE;
 	}
 
 	return READ_DONE;

@@ -239,13 +239,13 @@ user_init(void) {
 		clearSectorsDB();
 
 		os_delay_us(500000);
-		ets_uart_printf(" Проверка query. Тест 1 ");
+		ets_uart_printf(" Проверка query. Тест 2 ");
 		os_delay_us(500000);
 
 
 		ets_uart_printf(" П.1 Заполняем базу значениями (ASCII) выровняными по ALIGN_STRING_SIZE символов  ");
 
-		for ( i = 1; i <= ( SPI_FLASH_SEC_SIZE / ALIGN_STRING_SIZE ) * 3 /** ( END_SECTOR - START_SECTOR + 1 )*/; i++ ) {
+		for ( i = 1; i <= ( SPI_FLASH_SEC_SIZE / ALIGN_STRING_SIZE ) * ( END_SECTOR - START_SECTOR + 1 ); i++ ) {
 
 			for ( a = 0; a < STRING_SIZE - 1; a++ ) {
 					alignString[a] = '0';
@@ -297,28 +297,112 @@ user_init(void) {
 
 	c:
 
-//		for ( currentSector = START_SECTOR; currentSector <= END_SECTOR; currentSector++ ) {
-	currentSector = START_SECTOR;
+
+
+/*	spi_flash_erase_sector(START_SECTOR + 1);
+
+	spi_flash_erase_sector(START_SECTOR + 3);
+
+	spi_flash_erase_sector(START_SECTOR + 5);
+
+	spi_flash_erase_sector(START_SECTOR + 8);
+
+	spi_flash_erase_sector(START_SECTOR + 10);
+
+*/	spi_flash_erase_sector(START_SECTOR + 15);
+
+	spi_flash_erase_sector(START_SECTOR + 20);
+
+/*	spi_flash_erase_sector(START_SECTOR + 25);
+
+	spi_flash_erase_sector(START_SECTOR + 30);
+
+	spi_flash_erase_sector(START_SECTOR + 35);
+
+	spi_flash_erase_sector( END_SECTOR );*/
+
+
+
+
+		os_delay_us(500000);
+		ets_uart_printf(" Проверка query. Тест 2. П.П.2. очистка некоторых секторов и каждой 3 - й записи");
+		os_delay_us(500000);
+
+
+
+		for ( i = 3; i <= ( SPI_FLASH_SEC_SIZE / ALIGN_STRING_SIZE ) * ( END_SECTOR - START_SECTOR + 1 ); i += 3 ) {
+
+			for ( a = 0; a < STRING_SIZE - 1; a++ ) {
+					alignString[a] = '0';
+			}
+
+			p = ShortIntToString( i, ascii );
+
+			memcpy( &alignString[ STRING_SIZE - 39 ], string, strlen(string) );
+
+			alignString[ STRING_SIZE - 40 ] = START_OF_FIELD;
+			alignString[ STRING_SIZE - 20 ]  = END_OF_FIELD;
+
+
+			memcpy( &alignString[ STRING_SIZE - 1 - (p - ascii) - 1 - 40], ascii, (p - ascii) );
+
+			alignString[ STRING_SIZE - 15 - 40 ] = START_OF_FIELD;
+			alignString[ STRING_SIZE - 2 - 40 ]  = END_OF_FIELD;
+			alignString[ STRING_SIZE - 1 ]  = END_OF_STRING;
+
+
+			memcpy( &alignString[ STRING_SIZE - 40 - 15 - 20 ], string1, strlen( string1 ) );
+
+			alignString[ STRING_SIZE - 40 - 20 - 15 - 1 ] = START_OF_FIELD;
+			alignString[ STRING_SIZE - 41 - 15 ]  = END_OF_FIELD;
+
+			os_printf( " \n %s \n String lenght %d", alignString, ( strlen( alignString ) + 1 ) );
+
+			switch ( res = delete( alignString ) ) {
+				case OPERATION_OK:
+					ets_uart_printf("OPERATION_OK");
+					data0++;
+					system_soft_wdt_stop();
+					break;
+				case WRONG_LENGHT:
+					ets_uart_printf("WRONG_LENGHT");
+					goto m;
+				case OPERATION_FAIL:
+					ets_uart_printf("OPERATION_FAIL");
+					goto m;
+				case NOTHING_FOUND:
+				ets_uart_printf("NOTHING_FOUND");
+					break;
+
+			}
+
+		}
+
+
+		os_printf( " Очищено записей   %d Очищено памяти %d ", data0,  data0 * ALIGN_STRING_SIZE);
+
+		for ( currentSector = START_SECTOR; currentSector <= END_SECTOR; currentSector++ ) {
 			os_printf( " currentSector   %d", currentSector);
 			spi_flash_read( SPI_FLASH_SEC_SIZE * currentSector, (uint32 *)tmpTest, SPI_FLASH_SEC_SIZE );
 			for ( c = 0; SPI_FLASH_SEC_SIZE > c; c++ ) {
 				uart_tx_one_char(tmpTest[c]);
 			}
-
-
-		os_delay_us(500000);
-		ets_uart_printf(" Проверка query. Тест 2.  ");
-		os_delay_us(500000);
+			system_soft_wdt_stop();
+		}
 
 		lenght = 0;
 		adress = 0;
+		a = 0;
 
 		for ( ; ; ) {
 
 			switch (  query( storage, &lenght, &adress ) ) {
 				case OPERATION_OK:
+				a++;
 				ets_uart_printf("OPERATION_OK");
 				os_printf( " Lenght  %d  adress  %d ", lenght, adress );
+				os_delay_us(500000);
+				os_printf( " Counter  %d ", a );
 				os_delay_us(500000);
 				uart0_tx_buffer( storage, lenght );
 

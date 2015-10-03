@@ -45,23 +45,23 @@
 
 // user data/parameters
 
-#define USER_SECTOR_IN_FLASH_MEM		59 	            // согласовать с END_SECTOR в myDB.h
+#define USER_SECTOR_IN_FLASH_MEM		END_SECTOR + 1 	            // согласовать с END_SECTOR в myDB.h
 
 /*  spi_flash layout
  *
- *  0............11                адресс относительно начала сектора  (
+ *  0............11  ..12          адресс относительно начала сектора  (
  * | flash_ready\0 | \n |          USER_SECTOR_IN_FLASH_MEM * SPI_FLASH_SEC_SIZE )
  *
- *  13....17
- * | STA:\0 | \n |               header
- *  19..50
- * | SSID | \n |                 max lenght 32
- *  52.....116
- * | PASSWORD | \n |             max lenght 64
+ *  100..104 ..105
+ * | STA:\0 | \n |                 		header
+ *  106........139
+ * | SSID \0 | \n |                   	max lenght 32
+ *  140.............205
+ * | PASSWORD  \0 | \n |               	max lenght 64
  *
- *  118......121
- * |   AP:\0   | \n |           header
- *  123.....
+ *  500..........504
+ * |   AP:\0   | \n |              		header
+ *  505.....
  * |    SSID     |
  *
  *
