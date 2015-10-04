@@ -37,6 +37,10 @@
 
 #include "driver/myDB.h"
 
+
+
+
+
 LOCAL uint32_t ICACHE_FLASH_ATTR StringToInt(uint8_t *data);
 LOCAL uint8_t* ICACHE_FLASH_ATTR  ShortIntToString(uint16_t data, uint8_t *adressDestenation);
 
@@ -65,6 +69,10 @@ LOCAL uint8_t tmp[TMP_SIZE];
 
 //**************************************************************************************************************
 
+LOCAL uint8_t tmpFLASH[SPI_FLASH_SEC_SIZE];
+
+//**************************************************************************************************************
+
 LOCAL uint32_t gpioOutImpulse1;
 LOCAL uint32_t gpioOutImpulse2;
 
@@ -76,19 +84,16 @@ LOCAL stat gpioStatusOut2 = DISABLE;
 
 //**************************************************************************************************************
 
+LOCAL os_timer_t task_timer;
 
-uint8_t alignString[ALIGN_STRING_SIZE];
+//**************************************************************************************************************
 
 LOCAL struct espconn broadcast;
-LOCAL esp_udp udp;
+
+//**************************************************************************************************************
 
 
-LOCAL uint16_t server_timeover = 20;
-LOCAL struct espconn server;
-LOCAL esp_tcp tcp1;
-
-
-
+uint8_t *count;
 
 
 
@@ -97,17 +102,15 @@ struct ip_info inf;
 uint8_t ledState = 0;
 
 
-uint8_t nameSTA[100] = "esp8266 1";
 uint8_t brodcastMessage[250] = { 0 };
-uint8_t *count;
+
 uint8_t macadr[10];
-uint16_t servPort = 80;
 sint8_t rssi;
 
 uint8_t storage[1000];
 
 
-LOCAL os_timer_t task_timer;
+
 
 void user_rf_pre_init(void)
 {
@@ -146,7 +149,7 @@ tcp_disnconcb(void* arg){
 }
 
 LOCAL void ICACHE_FLASH_ATTR
-tcp_reconcb(void* arg){
+tcp_reconcb(void* arg, sint8 err ){
 
 }
 
@@ -174,9 +177,9 @@ mScheduler(char *datagram, uint16 size) {
 
 		IP4_ADDR((ip_addr_t *)broadcast.proto.udp->remote_ip, (uint8_t)(station->ip.addr), (uint8_t)(station->ip.addr >> 8),\
 															(uint8_t)(station->ip.addr >> 16), (uint8_t)(station->ip.addr >> 24) );
-
+#ifdef DEBUG
 		os_printf( "bssid : %x:%x:%x:%x:%x:%x ip : %d.%d.%d.%d ", MAC2STR(station->bssid), IP2STR(&station->ip) );
-
+#endif
 		espconn_create(&broadcast);
 		espconn_sent(&broadcast, brodcastMessage, strlen(brodcastMessage));
 		espconn_delete(&broadcast);
@@ -250,14 +253,22 @@ mScheduler(char *datagram, uint16 size) {
 	os_timer_arm(&task_timer, DELAY, 0);
 }
 
+
+
+
 void ICACHE_FLASH_ATTR
 user_init(void) {
+
+	LOCAL struct espconn espconnServer;
+	LOCAL esp_tcp tcpServer;
+	LOCAL esp_udp udpClient;
 
 	initPeriph();
 
 	checkFlash();
 
 	initWIFI();
+
 
 	if ( SPI_FLASH_RESULT_OK == spi_flash_read( USER_SECTOR_IN_FLASH_MEM * SPI_FLASH_SEC_SIZE, \
 				                            (uint32 *)tmp, ALIGN_FLASH_READY_SIZE ) ) {
@@ -287,10 +298,11 @@ user_init(void) {
 	}
 
 
-
+#ifdef DEBUG
 	{
 
 	uint16_t c, currentSector;
+
 
 	for ( currentSector = USER_SECTOR_IN_FLASH_MEM; currentSector <= USER_SECTOR_IN_FLASH_MEM; currentSector++ ) {
 			os_printf( " currentSector   %d", currentSector);
@@ -302,26 +314,30 @@ user_init(void) {
 		}
 
 	}
-
+#endif
 	{ //tcp сервер
-		server.type = ESPCONN_TCP;
-		server.state = ESPCONN_NONE;
-		server.proto.tcp = &tcp1;
-		server.proto.tcp->local_port = servPort;
 
-		espconn_accept(&server);
-		espconn_regist_time(&server, server_timeover, 0);
-		espconn_regist_recvcb(&server, tcp_recvcb);
-		espconn_regist_connectcb(&server, tcp_connectcb);
-		espconn_regist_disconcb(&server, tcp_disnconcb);
+		espconnServer.type = ESPCONN_TCP;
+		espconnServer.state = ESPCONN_NONE;
+		espconnServer.proto.tcp = &tcpServer;
+		espconnServer.proto.tcp->local_port = TCP_PORT;
+
+		espconn_accept(&espconnServer);
+		espconn_regist_time(&espconnServer, TCP_SERVER_TIMEOUT, 0);
+		espconn_regist_recvcb(&espconnServer, tcp_recvcb);          // data received
+		espconn_regist_connectcb(&espconnServer, tcp_connectcb);    // TCP connected successfully
+		espconn_regist_disconcb(&espconnServer, tcp_disnconcb);     // TCP disconnected successfully
+		espconn_regist_sentcb(&espconnServer, tcp_sentcb);          // data sent
+		espconn_regist_reconcb(&espconnServer, tcp_reconcb);        // error, or TCP disconnected
+
 	}
 
-
     { //udp клиент
+
     	broadcast.type = ESPCONN_UDP;
     	broadcast.state = ESPCONN_NONE;
-    	broadcast.proto.udp = &udp;
-    	broadcast.proto.udp->remote_port = 9876;
+    	broadcast.proto.udp = &udpClient;
+    	broadcast.proto.udp->remote_port = UDP_REMOTE_PORT;
     }
 
 	// os_timer_disarm(ETSTimer *ptimer)
@@ -332,6 +348,9 @@ user_init(void) {
 	os_timer_arm(&task_timer, DELAY, 0);
 
 }
+
+
+
 
 void senddata( void ){
 
@@ -377,8 +396,8 @@ initPeriph(  ) {
 	PIN_FUNC_SELECT(INP_3_MUX, INP_3_FUNC);
 	gpio_output_set(0, 0, 0, INP_3);
 
-	PIN_FUNC_SELECT(INP_3_MUX, INP_3_FUNC);
-	gpio_output_set(0, 0, 0, INP_3);
+	PIN_FUNC_SELECT(INP_4_MUX, INP_4_FUNC);
+	gpio_output_set(0, 0, 0, INP_4);
 
 }
 
@@ -441,7 +460,6 @@ initWIFI( ) {
 	wifi_station_connect();
 	wifi_station_dhcpc_start();
 	wifi_station_set_auto_connect(1);
-
 
 
 	if ( wifi_softap_get_config( &softapConf ) ) {
@@ -696,10 +714,22 @@ uint8_t * intToStringHEX(uint8_t data, uint8_t *adressDestenation) {
 //          + " " + server port: + " " servPort + " " +
 //			+ " " + phy mode: + " " + wifi_get_phy_mode() +
 //          + " " + rssi: + " " + wifi_station_get_rssi() +
-//          + " " + statuses: + " " + doorClose: + " " + closed/open +
-//          + " " + doorOpen: + " " + closed/open + "\r\n" + "\0"
+//          + " " + outputs: +
+//			+ " " + gpio_1: + " " + Trigger/Impulse + " " + delay+ms\n +
+//		    + " " + gpio_2: + " " + Trigger/Impulse + " " + delay+ms\n +
+//          + " " + inputs: +
+//		    + " " + inp_1: + " " + high/low +
+//          + " " + INP_2: + " " + high/low +
+//          + " " + INP_3: + " " + high/low +
+//			+ " " + INP_4: + " " + high/low + "\r\n" + "\0"
 void ICACHE_FLASH_ATTR
 broadcastBuilder( void ){
+
+	if ( SPI_FLASH_RESULT_OK != spi_flash_read( USER_SECTOR_IN_FLASH_MEM * SPI_FLASH_SEC_SIZE, \
+				                            (uint32 *)tmpFLASH, SPI_FLASH_SEC_SIZE ) ) {
+
+	}
+
 	//выделяем бродкаст айпишку
 	wifi_get_ip_info( STATION_IF, &inf );
 
@@ -711,8 +741,9 @@ broadcastBuilder( void ){
 	memcpy( count, NAME, ( sizeof( NAME ) - 1 ) );
 	count += sizeof( NAME ) - 1;
 
-	memcpy( count, nameSTA, strlen( nameSTA ) );
-	count += strlen( nameSTA );
+	os_sprintf( count, "%s", &tmp[ BROADCAST_NAME_OFSET ] );
+	count += strlen( &tmp[ BROADCAST_NAME_OFSET ] );
+
 //================================================================
 	memcpy( count, MAC, ( sizeof( MAC ) - 1 ) );
 	count += sizeof( MAC ) - 1;
@@ -731,72 +762,143 @@ broadcastBuilder( void ){
 	   *count++ = ':';
     count = intToStringHEX( macadr[5], count );
 //================================================================
+    memcpy( count, IP, ( sizeof( IP ) - 1 ) );
+    count += sizeof( IP ) - 1;
+
+    count = ShortIntToString( (uint8_t)(inf.ip.addr), count );
+    	*count++ = '.';
+    count = ShortIntToString( (uint8_t)(inf.ip.addr >> 8), count );
+    	*count++ = '.';
+    count = ShortIntToString( (uint8_t)(inf.ip.addr >> 16) , count );
+    	*count++ = '.';
+    count = ShortIntToString( (uint8_t)(inf.ip.addr  >> 24), count);
+//================================================================
+    memcpy( count, SERVER_PORT, ( sizeof( SERVER_PORT ) - 1 ) );
+    count += sizeof( SERVER_PORT ) - 1;
+
+    count = ShortIntToString( TCP_PORT, count );
+//================================================================
+    memcpy( count, PHY_MODE, ( sizeof( PHY_MODE ) - 1 ) );
+    count += sizeof( PHY_MODE ) - 1;
+    {
+    	uint8_t phyMode;
+    	if ( PHY_MODE_11B == (phyMode = wifi_get_phy_mode() ) ) {
+    		memcpy( count, PHY_MODE_B, ( sizeof( PHY_MODE_B ) - 1 ) );
+    		count += sizeof( PHY_MODE_B ) - 1;
+    	} else if ( PHY_MODE_11G == phyMode ) {
+    		memcpy( count, PHY_MODE_G, ( sizeof( PHY_MODE_G ) - 1 ) );
+    		count += sizeof( PHY_MODE_G ) - 1;
+    	} else if ( PHY_MODE_11N == phyMode ) {
+    		memcpy( count, PHY_MODE_N, ( sizeof( PHY_MODE_N ) - 1 ) );
+    		count += sizeof( PHY_MODE_N ) - 1;
+    	}
+    }
+//================================================================
     if ( ( rssi = wifi_station_get_rssi() ) < 0 ) {
+
     	memcpy( count, RSSI, ( sizeof( RSSI ) - 1 ) );
 	    	count += sizeof( RSSI ) - 1;
 
 	    	*count++ = '-';
-	//os_printf( "SDK version: %d", wifi_station_get_rssi() );
-//		uart_tx_one_char( wifi_station_get_rssi() );
-	    	count = ShortIntToString( ~rssi, count );
-}
+	    	count = ShortIntToString( (rssi * (-1)), count );
+    }
 //================================================================
-    memcpy( count, PHY_MODE, ( sizeof( PHY_MODE ) - 1 ) );
-		count += sizeof( PHY_MODE ) - 1;
-		{
-			uint8_t phyMode;
-			if ( PHY_MODE_11B == (phyMode = wifi_get_phy_mode() ) ) {
-				memcpy( count, PHY_MODE_B, ( sizeof( PHY_MODE_B ) - 1 ) );
-				    count += sizeof( PHY_MODE_B ) - 1;
-			} else if ( PHY_MODE_11G == phyMode ) {
-				memcpy( count, PHY_MODE_G, ( sizeof( PHY_MODE_G ) - 1 ) );
-							    count += sizeof( PHY_MODE_G ) - 1;
-			} else if ( PHY_MODE_11N == phyMode ) {
-				memcpy( count, PHY_MODE_N, ( sizeof( PHY_MODE_N ) - 1 ) );
-							    count += sizeof( PHY_MODE_N ) - 1;
-			}
-		}
+	memcpy( count, OUTPUTS, ( sizeof( OUTPUTS ) - 1 ) );
+	count += sizeof( OUTPUTS ) - 1;
 //================================================================
-		memcpy( count, IP, ( sizeof( IP ) - 1 ) );
-		count += sizeof( IP ) - 1;
+	memcpy( count, GPIO_1, ( sizeof( GPIO_1 ) - 1 ) );
+	count += sizeof( GPIO_1 ) - 1;
 
-		count = ShortIntToString( (uint8_t)(inf.ip.addr), count );
-		    *count++ = '.';
-		count = ShortIntToString( (uint8_t)(inf.ip.addr >> 8), count );
-		    *count++ = '.';
-		count = ShortIntToString( (uint8_t)(inf.ip.addr >> 16) , count );
-		    *count++ = '.';
-		count = ShortIntToString( (uint8_t)(inf.ip.addr  >> 24), count);
-//================================================================
-		memcpy( count, SERVER_PORT, ( sizeof( SERVER_PORT ) - 1 ) );
-		count += sizeof( SERVER_PORT ) - 1;
+	if ( 0 == strcmp( &tmp[GPIO_OUT_1_MODE_OFSET], DEF_GPIO_OUT_MODE ) ) {
 
-		count = ShortIntToString( servPort, count );
+		memcpy( count, DEF_GPIO_OUT_MODE, ( sizeof( DEF_GPIO_OUT_MODE ) - 1 ) );
+		count += sizeof( DEF_GPIO_OUT_MODE ) - 1;
+
+		memcpy( count, DELAY_NAME, ( sizeof( DELAY_NAME ) - 1 ) );
+		count += sizeof( DELAY_NAME ) - 1;
+
+		os_sprintf( count, "%s", &tmp[ GPIO_OUT_1_DELEY_OFSET ] );
+		count += strlen( &tmp[ GPIO_OUT_1_DELEY_OFSET ] );
+
+		memcpy( count, MS, ( sizeof( MS ) - 1 ) );
+		count += sizeof( MS ) - 1;
+
+	} else if ( 0 == strcmp( &tmp[GPIO_OUT_1_MODE_OFSET], GPIO_OUT_TRIGGER_MODE ) ) {
+
+		memcpy( count, GPIO_OUT_TRIGGER_MODE, ( sizeof( GPIO_OUT_TRIGGER_MODE ) - 1 ) );
+		count += sizeof( GPIO_OUT_TRIGGER_MODE ) - 1;
+	}
 //================================================================
-		memcpy( count, STATUSES, ( sizeof( STATUSES ) - 1 ) );
-		count += sizeof( STATUSES ) - 1;
+	memcpy( count, GPIO_2, ( sizeof( GPIO_2 ) - 1 ) );
+	count += sizeof( GPIO_2 ) - 1;
+
+	if ( 0 == strcmp( &tmp[GPIO_OUT_2_MODE_OFSET], DEF_GPIO_OUT_MODE ) ) {
+
+		memcpy( count, DEF_GPIO_OUT_MODE, ( sizeof( DEF_GPIO_OUT_MODE ) - 1 ) );
+		count += sizeof( DEF_GPIO_OUT_MODE ) - 1;
+
+		memcpy( count, DELAY_NAME, ( sizeof( DELAY_NAME ) - 1 ) );
+		count += sizeof( DELAY_NAME ) - 1;
+
+		os_sprintf( count, "%s", &tmp[ GPIO_OUT_2_DELEY_OFSET ] );
+		count += strlen( &tmp[ GPIO_OUT_2_DELEY_OFSET ] );
+
+		memcpy( count, MS, ( sizeof( MS ) - 1 ) );
+		count += sizeof( MS ) - 1;
+	} else if ( 0 == strcmp( &tmp[GPIO_OUT_2_MODE_OFSET], GPIO_OUT_TRIGGER_MODE ) ) {
+
+		memcpy( count, GPIO_OUT_TRIGGER_MODE, ( sizeof( GPIO_OUT_TRIGGER_MODE ) - 1 ) );
+		count += sizeof( GPIO_OUT_TRIGGER_MODE ) - 1;
+	}
 //================================================================
-		memcpy( count, DOOR_CLOSE_SENSOR, ( sizeof( DOOR_CLOSE_SENSOR ) - 1 ) );
-		count += sizeof( DOOR_CLOSE_SENSOR ) - 1;
+		memcpy( count, INPUTS, ( sizeof( INPUTS ) - 1 ) );
+		count += sizeof( INPUTS ) - 1;
+//================================================================
+		memcpy( count, INPUT_1, ( sizeof( INPUT_1 ) - 1 ) );
+		count += sizeof( INPUT_1 ) - 1;
 		if ( 0 == GPIO_INPUT_GET(INP_1_PIN ) ) {
-			memcpy( count, CLOSE, ( sizeof( CLOSE ) - 1 ) );
-			GPIO_OUTPUT_SET(OUT_1_GPIO, 1);//
-			count += sizeof( CLOSE ) - 1;
+
+			memcpy( count, STATUS_LOW, ( sizeof( STATUS_LOW ) - 1 ) );
+			count += sizeof( STATUS_LOW ) - 1;
 		} else {
-			memcpy( count, OPEN, ( sizeof( OPEN ) - 1 ) );
-			count += sizeof( OPEN ) - 1;
+			memcpy( count, STATUS_HIGH, ( sizeof( STATUS_HIGH ) - 1 ) );
+			count += sizeof( STATUS_HIGH ) - 1;
 		}
 //================================================================
-		memcpy( count, DOOR_OPEN_SENSOR, ( sizeof( DOOR_OPEN_SENSOR ) - 1 ) );
-		count += sizeof( DOOR_OPEN_SENSOR ) - 1;
-		if ( 0 == GPIO_INPUT_GET(INP_1_PIN ) ) {
-			memcpy( count, CLOSE, ( sizeof( CLOSE ) - 1 ) );
-			GPIO_OUTPUT_SET(OUT_1_GPIO, 0);//
-			count += sizeof( CLOSE ) - 1;
+		memcpy( count, INPUT_2, ( sizeof( INPUT_2 ) - 1 ) );
+		count += sizeof( INPUT_2 ) - 1;
+		if ( 0 == GPIO_INPUT_GET(INP_2_PIN ) ) {
+
+			memcpy( count, STATUS_LOW, ( sizeof( STATUS_LOW ) - 1 ) );
+			count += sizeof( STATUS_LOW ) - 1;
 		} else {
-			memcpy( count, OPEN, ( sizeof( OPEN ) - 1 ) );
-			count += sizeof( OPEN ) - 1;
+			memcpy( count, STATUS_HIGH, ( sizeof( STATUS_HIGH ) - 1 ) );
+			count += sizeof( STATUS_HIGH ) - 1;
 		}
+//================================================================
+		memcpy( count, INPUT_3, ( sizeof( INPUT_3 ) - 1 ) );
+		count += sizeof( INPUT_3 ) - 1;
+		if ( 0 == GPIO_INPUT_GET(INP_3_PIN ) ) {
+
+			memcpy( count, STATUS_LOW, ( sizeof( STATUS_LOW ) - 1 ) );
+			count += sizeof( STATUS_LOW ) - 1;
+		} else {
+			memcpy( count, STATUS_HIGH, ( sizeof( STATUS_HIGH ) - 1 ) );
+			count += sizeof( STATUS_HIGH ) - 1;
+		}
+//================================================================
+		memcpy( count, INPUT_4, ( sizeof( INPUT_4 ) - 1 ) );
+		count += sizeof( INPUT_4 ) - 1;
+		if ( 0 == GPIO_INPUT_GET(INP_4_PIN ) ) {
+
+			memcpy( count, STATUS_LOW, ( sizeof( STATUS_LOW ) - 1 ) );
+			count += sizeof( STATUS_LOW ) - 1;
+		} else {
+			memcpy( count, STATUS_HIGH, ( sizeof( STATUS_HIGH ) - 1 ) );
+			count += sizeof( STATUS_HIGH ) - 1;
+		}
+//================================================================
+
 
 		*count++ = '\r';
 		*count++ = '\n';

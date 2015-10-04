@@ -77,12 +77,12 @@
 #define INP_2_PIN		13
 
 #define INP_3 			BIT14
-#define INP_3_MUX 		PERIPHS_IO_MUX_GPIO2_U
+#define INP_3_MUX 		PERIPHS_IO_MUX_MTMS_U
 #define INP_3_FUNC 		FUNC_GPIO14
 #define INP_3_PIN		14
 
 #define INP_4 			BIT2
-#define INP_4_MUX 		PERIPHS_IO_MUX_MTMS_U
+#define INP_4_MUX 		PERIPHS_IO_MUX_GPIO2_U
 #define INP_4_FUNC 		FUNC_GPIO2
 #define INP_4_PIN		2
 //**********************************************************************************************
@@ -142,7 +142,7 @@
 
 #define DEF_SSID_STA         	"Default STA"
 #define SSID_STA_OFSET			106
-#define DEF_PWD_STA         	""
+#define DEF_PWD_STA         	"Default STA"
 #define PWD_STA_OFSET       	140
 #define HEADER_STA		 	    "STA:"
 #define HEADER_STA_OFSET	    100
@@ -188,7 +188,12 @@
 //**********************************************************************************************
 //**********************************************************************************************
 
-#define TMP_SIZE		10000
+#define TMP_SIZE		    10000
+
+#define TCP_SERVER_TIMEOUT	60  // SEC
+#define TCP_PORT			80
+
+#define UDP_REMOTE_PORT		9876
 
 //STA
 //#define SSID_STA /*"TSM_Guest" */"DIR-320"
@@ -198,7 +203,7 @@
 //**********************************************************************************************
 //**********************************************************************************************
 //Scheduler
-#define DELAY 	10 /* milliseconds */
+#define DELAY 	300 /* milliseconds */
 
 
 typedef enum {
@@ -209,20 +214,28 @@ typedef enum {
 
 //----------------------------------------------------------------
 //brodcast constant strings
-#define NAME 				"name: "
+#define NAME 				"\nname: "
 #define MAC 				"\nmacSTA: "
 #define IP 					"\nip: "
 #define SERVER_PORT 		"\nserver port: "
 #define RSSI 				"\nrssi: "
-#define STATUSES 			"\nSTATUSES: "
+#define STATUSES 			"\nstatuses: "
 #define PHY_MODE 			"\nphy mode: "
 #define PHY_MODE_B 			"IEEE 802.11b"
 #define PHY_MODE_G     		"IEEE 802.11g"
 #define PHY_MODE_N      	"IEEE 802.11n"
-#define DOOR_CLOSE_SENSOR 	"\n\tdoorCloseSensor: "
-#define DOOR_OPEN_SENSOR 	"\n\tdoorOpenSensor: "
-#define OPEN 				"open "
-#define CLOSE 				"close "
+#define OUTPUTS				"\noutputs: "
+#define GPIO_1				"\ngpio_1: "
+#define GPIO_2				"\ngpio_2: "
+#define DELAY_NAME			" delay: "
+#define INPUTS              "\ninputs: "
+#define INPUT_1				"\ninp_1: "
+#define INPUT_2				"\ninp_2: "
+#define INPUT_3				"\ninp_3: "
+#define INPUT_4				"\ninp_4: "
+#define STATUS_HIGH			"high"
+#define STATUS_LOW			"low"
+#define MS					"ms"
 
 #endif
 
