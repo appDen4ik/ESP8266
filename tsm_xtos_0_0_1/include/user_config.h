@@ -3,8 +3,53 @@
 
 #define DEBUG
 
-
-//**********************************************************************************************
+/*
+*************************************************************************************************
+*                                   список команд:
+*
+* БД:
+* - query\r\n
+* 					Запросить базу данных. Формат ответа: "query db n lenght b данные \r\n"
+* 					n - номер посилки, b - длинна. При отправке последнего пакета ответ следующий:
+*		 			"query done db n lenght b данные \r\n". При ошибке ERROR
+*
+* - insert string\r\n
+* 					Вставить запись. Запись нуль терминальная. Между командой и параметром один
+* 					пробел. Ответ insert string OK\r\n - если операция выполнилась успешно, иначе
+* 					insert string ERROR\r\n
+*
+* - delete string\r\n
+* 					Удалить запись. Запись нуль терминальная. Между командой и параметром один
+* 					пробел. Ответ delete string OK\r\n - если операция выполнилась успешно, иначе
+* 					delete string ERROR\r\n
+*
+* - update oldString newString\r\n
+* 					Обновить запись. Запись нуль терминальная. Между командой и параметром один
+* 					пробел, между параметрами тоже один пробел. Ответ
+* 					update oldString newString OK\r\n - если операция выполнилась успешно, иначе
+* 					update oldString newString ERROR\r\n
+*
+* - request string\r\n
+* 					Найти запись по полю/полям.Запись нуль терминальная. Между командой и параметром
+* 					один пробел. Ответ request string OK\r\n - если операция выполнилась успешно,
+* 					иначе request string ERROR\r\n
+*
+* - find string\r\n
+* 					Найти запись (все поля заполнены).Запись нуль терминальная. Между командой и
+* 					параметром один пробел. Ответ request string OK\r\n - если операция выполнилась
+* 					успешно, иначе request string ERROR\r\n
+*
+* WIFI:
+*
+* - ssidSTA ssid\r\n
+*
+* - pwdSTA	pwd\r\n
+*
+* - ssidAP ssid\r\n
+*
+* - pwdAP  pwd\r\n
+*************************************************************************************************
+*/
 
 #define OUT_1_GPIO 		4
 #define OUT_1_MUX 		PERIPHS_IO_MUX_GPIO4_U
@@ -45,31 +90,97 @@
 
 // user data/parameters
 
-#define USER_SECTOR_IN_FLASH_MEM		END_SECTOR + 1 	            // согласовать с END_SECTOR в myDB.h
+#define USER_SECTOR_IN_FLASH_MEM		( END_SECTOR + 1 ) 	            // согласовать с END_SECTOR в myDB.h
 
 /*  spi_flash layout
  *
  *  0............11  ..12          адресс относительно начала сектора  (
- * | flash_ready\0 | \n |          USER_SECTOR_IN_FLASH_MEM * SPI_FLASH_SEC_SIZE )
+ * | flash ready\0 | \n |          USER_SECTOR_IN_FLASH_MEM * SPI_FLASH_SEC_SIZE )
  *
  *  100..104 ..105
- * | STA:\0 | \n |                 		header
+ * | STA:\0 | \n |                 		   header
  *  106........139
- * | SSID \0 | \n |                   	max lenght 32
+ * | SSID \0 | \n |                   	   max lenght 32
  *  140.............205
- * | PASSWORD  \0 | \n |               	max lenght 64
+ * |  PASSWORD\0  | \n |               	   max lenght 64
  *
  *  500..........504
- * |   AP:\0   | \n |              		header
- *  505.....
- * |    SSID     |
+ * |   AP:\0   | \n |              		   header
+ *  505.............538
+ * |    SSID \0   | \n |                   max lenght 32
+ *  539.............602
+ * |  PASSWORD\0  | \n |               	   max lenght 64
  *
  *
+ *  1000................1012
+ * |   GPIO OUT 1:\0   | \n |              header
+ *  1013...................1021
+ * |   Trigger\Impulse\0  | \n |           режим работы
+ *  1022.............1031
+ * |    deley \0    | \n |                 ms, кратное 10
+ *
+  *  1200................1212
+ * |   GPIO OUT 2:\0   | \n |              header
+ *  1213...................1221
+ * |   Trigger\Impulse\0  | \n |           режим работы
+ *  1222.............1231
+ * |    deley \0    | \n |                 ms, кратное 10
+ *
+ *
+ *  1400....................1416
+ * |   BROADCAST NAME:\0   | \n |              header
+ *  1417.........1068
+ * |    NAME\0   | \n |           				max lenght 50
  */
 
 
+#define FLASH_READY		     	 "flash ready"
+#define FLASH_READY_OFSET		 0
+#define ALIGN_FLASH_READY_SIZE   ( 4 - (  sizeof(FLASH_READY) % 4 ) +  sizeof(FLASH_READY) )
+
+
+
+#define DEF_SSID_STA         	"Default"
+#define DEF_SSID_STA_OFSET		106
+#define DEF_PWD_STA         	""
+#define DEF_PWD_STA_OFSET       140
+#define HEADER_STA		 	    "STA:"
+#define HEADER_STA_OFSET	    100
+
+
+#define DEF_SSID_AP          	"Default"
+#define DEF_SSID_AP_OFSET		505
+#define DEF_PWD_AP		        ""
+#define DEF_PWD_AP_OFSET		539
+#define HEADER_AP				"AP:"
+#define HEADER_AP_OFSET			500
+
+
+#define  GPIO_OUT_1_HEADER		 	"GPIO OUT 1:"
+#define  GPIO_OUT_1_HEADER_OFSET	1000
+#define  GPIO_OUT_1_MODE_OFSET		1013
+#define  GPIO_OUT_1_DELEY_OFSET		1022
+
+#define  GPIO_OUT_2_HEADER		 	"GPIO OUT 2:"
+#define  GPIO_OUT_2_HEADER_OFSET	1200
+#define  GPIO_OUT_2_MODE_OFSET		1213
+#define  GPIO_OUT_2_DELEY_OFSET		1222
+
+#define DEF_GPIO_OUT_MODE    	"Impulse"
+#define GPIO_OUT_TRIGGER_MODE	"Trigger"
+#define DEF_GPIO_OUT_DELEY	 	"200"
+
+
+#define BROADCAST_NAME_HEADER			"BROADCAST NAME:"
+#define BROADCAST_NAME_HEADER_OFSET		1400
+#define BROADCAST_NAME					"WIFI MODULE"
+#define BROADCAST_NAME_OFSET			1417
+
 //**********************************************************************************************
 //**********************************************************************************************
+
+#define TMP_SIZE		10000
+
 
 //STA
 #define SSID_STA /*"TSM_Guest" */"DIR-320"

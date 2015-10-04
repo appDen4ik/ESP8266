@@ -39,18 +39,34 @@
 
 LOCAL uint8_t ICACHE_FLASH_ATTR StringToChar(uint8_t *data);
 LOCAL uint8_t* ICACHE_FLASH_ATTR  ShortIntToString(uint16_t data, uint8_t *adressDestenation);
+
+
 LOCAL void ICACHE_FLASH_ATTR senddata( void );
-LOCAL void ICACHE_FLASH_ATTR initPeriph( void );
+
 LOCAL uint8_t * ICACHE_FLASH_ATTR intToStringHEX(uint8_t data, uint8_t *adressDestenation);
 LOCAL void ICACHE_FLASH_ATTR broadcastBuilder( void );
 
-//****************************************************************************************************************************
-uint8_t tmpTest[SPI_FLASH_SEC_SIZE];
-//****************************************************************************************************************************
+LOCAL inline void ICACHE_FLASH_ATTR checkFlash( void );
+LOCAL inline void ICACHE_FLASH_ATTR writeFlash( uint16_t where, uint8_t *what );
+
+LOCAL inline void ICACHE_FLASH_ATTR initPeriph( void );
+LOCAL inline void ICACHE_FLASH_ATTR initWIFI( void );
+
+//*************************************************************************************************************
 
 
 extern void ets_wdt_enable (void);
 extern void ets_wdt_disable (void);
+
+
+//**************************************************************************************************************
+
+LOCAL uint8_t tmp[TMP_SIZE];
+
+
+
+//**************************************************************************************************************
+
 
 uint8_t alignString[ALIGN_STRING_SIZE];
 
@@ -65,9 +81,8 @@ struct station_config stationConf;
 struct softap_config softapConf;
 
 
-uint8_t hello[1000];
-uint16_t i;
-uint32_t adr;
+
+
 
 struct ip_info inf;
 
@@ -76,7 +91,6 @@ uint8_t ledState = 0;
 
 uint8_t nameSTA[100] = "esp8266 1";
 uint8_t brodcastMessage[250] = { 0 };
-uint8_t tmp[250] = { 0 };
 uint8_t *count;
 uint8_t macadr[10];
 uint16_t servPort = 80;
@@ -102,14 +116,14 @@ tcp_recvcb(void *arg, char *pdata, unsigned short len)
     	GPIO_OUTPUT_SET(OUT_1_GPIO, ledState);
     			ledState ^=1;
 //    }
-    memcpy( tmp, pdata, len );
+ /*   memcpy( tmp, pdata, len );
     tmp[len++] = '\r';
     tmp[len] = '\0';
     espconn_sent(arg, tmp, strlen(tmp));
 //    uart0_tx_buffer(pdata, len);
 	for ( ; i++ < len; ){
 		uart_tx_one_char(*pdata++);
-	}
+	}*/
 }
 
 LOCAL void ICACHE_FLASH_ATTR
@@ -208,248 +222,43 @@ void ICACHE_FLASH_ATTR
 user_init(void) {
 
 	initPeriph();
+	initWIFI();
 
-//*********************************************************************************************************************
 
-	uint32_t data0 = 0;
-	uint32_t data3 = 0;
-	uint8_t ascii[10];
-	static uint8_t string[] = "HELLO";
-	static uint8_t string1[] = "Тестирование";
 
 
-	uint16_t lenght;
-	uint32_t adress;
+	checkFlash();
 
+	{
 
-		uint8_t alignStr[ALIGN_STRING_SIZE];
+	uint16_t c, currentSector;
 
-		uint8_t *p;
-
-		uint16_t c, currentSector;
-		uint32_t a, i;
-
-		result res;
-
-
-		for ( i = STRING_SIZE; i < ALIGN_STRING_SIZE; i++ ) {
-			alignString[i] = 0xff;
-		}
-
-		clearSectorsDB();
-
-		os_delay_us(500000);
-		ets_uart_printf(" Проверка query. Тест 2 ");
-		os_delay_us(500000);
-
-
-		ets_uart_printf(" П.1 Заполняем базу значениями (ASCII) выровняными по ALIGN_STRING_SIZE символов  ");
-
-		for ( i = 1; i <= ( SPI_FLASH_SEC_SIZE / ALIGN_STRING_SIZE ) * ( END_SECTOR - START_SECTOR + 1 ); i++ ) {
-
-			for ( a = 0; a < STRING_SIZE - 1; a++ ) {
-					alignString[a] = '0';
-			}
-
-			p = ShortIntToString( i, ascii );
-
-			memcpy( &alignString[ STRING_SIZE - 39 ], string, strlen(string) );
-
-			alignString[ STRING_SIZE - 40 ] = START_OF_FIELD;
-			alignString[ STRING_SIZE - 20 ]  = END_OF_FIELD;
-
-
-			memcpy( &alignString[ STRING_SIZE - 1 - (p - ascii) - 1 - 40], ascii, (p - ascii) );
-
-			alignString[ STRING_SIZE - 15 - 40 ] = START_OF_FIELD;
-			alignString[ STRING_SIZE - 2 - 40 ]  = END_OF_FIELD;
-			alignString[ STRING_SIZE - 1 ]  = END_OF_STRING;
-
-
-			memcpy( &alignString[ STRING_SIZE - 40 - 15 - 20 ], string1, strlen( string1 ) );
-
-			alignString[ STRING_SIZE - 40 - 20 - 15 - 1 ] = START_OF_FIELD;
-			alignString[ STRING_SIZE - 41 - 15 ]  = END_OF_FIELD;
-
-			os_printf( " \n %s \n String lenght %d", alignString, ( strlen( alignString ) + 1 ) );
-
-			switch ( res = insert( alignString ) ) {
-				case OPERATION_OK:
-					ets_uart_printf("OPERATION_OK");
-					system_soft_wdt_stop();
-					break;
-				case WRONG_LENGHT:
-					ets_uart_printf("WRONG_LENGHT");
-					goto m;
-				case OPERATION_FAIL:
-					ets_uart_printf("OPERATION_FAIL");
-					goto m;
-				case LINE_ALREADY_EXIST:
-					ets_uart_printf("LINE_ALREADY_EXIST");
-					goto m;
-				case NOT_ENOUGH_MEMORY:
-				ets_uart_printf("NOT_ENOUGH_MEMORY");
-				goto c;
-
-			}
-
-		}
-
-	c:
-
-
-
-/*	spi_flash_erase_sector(START_SECTOR + 1);
-
-	spi_flash_erase_sector(START_SECTOR + 3);
-
-	spi_flash_erase_sector(START_SECTOR + 5);
-
-	spi_flash_erase_sector(START_SECTOR + 8);
-
-	spi_flash_erase_sector(START_SECTOR + 10);
-
-*/	spi_flash_erase_sector(START_SECTOR + 15);
-
-	spi_flash_erase_sector(START_SECTOR + 20);
-
-/*	spi_flash_erase_sector(START_SECTOR + 25);
-
-	spi_flash_erase_sector(START_SECTOR + 30);
-
-	spi_flash_erase_sector(START_SECTOR + 35);
-
-	spi_flash_erase_sector( END_SECTOR );*/
-
-
-
-
-		os_delay_us(500000);
-		ets_uart_printf(" Проверка query. Тест 2. П.П.2. очистка некоторых секторов и каждой 3 - й записи");
-		os_delay_us(500000);
-
-
-
-		for ( i = 3; i <= ( SPI_FLASH_SEC_SIZE / ALIGN_STRING_SIZE ) * ( END_SECTOR - START_SECTOR + 1 ); i += 3 ) {
-
-			for ( a = 0; a < STRING_SIZE - 1; a++ ) {
-					alignString[a] = '0';
-			}
-
-			p = ShortIntToString( i, ascii );
-
-			memcpy( &alignString[ STRING_SIZE - 39 ], string, strlen(string) );
-
-			alignString[ STRING_SIZE - 40 ] = START_OF_FIELD;
-			alignString[ STRING_SIZE - 20 ]  = END_OF_FIELD;
-
-
-			memcpy( &alignString[ STRING_SIZE - 1 - (p - ascii) - 1 - 40], ascii, (p - ascii) );
-
-			alignString[ STRING_SIZE - 15 - 40 ] = START_OF_FIELD;
-			alignString[ STRING_SIZE - 2 - 40 ]  = END_OF_FIELD;
-			alignString[ STRING_SIZE - 1 ]  = END_OF_STRING;
-
-
-			memcpy( &alignString[ STRING_SIZE - 40 - 15 - 20 ], string1, strlen( string1 ) );
-
-			alignString[ STRING_SIZE - 40 - 20 - 15 - 1 ] = START_OF_FIELD;
-			alignString[ STRING_SIZE - 41 - 15 ]  = END_OF_FIELD;
-
-			os_printf( " \n %s \n String lenght %d", alignString, ( strlen( alignString ) + 1 ) );
-
-			switch ( res = delete( alignString ) ) {
-				case OPERATION_OK:
-					ets_uart_printf("OPERATION_OK");
-					data0++;
-					system_soft_wdt_stop();
-					break;
-				case WRONG_LENGHT:
-					ets_uart_printf("WRONG_LENGHT");
-					goto m;
-				case OPERATION_FAIL:
-					ets_uart_printf("OPERATION_FAIL");
-					goto m;
-				case NOTHING_FOUND:
-				ets_uart_printf("NOTHING_FOUND");
-					break;
-
-			}
-
-		}
-
-
-		os_printf( " Очищено записей   %d Очищено памяти %d ", data0,  data0 * ALIGN_STRING_SIZE);
-
-		for ( currentSector = START_SECTOR; currentSector <= END_SECTOR; currentSector++ ) {
+	for ( currentSector = START_SECTOR; currentSector <= USER_SECTOR_IN_FLASH_MEM; currentSector++ ) {
 			os_printf( " currentSector   %d", currentSector);
-			spi_flash_read( SPI_FLASH_SEC_SIZE * currentSector, (uint32 *)tmpTest, SPI_FLASH_SEC_SIZE );
+			spi_flash_read( SPI_FLASH_SEC_SIZE * currentSector, (uint32 *)tmp, SPI_FLASH_SEC_SIZE );
 			for ( c = 0; SPI_FLASH_SEC_SIZE > c; c++ ) {
-				uart_tx_one_char(tmpTest[c]);
+				uart_tx_one_char(tmp[c]);
 			}
 			system_soft_wdt_stop();
 		}
 
-		lenght = 0;
-		adress = 0;
-		a = 0;
-
-		for ( ; ; ) {
-
-			switch (  query( storage, &lenght, &adress ) ) {
-				case OPERATION_OK:
-				a++;
-				ets_uart_printf("OPERATION_OK");
-				os_printf( " Lenght  %d  adress  %d ", lenght, adress );
-				os_delay_us(500000);
-				os_printf( " Counter  %d ", a );
-				os_delay_us(500000);
-				uart0_tx_buffer( storage, lenght );
-
-				system_soft_wdt_stop();
-				break;
-			case OPERATION_FAIL:
-				ets_uart_printf("OPERATION_FAIL");
-				goto m;
-			case READ_DONE:
-				ets_uart_printf("READ_DONE");
-				os_printf( " Lenght  %d  adress  %d ", lenght, adress );
-				uart0_tx_buffer( storage, lenght );
-
-				goto q;
-
-		}
-}
-
-
-q:
-
-	ets_uart_printf(" Тестирование успешно завершено ");
-
-m:
-
-	while ( 1 ) {
-		os_delay_us(500000);
-		system_soft_wdt_stop();
 	}
 
 
-//*********************************************************************************************************************
-
+while ( 1 ) {
+	if( !GPIO_INPUT_GET(INP_1_PIN) ){
+		if ( SPI_FLASH_RESULT_OK != spi_flash_erase_sector( USER_SECTOR_IN_FLASH_MEM )  ) {
+		 ets_uart_printf("Erase USER_SECTOR_IN_FLASH_MEM fail");
+			while(1);
+		}
+	}
+		os_delay_us(500000);
+		system_soft_wdt_stop();
+}
 	os_printf( "SDK version: %s", system_get_sdk_version() );
 
 //------------------------------------------------------------------
-	wifi_station_disconnect();
-	wifi_station_dhcpc_stop();
 
-	wifi_set_opmode( STATIONAP_MODE );
-	memcpy(&stationConf.ssid, SSID_STA, sizeof(SSID_STA));
-	memcpy(&stationConf.password, PWD_STA, sizeof(PWD_STA));
-	wifi_station_set_config(&stationConf);
-
-	wifi_station_connect();
-	wifi_station_dhcpc_start();
-	wifi_station_set_auto_connect(1);
 
 //-----------------------------------------------------------------
 	{ //tcp сервер
@@ -491,7 +300,9 @@ void senddata( void ){
 
 }
 
-void ICACHE_FLASH_ATTR initPeriph( void ) {
+
+void ICACHE_FLASH_ATTR
+initPeriph(  ) {
 
 	ets_wdt_enable();
 	ets_wdt_disable();
@@ -530,7 +341,129 @@ void ICACHE_FLASH_ATTR initPeriph( void ) {
 }
 
 
+void ICACHE_FLASH_ATTR
+initWIFI( ) {
 
+	wifi_station_disconnect();
+	wifi_station_dhcpc_stop();
+
+//	if ( wifi_get_opmode())
+
+
+
+
+	wifi_set_opmode( STATIONAP_MODE );
+	memcpy(&stationConf.ssid, SSID_STA, sizeof(SSID_STA));
+	memcpy(&stationConf.password, PWD_STA, sizeof(PWD_STA));
+	wifi_station_set_config(&stationConf);
+
+	wifi_station_connect();
+	wifi_station_dhcpc_start();
+	wifi_station_set_auto_connect(1);
+
+}
+
+
+void ICACHE_FLASH_ATTR
+checkFlash( void ) {
+
+	uint8_t tmpFlashReady[ ALIGN_FLASH_READY_SIZE ];
+	uint16_t i;
+
+	for ( i = 0; i < SPI_FLASH_SEC_SIZE; i++ ) {
+		tmp[i] = 0xff;
+	}
+
+	if ( SPI_FLASH_RESULT_OK != spi_flash_read( USER_SECTOR_IN_FLASH_MEM * SPI_FLASH_SEC_SIZE, \
+			                            (uint32 *)tmpFlashReady, ALIGN_FLASH_READY_SIZE ) ) {
+
+		ets_uart_printf("Read fail");
+		while(1);
+	}
+
+	if ( 0 != strcmp( tmpFlashReady, FLASH_READY ) ) {
+
+		if ( OPERATION_OK != clearSectorsDB() ) {
+
+			ets_uart_printf("clearSectorsDB() fail");
+			while(1);
+		}
+
+
+		if ( SPI_FLASH_RESULT_OK != spi_flash_erase_sector( USER_SECTOR_IN_FLASH_MEM )  ) {
+
+			ets_uart_printf("Erase USER_SECTOR_IN_FLASH_MEM fail");
+			while(1);
+		}
+
+		memcpy( &tmp[FLASH_READY_OFSET], FLASH_READY, sizeof(FLASH_READY) );
+		tmp[ sizeof(FLASH_READY) ] = '\n';
+
+
+		memcpy( &tmp[HEADER_STA_OFSET], HEADER_STA, sizeof(HEADER_STA) );
+		tmp[ sizeof(HEADER_STA) + HEADER_STA_OFSET ] = '\n';
+
+		memcpy( &tmp[DEF_SSID_STA_OFSET], DEF_SSID_STA, sizeof(DEF_SSID_STA) );
+		tmp[ sizeof(DEF_SSID_STA) + DEF_SSID_STA_OFSET ] = '\n';
+
+		memcpy( &tmp[DEF_PWD_STA_OFSET], DEF_PWD_STA, sizeof(DEF_PWD_STA) );
+		tmp[ sizeof(DEF_PWD_STA) + DEF_PWD_STA_OFSET ] = '\n';
+
+
+		memcpy( &tmp[DEF_SSID_AP_OFSET], DEF_SSID_AP, sizeof(DEF_SSID_AP) );
+		tmp[ sizeof(DEF_SSID_AP) + DEF_SSID_AP_OFSET ] = '\n';
+
+		memcpy( &tmp[DEF_PWD_AP_OFSET], DEF_PWD_AP, sizeof(DEF_PWD_AP) );
+		tmp[ sizeof(DEF_PWD_AP) + DEF_PWD_AP_OFSET ] = '\n';
+
+		memcpy( &tmp[HEADER_AP_OFSET], HEADER_AP, sizeof(HEADER_AP) );
+		tmp[ sizeof(HEADER_AP) + HEADER_AP_OFSET ] = '\n';
+
+
+		memcpy( &tmp[GPIO_OUT_1_HEADER_OFSET], GPIO_OUT_1_HEADER, sizeof(GPIO_OUT_1_HEADER) );
+		tmp[ sizeof(GPIO_OUT_1_HEADER) + GPIO_OUT_1_HEADER_OFSET ] = '\n';
+
+		memcpy( &tmp[GPIO_OUT_1_MODE_OFSET], DEF_GPIO_OUT_MODE, sizeof(DEF_GPIO_OUT_MODE) );
+		tmp[ sizeof(DEF_GPIO_OUT_MODE) + GPIO_OUT_1_MODE_OFSET ] = '\n';
+
+		memcpy( &tmp[GPIO_OUT_1_DELEY_OFSET], DEF_GPIO_OUT_DELEY, sizeof(DEF_GPIO_OUT_DELEY) );
+		tmp[ sizeof(DEF_GPIO_OUT_DELEY) + GPIO_OUT_1_DELEY_OFSET ] = '\n';
+
+
+		memcpy( &tmp[GPIO_OUT_2_HEADER_OFSET], GPIO_OUT_2_HEADER, sizeof(GPIO_OUT_2_HEADER) );
+		tmp[ sizeof(GPIO_OUT_2_HEADER) + GPIO_OUT_2_HEADER_OFSET ] = '\n';
+
+		memcpy( &tmp[GPIO_OUT_2_MODE_OFSET], DEF_GPIO_OUT_MODE, sizeof(DEF_GPIO_OUT_MODE) );
+		tmp[ sizeof(DEF_GPIO_OUT_MODE) + GPIO_OUT_2_MODE_OFSET ] = '\n';
+
+		memcpy( &tmp[GPIO_OUT_2_DELEY_OFSET], DEF_GPIO_OUT_DELEY, sizeof(DEF_GPIO_OUT_DELEY) );
+		tmp[ sizeof(DEF_GPIO_OUT_DELEY) + GPIO_OUT_2_DELEY_OFSET ] = '\n';
+
+
+		memcpy( &tmp[BROADCAST_NAME_HEADER_OFSET], BROADCAST_NAME_HEADER, sizeof(BROADCAST_NAME_HEADER) );
+		tmp[ sizeof(BROADCAST_NAME_HEADER) + BROADCAST_NAME_HEADER_OFSET ] = '\n';
+
+		memcpy( &tmp[BROADCAST_NAME_OFSET], BROADCAST_NAME, sizeof(BROADCAST_NAME) );
+		tmp[ sizeof(BROADCAST_NAME) + BROADCAST_NAME_OFSET ] = '\n';
+
+
+
+		if ( SPI_FLASH_RESULT_OK != spi_flash_write( USER_SECTOR_IN_FLASH_MEM * SPI_FLASH_SEC_SIZE, (uint32 *)tmp, SPI_FLASH_SEC_SIZE ) ) {
+
+				ets_uart_printf("write default param fail");
+				while(1);
+			}
+
+	}
+
+}
+
+
+void ICACHE_FLASH_ATTR
+writeFlash( uint16_t where, uint8_t *what ) {
+
+
+}
 
 // Перевод числа в последовательность ASCII
 uint8_t * ShortIntToString(uint16_t data, uint8_t *adressDestenation) {
