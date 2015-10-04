@@ -140,18 +140,18 @@
 
 
 
-#define DEF_SSID_STA         	"Default"
-#define DEF_SSID_STA_OFSET		106
+#define DEF_SSID_STA         	"Default STA"
+#define SSID_STA_OFSET			106
 #define DEF_PWD_STA         	""
-#define DEF_PWD_STA_OFSET       140
+#define PWD_STA_OFSET       	140
 #define HEADER_STA		 	    "STA:"
 #define HEADER_STA_OFSET	    100
 
 
-#define DEF_SSID_AP          	"Default"
-#define DEF_SSID_AP_OFSET		505
-#define DEF_PWD_AP		        ""
-#define DEF_PWD_AP_OFSET		539
+#define DEF_SSID_AP          	"Default AP"
+#define SSID_AP_OFSET			505
+#define DEF_PWD_AP		        "Default AP"
+#define PWD_AP_OFSET			539
 #define HEADER_AP				"AP:"
 #define HEADER_AP_OFSET			500
 
@@ -168,7 +168,7 @@
 
 #define DEF_GPIO_OUT_MODE    	"Impulse"
 #define GPIO_OUT_TRIGGER_MODE	"Trigger"
-#define DEF_GPIO_OUT_DELEY	 	"200"
+#define DEF_GPIO_OUT_DELEY	 	"500"
 
 
 #define BROADCAST_NAME_HEADER			"BROADCAST NAME:"
@@ -179,16 +179,34 @@
 //**********************************************************************************************
 //**********************************************************************************************
 
+#define DEF_CHANEL       7
+#define DEF_AUTH		AUTH_WPA_WPA2_PSK
+#define MAX_CON			4
+#define NO_HIDDEN 		0
+#define BEACON_INT		100
+
+//**********************************************************************************************
+//**********************************************************************************************
+
 #define TMP_SIZE		10000
 
-
 //STA
-#define SSID_STA /*"TSM_Guest" */"DIR-320"
-#define PWD_STA "tsmguest"
+//#define SSID_STA /*"TSM_Guest" */"DIR-320"
+//#define PWD_STA "tsmguest"
 //----------------------------------------------------------------
-//Udp
-#define DELAY 	100 /* milliseconds */
-#endif
+
+//**********************************************************************************************
+//**********************************************************************************************
+//Scheduler
+#define DELAY 	10 /* milliseconds */
+
+
+typedef enum {
+	ENABLE = 0,
+	DISABLE
+
+} stat;
+
 //----------------------------------------------------------------
 //brodcast constant strings
 #define NAME 				"name: "
@@ -205,4 +223,6 @@
 #define DOOR_OPEN_SENSOR 	"\n\tdoorOpenSensor: "
 #define OPEN 				"open "
 #define CLOSE 				"close "
+
+#endif
 
