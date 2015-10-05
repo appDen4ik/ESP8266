@@ -61,32 +61,55 @@
 * 					find string OPERATION_FAIL\r\n
 * 					find string WRONG_LENGHT\r\n
 *
+* - clearDB\r\n
+*
 * WIFI:
 * - ssidSTA ssid\r\n
-* 					Задать ssid роутера макс длинна 32 символа. Ответ
+* 					Задать ssid роутера, макс длинна 32 символа. Ответ
 *					ssidSTA ssid OPERATION_OK\r\n
 *					ssidSTA ssid OPERATION_FAIL\r\n
 *
 * - pwdSTA	pwd\r\n
-*
+*					Задать pwd роутера, макс длинна 64 символа. Ответ
+*					pwdSTA pwd OPERATION_OK\r\n
+*					pwdSTA pwd OPERATION_FAIL\r\n
 *
 * - ssidAP ssid\r\n
-* 					Задать ssid есп макс длинна 32 символа. Ответ
+* 					Задать ssid есп, макс длинна 32 символа. Ответ
 *					ssidAP ssid OPERATION_OK\r\n
 *					ssidAP ssid OPERATION_FAIL\r\n
 *
 * - pwdAP  pwd\r\n
+*					Задать pwd есп, макс длинна 64 символа. Ответ
+*					pwdAP pwd OPERATION_OK\r\n
+*					pwdAP pwd OPERATION_FAIL\r\n
 *
 * - broadcastName name\r\n
+* 					Задать BROADCAST_NAME есп, макс длинна 50 символов. Ответ
+*					broadcastName name OPERATION_OK\r\n
+*					broadcastName name OPERATION_FAIL\r\n
 *
-* - gpioMode_1
+* - gpioMode_1 Trigger/Impulse delay\r\n
+* 					Задать режим работы out1 Trigger/Impulse, и установить таймаут delay.
+* 					Ответ
+* 					gpioMode_1 Trigger/Impulse delay OPERATION_OK\r\n
+* 					gpioMode_1 Trigger/Impulse delay OPERATION_FAIL\r\n
 *
-* - gpioMode_2
+* - gpioMode_2 Trigger/Impulse delay\r\n
+*					Задать режим работы out2 Trigger/Impulse, и установить таймаут delay.
+* 					Ответ
+* 					gpioMode_2 Trigger/Impulse delay OPERATION_OK\r\n
+* 					gpioMode_2 Trigger/Impulse delay OPERATION_FAIL\r\n
 *
-* - gpioEnable1\r\n
+* - enableGpio_1\r\n
+* 					установить флаг gpioStatusOut1 = Enable. Ответ
+* 					enableGpio1 OPERATION_OK\r\n
+* 					enableGpio1 OPERATION_FAIL\r\n
 *
-* - gpioEnable2\r\n
-*
+* - enableGpio_2\r\n
+*					установить флаг gpioStatusOut2 = Enable. Ответ
+* 					enableGpio2 OPERATION_OK\r\n
+* 					enableGpio2 OPERATION_FAIL\r\n
 *************************************************************************************************
 */
 
@@ -194,6 +217,9 @@
 #define HEADER_AP				"AP:"
 #define HEADER_AP_OFSET			500
 
+#define  SSID_MAX_LENGHT         		32
+#define  PWD_MAX_LENGHT         		64
+#define  BROADCAST_NAME_MAX_LENGHT		50
 
 #define  GPIO_OUT_1_HEADER		 	"GPIO OUT 1:"
 #define  GPIO_OUT_1_HEADER_OFSET	1000
@@ -262,6 +288,14 @@ typedef enum {
 
 } res;
 
+typedef enum {
+	TCP_FREE = 0,
+	TCP_BUSY
+
+} tcp_stat;
+
+
+
 //**********************************************************************************************
 //brodcast constant strings
 
@@ -297,6 +331,26 @@ typedef enum {
 #define TCP_LINE_ALREADY_EXIST		"LINE_ALREADY_EXIST"
 #define TCP_OPERATION_OK			"OPERATION_OK"
 #define TCP_READ_DONE				"READ_DONE"
+
+#define TCP_QUERY					"query"//
+#define TCP_INSERT					"insert"//
+#define TCP_DELETE					"delete"//
+#define TCP_UPDATE					"update"//
+#define TCP_REQUEST					"request"//
+#define TCP_FIND					"find"//
+#define TCP_SSID_STA				"ssidSTA"//
+#define TCP_PWD_STA					"pwdSTA"//
+#define TCP_SSID_AP					"ssidAP"//
+#define TCP_PWD_AP					"pwdAP"//
+#define TCP_BROADCAST_NAME			"broadcastName"//
+#define TCP_GPIO_MODE_1				"gpioMode_1"//
+#define TCP_GPIO_MODE_2				"gpioMode_2"
+#define TCP_ENABLE_GPIO_1			"enableGpio_1"//
+#define TCP_ENABLE_GPIO_2			"enableGpio_2"//
+#define TCP_CLEAR_HEAP              "clearDB"
+
+#define TCP_ERROR					"ERROR"
+
 
 //**********************************************************************************************
 #endif

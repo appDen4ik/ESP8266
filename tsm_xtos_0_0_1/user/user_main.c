@@ -38,6 +38,7 @@
 #include "driver/myDB.h"
 
 
+//LOCAL command ICACHE_FLASH_ATTR comandParser( uint8_t *data );
 
 LOCAL uint32_t ICACHE_FLASH_ATTR StringToInt(uint8_t *data);
 LOCAL uint8_t* ICACHE_FLASH_ATTR  ShortIntToString(uint16_t data, uint8_t *adressDestenation);
@@ -100,15 +101,20 @@ LOCAL sint8_t rssi;
 
 //**************************************************************************************************************
 
-uint8_t *count;
-
-struct ip_info inf;
-
-uint8_t macadr[10];
-
-uint8_t storage[1000];
+LOCAL uint8_t *count;
 
 //**************************************************************************************************************
+
+LOCAL struct ip_info inf;
+
+//**************************************************************************************************************
+
+LOCAL tcp_stat tcpSt = TCP_FREE;
+uint8_t storage[1000];
+LOCAL uint16_t counterForTmp = 0;
+
+//**************************************************************************************************************
+
 
 
 void user_rf_pre_init(void)
@@ -118,42 +124,202 @@ void user_rf_pre_init(void)
 
 //*********************************************Callbacks********************************************************
 LOCAL void ICACHE_FLASH_ATTR
-tcp_recvcb( void *arg, char *pdata, unsigned short len )
-{
+tcp_recvcb( void *arg, char *pdata, unsigned short len ) { // data received
+
 	int i = 0;
     struct espconn *pespconn = (struct espconn *) arg;
-   if (*pdata == '+') {
-    	GPIO_OUTPUT_SET(OUT_1_GPIO, ledState);
-    			ledState ^=1;
+
+    if ( '\r' == pdata[ len - 2 ] && TCP_FREE == tcpSt ) {
+
+    	memcpy( &tmp[counterForTmp], pdata, len );
+    	counterForTmp = 0;
+
+    	if ( 0 == strcmp( tmp, TCP_REQUEST ) ) {
+
+    		switch ( requestString( &tmp[ sizeof(TCP_REQUEST) + 1 ] ) ) {
+    			case WRONG_LENGHT:
+
+    				break;
+    			case NOTHING_FOUND:
+
+    			    break;
+    			case OPERATION_OK:
+
+    			    break;
+    			case OPERATION_FAIL:
+
+    			    break;
+    			default:
+
+    				break;
+    		}
+
+    	} else if ( 0 == strcmp( tmp, TCP_ENABLE_GPIO_1 ) ) {
+
+    		if ( ENABLE != gpioStatusOut1 ) {
+
+        		gpioStatusOut1 = ENABLE;
+    		}
+    		//response
+    	} else if ( 0 == strcmp( tmp, TCP_ENABLE_GPIO_2 ) ) {
+
+    		if ( ENABLE != gpioStatusOut2 ) {
+
+        		gpioStatusOut2 = ENABLE;
+    		}
+    		//response
+    	} else if ( 0 == strcmp( tmp, TCP_QUERY ) ) {
+
+
+
+    	} else if ( 0 == strcmp( tmp, TCP_INSERT ) ) {
+
+    	    switch ( insert( &tmp[ sizeof(TCP_INSERT) + 1 ] ) ) {
+    	    	case WRONG_LENGHT:
+
+    	    		break;
+    	    	case NOT_ENOUGH_MEMORY:
+
+    	    		break;
+    	    	case OPERATION_OK:
+
+    	    		break;
+    	    	case OPERATION_FAIL:
+
+    	    		break;
+    	    	case LINE_ALREADY_EXIST:
+
+    	    		break;
+    			default:
+
+    				break;
+    	     }
+
+    	} else if ( 0 == strcmp( tmp, TCP_DELETE ) ) {
+
+    	    switch ( delete( &tmp[ sizeof(TCP_DELETE) + 1 ] ) ) {
+    	    	case WRONG_LENGHT:
+
+    	    		break;
+    	    	case OPERATION_OK:
+
+    	    		break;
+    	    	case OPERATION_FAIL:
+
+    	    		break;
+    	    	case NOTHING_FOUND:
+
+    	    		break;
+    			default:
+
+    				break;
+    	     }
+
+    	} else if ( 0 == strcmp( tmp, TCP_UPDATE ) ) {
+
+    		for ( i = sizeof(TCP_DELETE) + 1; '\0' != tmp[i]; i++ ) {
+
+    		}
+
+    		i += 2;
+
+       	    switch ( update( &tmp[ sizeof(TCP_UPDATE) + 1 ], &tmp[i] ) ) {
+        	    	case WRONG_LENGHT:
+
+        	    		break;
+        	    	case OPERATION_OK:
+
+        	    		break;
+        	    	case OPERATION_FAIL:
+
+        	    		break;
+        	    	case NOTHING_FOUND:
+
+        	    		break;
+        	    	case LINE_ALREADY_EXIST:
+
+        	    		break;
+        			default:
+
+        				break;
+        	     }
+
+
+    	} else if ( 0 == strcmp( tmp, TCP_FIND ) ) {
+
+    		 switch ( findString( &tmp[ sizeof(TCP_FIND) + 1 ] ) ) {
+    		        case WRONG_LENGHT:
+
+    		        	break;
+    		        case OPERATION_FAIL:
+
+    		        	break;
+    		        case NOTHING_FOUND:
+
+    		        	break;
+    		        default:
+
+    		        	break;
+    		  }
+
+    	} else if ( 0 == strcmp( tmp, TCP_SSID_STA ) ) {
+
+
+    	} else if ( 0 == strcmp( tmp, TCP_PWD_STA ) ) {
+
+
+    	} else if ( 0 == strcmp( tmp, TCP_SSID_AP ) ) {
+
+
+    	} else if ( 0 == strcmp( tmp, TCP_PWD_AP ) ) {
+
+
+    	} else if ( 0 == strcmp( tmp, TCP_BROADCAST_NAME ) ) {
+
+
+    	} else if ( 0 == strcmp( tmp, TCP_GPIO_MODE_1 ) ) {
+
+
+    	} else if ( 0 == strcmp( tmp, TCP_GPIO_MODE_2 ) ) {
+
+
+    	} else { // ERROR
+
+
+    	}
+
+    } else if ( TCP_FREE == tcpSt ) {
+
+    	memcpy( &tmp[counterForTmp], pdata, len );
+    	counterForTmp += len;
     }
-    memcpy( tmp, pdata, len );
-    tmp[len++] = '\r';
-    tmp[len] = '\0';
-    espconn_sent(arg, tmp, strlen(tmp));
-//    uart0_tx_buffer(pdata, len);
-	for ( ; i++ < len; ){
-		uart_tx_one_char(*pdata++);
-	}
+
+}
+
+// espconn_sent(arg, tmp, strlen(tmp));
+
+LOCAL void ICACHE_FLASH_ATTR
+tcp_connectcb( void* arg ) { // TCP connected successfully
+
+	struct espconn *pespconn = (struct espconn *) arg;
+
+//	sint8 espconn_get_connection_info( pespconn, remot_info **pcon_info, uint8 typeflags );
+// os_printf( "bssid : %x:%x:%x:%x:%x:%x ip : %d.%d.%d.%d Connected\r\n", MAC2STR(pespconn->bssid), IP2STR(&station->ip) );
 }
 
 LOCAL void ICACHE_FLASH_ATTR
-tcp_connectcb( void* arg ){
-	ets_uart_printf("Connect");
-}
-
-LOCAL void ICACHE_FLASH_ATTR
-tcp_disnconcb( void* arg ){
+tcp_disnconcb( void* arg ) { // TCP disconnected successfully
 	ets_uart_printf("Disconnect");
 //	os_printf( "disconnect result = %d", espconn_delete((struct espconn *) arg));
 }
 
 LOCAL void ICACHE_FLASH_ATTR
-tcp_reconcb( void* arg, sint8 err ){
+tcp_reconcb( void* arg, sint8 err ) { // error, or TCP disconnected
 
 }
 
 LOCAL void ICACHE_FLASH_ATTR
-tcp_sentcb( void* arg ){
+tcp_sentcb( void* arg ) { // data sent
 
 }
 
@@ -430,7 +596,6 @@ user_init(void) {
 #endif
 
 	}
-
 
 #ifdef DEBUG
 	{
@@ -776,7 +941,6 @@ checkFlash( void ) {
 }
 
 
-
 // Перевод числа в последовательность ASCII
 uint8_t * ShortIntToString(uint16_t data, uint8_t *adressDestenation) {
 	uint8_t *startAdressDestenation = adressDestenation;
@@ -824,7 +988,6 @@ uint8_t * intToStringHEX(uint8_t data, uint8_t *adressDestenation) {
 }
 
 
-
 // broadcast message:
 //          "name:" + " " + nameSTA +
 //          + " " + mac: + " " + wifi_get_macaddr() +
@@ -842,6 +1005,8 @@ uint8_t * intToStringHEX(uint8_t data, uint8_t *adressDestenation) {
 //			+ " " + INP_4: + " " + high/low + "\r\n" + "\0"
 void ICACHE_FLASH_ATTR
 broadcastBuilder( void ){
+
+	uint8_t macadr[10];
 
 	if ( SPI_FLASH_RESULT_OK != spi_flash_read( USER_SECTOR_IN_FLASH_MEM * SPI_FLASH_SEC_SIZE, \
 				                            (uint32 *)tmpFLASH, SPI_FLASH_SEC_SIZE ) ) {
@@ -1041,7 +1206,6 @@ broadcastBuilder( void ){
 		*count++ = '\n';
 		*count = '\0';
  }
-
 
 
 
