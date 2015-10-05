@@ -5,47 +5,75 @@
 
 /*
 *************************************************************************************************
-*                                   список команд. каждый параметр/команда нуль терминальные
+*                         список команд. каждый параметр/команда нуль терминальные
 *
-* БД:
+* heap:
 * - query\r\n
-* 					Запросить базу данных. Формат ответа: "query db n lenght b данные \r\n"
+* 					Запросить базу данных. Формат ответа: "query package n lenght b данные \r\n"
 * 					n - номер посилки, b - длинна. При отправке последнего пакета ответ следующий:
-*		 			"query done db n lenght b данные \r\n". При ошибке ERROR
+*		 			query done db n lenght b данные OPERATION_OK\r\n - если ОК
+*		 			query done db n lenght b данные READ_DONE\r\n - последний пакет
+*		 			query OPERATION_FAIL\r\n
+*
 *
 * - insert string\r\n
 * 					Вставить запись. Запись нуль терминальная. Между командой и параметром один
-* 					пробел. Ответ insert string OK\r\n - если операция выполнилась успешно, иначе
-* 					insert string ERROR\r\n
+* 					пробел. Ответ
+* 					insert string OPERATION_OK\r\n - если операция выполнилась успешно, иначе
+* 					insert string WRONG_LENGHT\r\n
+* 					insert string LINE_ALREADY_EXIST\r\n
+* 					insert string NOT_ENOUGH_MEMORY\r\n
+* 					insert string OPERATION_FAIL\r\n
+*
 *
 * - delete string\r\n
 * 					Удалить запись. Запись нуль терминальная. Между командой и параметром один
-* 					пробел. Ответ delete string OK\r\n - если операция выполнилась успешно, иначе
-* 					delete string ERROR\r\n
+* 					пробел. Ответ
+* 					delete string OPERATION_OK\r\n - если операция выполнилась успешно, иначе
+* 					delete string WRONG_LENGHT\r\n
+* 					delete string NOTHING_FOUND\r\n
+* 					delete string OPERATION_FAIL\r\n
+*
 *
 * - update oldString newString\r\n
 * 					Обновить запись. Запись нуль терминальная. Между командой и параметром один
 * 					пробел, между параметрами тоже один пробел. Ответ
-* 					update oldString newString OK\r\n - если операция выполнилась успешно, иначе
-* 					update oldString newString ERROR\r\n
+* 					update oldString newString OPERATION_OK\r\n - если операция выполнилась успешно, иначе
+* 					update oldString newString WRONG_LENGHT\r\n
+* 					update oldString newString NOTHING_FOUND\r\n
+* 					update oldString newString OPERATION_FAIL\r\n
+* 					update oldString newString LINE_ALREADY_EXIST\r\n
+*
 *
 * - request string\r\n
 * 					Найти запись по полю/полям.Запись нуль терминальная. Между командой и параметром
-* 					один пробел. Ответ request string OK\r\n - если операция выполнилась успешно,
-* 					иначе request string ERROR\r\n
+* 					один пробел. Ответ
+* 					request string OPERATION_OK\r\n - если операция выполнилась успешно,
+* 					request string NOTHING_FOUND\r\n
+* 					request string OPERATION_FAIL\r\n
+* 					request string WRONG_LENGHT\r\n
 *
 * - find string\r\n
 * 					Найти запись (все поля заполнены).Запись нуль терминальная. Между командой и
-* 					параметром один пробел. Ответ request string OK\r\n - если операция выполнилась
-* 					успешно, иначе request string ERROR\r\n
+* 					параметром один пробел. Ответ
+* 					find string OPERATION_OK\r\n - если операция выполнилась успешно
+* 					find string NOTHING_FOUND\r\n
+* 					find string OPERATION_FAIL\r\n
+* 					find string WRONG_LENGHT\r\n
 *
 * WIFI:
-*
 * - ssidSTA ssid\r\n
+* 					Задать ssid роутера макс длинна 32 символа. Ответ
+*					ssidSTA ssid OPERATION_OK\r\n
+*					ssidSTA ssid OPERATION_FAIL\r\n
 *
 * - pwdSTA	pwd\r\n
 *
+*
 * - ssidAP ssid\r\n
+* 					Задать ssid есп макс длинна 32 символа. Ответ
+*					ssidAP ssid OPERATION_OK\r\n
+*					ssidAP ssid OPERATION_FAIL\r\n
 *
 * - pwdAP  pwd\r\n
 *
@@ -54,6 +82,10 @@
 * - gpioMode_1
 *
 * - gpioMode_2
+*
+* - gpioEnable1\r\n
+*
+* - gpioEnable2\r\n
 *
 *************************************************************************************************
 */
@@ -135,9 +167,9 @@
  *
  *
  *  1400....................1416
- * |   BROADCAST NAME:\0   | \n |              header
+ * |   BROADCAST NAME:\0   | \n |          header
  *  1417.........1068
- * |    NAME\0   | \n |           				max lenght 50
+ * |    NAME\0   | \n |           		   max lenght 50
  */
 
 
@@ -186,7 +218,7 @@
 //**********************************************************************************************
 //**********************************************************************************************
 
-#define DEF_CHANEL       7
+#define DEF_CHANEL      7
 #define DEF_AUTH		AUTH_WPA_WPA2_PSK
 #define MAX_CON			4
 #define NO_HIDDEN 		0
@@ -205,7 +237,6 @@
 //STA
 //#define SSID_STA /*"TSM_Guest" */"DIR-320"
 //#define PWD_STA "tsmguest"
-//----------------------------------------------------------------
 
 //**********************************************************************************************
 //**********************************************************************************************
@@ -232,8 +263,8 @@ typedef enum {
 } res;
 
 //**********************************************************************************************
-//----------------------------------------------------------------
 //brodcast constant strings
+
 #define NAME 				"\nname: "
 #define MAC 				"\nmacSTA: "
 #define IP 					"\nip: "
@@ -256,6 +287,17 @@ typedef enum {
 #define STATUS_HIGH			"high"
 #define STATUS_LOW			"low"
 #define MS					"ms"
+//**********************************************************************************************
+// TCP responses constants
 
+#define TCP_OPERATION_FAIL			"OPERATION_FAIL"
+#define TCP_WRONG_LENGHT			"WRONG_LENGHT"
+#define TCP_NOTHING_FOUND			"NOTHING_FOUND"
+#define TCP_NOT_ENOUGH_MEMORY		"NOT_ENOUGH_MEMORY"
+#define TCP_LINE_ALREADY_EXIST		"LINE_ALREADY_EXIST"
+#define TCP_OPERATION_OK			"OPERATION_OK"
+#define TCP_READ_DONE				"READ_DONE"
+
+//**********************************************************************************************
 #endif
 

@@ -233,6 +233,8 @@ mScheduler(char *datagram, uint16 size) {
 	 if ( 0 == GPIO_INPUT_GET( INP_1_PIN ) ) {
 
 		 writeFlash( GPIO_OUT_1_MODE_OFSET, GPIO_OUT_TRIGGER_MODE );
+		 writeFlash( SSID_STA_OFSET, "TEST" );
+		 writeFlash( SSID_AP_OFSET, "TEST" );
 		 writeFlash( BROADCAST_NAME_OFSET, "testtesttest" );
 		 writeFlash( GPIO_OUT_2_DELEY_OFSET, "500" );
 		 writeFlash( SSID_STA_OFSET, "TEST" );
@@ -319,7 +321,7 @@ mScheduler(char *datagram, uint16 size) {
 		// ¬нешн€€ сеть
 		switch( wifi_station_get_connect_status() ) {
 			case STATION_GOT_IP:
-				if ( ( rssi = wifi_station_get_rssi() ) < -60 ){
+				if ( ( rssi = wifi_station_get_rssi() ) < -90 ){
 					count = rssiStr;
 					*count++ = '-';
 					count = ShortIntToString( ~rssi, count );
