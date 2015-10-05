@@ -262,6 +262,9 @@ tcp_recvcb( void *arg, char *pdata, unsigned short len ) { // data received
     		        	break;
     		  }
 
+    	} else if ( 0 == strcmp( tmp, TCP_CLEAR_HEAP ) ) {
+
+
     	} else if ( 0 == strcmp( tmp, TCP_SSID_STA ) ) {
 
 
