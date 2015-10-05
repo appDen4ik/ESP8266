@@ -581,7 +581,6 @@ checkFlash( void ) {
 			while(1);
 		}
 
-
 		if ( SPI_FLASH_RESULT_OK != spi_flash_erase_sector( USER_SECTOR_IN_FLASH_MEM )  ) {
 
 			ets_uart_printf("Erase USER_SECTOR_IN_FLASH_MEM fail");
