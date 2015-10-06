@@ -37,35 +37,41 @@
 
 #include "driver/myDB.h"
 
+//**********************************************************************************************************************************
+LOCAL inline void ICACHE_FLASH_ATTR comandParser( void )  __attribute__((always_inline));
 
-//LOCAL command ICACHE_FLASH_ATTR comandParser( uint8_t *data );
+LOCAL inline void ICACHE_FLASH_ATTR initPeriph( void )  __attribute__((always_inline));
+LOCAL inline void ICACHE_FLASH_ATTR initWIFI( void )  __attribute__((always_inline));
+LOCAL inline void ICACHE_FLASH_ATTR checkFlash( void ) __attribute__((always_inline));
+
+LOCAL inline void ICACHE_FLASH_ATTR broadcastBuilder( void ) __attribute__((always_inline));
+
+LOCAL void ICACHE_FLASH_ATTR buildQueryResponse( uint8_t *responseStatus );
+
+LOCAL void ICACHE_FLASH_ATTR tcpRespounseBuilder( uint8_t *responseStatus );
+
+LOCAL compStr ICACHE_FLASH_ATTR compareLenght( uint8_t *string, uint16_t maxLenght );
 
 LOCAL uint32_t ICACHE_FLASH_ATTR StringToInt(uint8_t *data);
 LOCAL uint8_t* ICACHE_FLASH_ATTR  ShortIntToString(uint16_t data, uint8_t *adressDestenation);
 
 LOCAL uint8_t * ICACHE_FLASH_ATTR intToStringHEX(uint8_t data, uint8_t *adressDestenation);
-LOCAL void ICACHE_FLASH_ATTR broadcastBuilder( void );
 
-LOCAL inline void ICACHE_FLASH_ATTR checkFlash( void );
-LOCAL inline res ICACHE_FLASH_ATTR writeFlash( uint16_t where, uint8_t *what );
-
-LOCAL inline void ICACHE_FLASH_ATTR initPeriph( void );
-LOCAL inline void ICACHE_FLASH_ATTR initWIFI( void );
-
-//*************************************************************************************************************
+LOCAL res ICACHE_FLASH_ATTR writeFlash( uint16_t where, uint8_t *what );
+//**********************************************************************************************************************************
 
 extern void ets_wdt_enable (void);
 extern void ets_wdt_disable (void);
 
-//**************************************************************************************************************
+//**********************************************************************************************************************************
 
 LOCAL uint8_t tmp[TMP_SIZE];
 
-//**************************************************************************************************************
+//**********************************************************************************************************************************
 
 LOCAL uint8_t tmpFLASH[SPI_FLASH_SEC_SIZE];
 
-//**************************************************************************************************************
+//**********************************************************************************************************************************
 
 LOCAL uint32_t gpioOutDeley1;
 LOCAL uint32_t gpioOutDeley2;
@@ -79,42 +85,48 @@ LOCAL uint8_t gpioModeOut2[ sizeof(DEF_GPIO_OUT_MODE) ];
 LOCAL stat gpioStatusOut1 = DISABLE;
 LOCAL stat gpioStatusOut2 = DISABLE;
 
-//**************************************************************************************************************
+//**********************************************************************************************************************************
 
 LOCAL os_timer_t task_timer;
 
-//**************************************************************************************************************
+//**********************************************************************************************************************************
 
 LOCAL struct espconn broadcast;
 
-//**************************************************************************************************************
+//**********************************************************************************************************************************
 
 LOCAL uint8_t ledState = 0;
 LOCAL uint32_t broadcastTmr;
 LOCAL uint8_t *broadcastShift;
 LOCAL uint8_t brodcastMessage[250] = { 0 };
 
-//**************************************************************************************************************
+//**********************************************************************************************************************************
 
 LOCAL uint8_t rssiStr[5];
 LOCAL sint8_t rssi;
 
-//**************************************************************************************************************
+//**********************************************************************************************************************************
 
 LOCAL uint8_t *count;
 
-//**************************************************************************************************************
+//**********************************************************************************************************************************
 
 LOCAL struct ip_info inf;
 
-//**************************************************************************************************************
+//**********************************************************************************************************************************
 
 LOCAL tcp_stat tcpSt = TCP_FREE;
 uint8_t storage[1000];
 LOCAL uint16_t counterForTmp = 0;
 
-//**************************************************************************************************************
+//**********************************************************************************************************************************
 
+struct espconn *pespconn;
+
+//**********************************************************************************************************************************
+
+uint32_t addressQuery;
+uint16_t lenghtQuery;
 
 
 void user_rf_pre_init(void)
@@ -122,181 +134,45 @@ void user_rf_pre_init(void)
 
 }
 
-//*********************************************Callbacks********************************************************
+//**********************************************************Callbacks***************************************************************
 LOCAL void ICACHE_FLASH_ATTR
 tcp_recvcb( void *arg, char *pdata, unsigned short len ) { // data received
 
-	int i = 0;
-    struct espconn *pespconn = (struct espconn *) arg;
-
     if ( '\r' == pdata[ len - 2 ] && TCP_FREE == tcpSt ) {
 
-    	memcpy( &tmp[counterForTmp], pdata, len );
-    	counterForTmp = 0;
+    	pespconn = (struct espconn *) arg;
 
-    	if ( 0 == strcmp( tmp, TCP_REQUEST ) ) {
+    	if ( TMP_SIZE < counterForTmp + len ) {
+    		memcpy( &tmp[counterForTmp], pdata, len );
+    		counterForTmp = 0;
 
-    		switch ( requestString( &tmp[ sizeof(TCP_REQUEST) + 1 ] ) ) {
-    			case WRONG_LENGHT:
+    		comandParser();
 
-    				break;
-    			case NOTHING_FOUND:
+    		pespconn = NULL;
+    	} else {
 
-    			    break;
-    			case OPERATION_OK:
-
-    			    break;
-    			case OPERATION_FAIL:
-
-    			    break;
-    			default:
-
-    				break;
-    		}
-
-    	} else if ( 0 == strcmp( tmp, TCP_ENABLE_GPIO_1 ) ) {
-
-    		if ( ENABLE != gpioStatusOut1 ) {
-
-        		gpioStatusOut1 = ENABLE;
-    		}
-    		//response
-    	} else if ( 0 == strcmp( tmp, TCP_ENABLE_GPIO_2 ) ) {
-
-    		if ( ENABLE != gpioStatusOut2 ) {
-
-        		gpioStatusOut2 = ENABLE;
-    		}
-    		//response
-    	} else if ( 0 == strcmp( tmp, TCP_QUERY ) ) {
-
-
-
-    	} else if ( 0 == strcmp( tmp, TCP_INSERT ) ) {
-
-    	    switch ( insert( &tmp[ sizeof(TCP_INSERT) + 1 ] ) ) {
-    	    	case WRONG_LENGHT:
-
-    	    		break;
-    	    	case NOT_ENOUGH_MEMORY:
-
-    	    		break;
-    	    	case OPERATION_OK:
-
-    	    		break;
-    	    	case OPERATION_FAIL:
-
-    	    		break;
-    	    	case LINE_ALREADY_EXIST:
-
-    	    		break;
-    			default:
-
-    				break;
-    	     }
-
-    	} else if ( 0 == strcmp( tmp, TCP_DELETE ) ) {
-
-    	    switch ( delete( &tmp[ sizeof(TCP_DELETE) + 1 ] ) ) {
-    	    	case WRONG_LENGHT:
-
-    	    		break;
-    	    	case OPERATION_OK:
-
-    	    		break;
-    	    	case OPERATION_FAIL:
-
-    	    		break;
-    	    	case NOTHING_FOUND:
-
-    	    		break;
-    			default:
-
-    				break;
-    	     }
-
-    	} else if ( 0 == strcmp( tmp, TCP_UPDATE ) ) {
-
-    		for ( i = sizeof(TCP_DELETE) + 1; '\0' != tmp[i]; i++ ) {
-
-    		}
-
-    		i += 2;
-
-       	    switch ( update( &tmp[ sizeof(TCP_UPDATE) + 1 ], &tmp[i] ) ) {
-        	    	case WRONG_LENGHT:
-
-        	    		break;
-        	    	case OPERATION_OK:
-
-        	    		break;
-        	    	case OPERATION_FAIL:
-
-        	    		break;
-        	    	case NOTHING_FOUND:
-
-        	    		break;
-        	    	case LINE_ALREADY_EXIST:
-
-        	    		break;
-        			default:
-
-        				break;
-        	     }
-
-
-    	} else if ( 0 == strcmp( tmp, TCP_FIND ) ) {
-
-    		 switch ( findString( &tmp[ sizeof(TCP_FIND) + 1 ] ) ) {
-    		        case WRONG_LENGHT:
-
-    		        	break;
-    		        case OPERATION_FAIL:
-
-    		        	break;
-    		        case NOTHING_FOUND:
-
-    		        	break;
-    		        default:
-
-    		        	break;
-    		  }
-
-    	} else if ( 0 == strcmp( tmp, TCP_CLEAR_HEAP ) ) {
-
-
-    	} else if ( 0 == strcmp( tmp, TCP_SSID_STA ) ) {
-
-
-    	} else if ( 0 == strcmp( tmp, TCP_PWD_STA ) ) {
-
-
-    	} else if ( 0 == strcmp( tmp, TCP_SSID_AP ) ) {
-
-
-    	} else if ( 0 == strcmp( tmp, TCP_PWD_AP ) ) {
-
-
-    	} else if ( 0 == strcmp( tmp, TCP_BROADCAST_NAME ) ) {
-
-
-    	} else if ( 0 == strcmp( tmp, TCP_GPIO_MODE_1 ) ) {
-
-
-    	} else if ( 0 == strcmp( tmp, TCP_GPIO_MODE_2 ) ) {
-
-
-    	} else { // ERROR
-
-
+    		memcpy( tmp, TCP_ERROR, ( sizeof(TCP_ERROR) ) );
+    		tmp[ sizeof(TCP_ERROR) ] = '\r';
+    		tmp[ sizeof(TCP_ERROR) + 1 ] = '\n';
+    		espconn_sent( pespconn, tmp, ( sizeof( TCP_ERROR ) + 2 ) );
     	}
 
     } else if ( TCP_FREE == tcpSt ) {
 
-    	memcpy( &tmp[counterForTmp], pdata, len );
-    	counterForTmp += len;
-    }
+    	if ( TMP_SIZE < counterForTmp + len ) {
 
+    		pespconn = (struct espconn *) arg;
+
+    		memcpy( &tmp[counterForTmp], pdata, len );
+    		counterForTmp += len;
+    	} else {
+
+    		memcpy( tmp, TCP_ERROR, ( sizeof(TCP_ERROR) ) );
+    		tmp[ sizeof(TCP_ERROR) ] = '\r';
+    		tmp[ sizeof(TCP_ERROR) + 1 ] = '\n';
+    		espconn_sent( pespconn, tmp, ( sizeof( TCP_ERROR ) + 2 ) );
+    	}
+    }
 }
 
 // espconn_sent(arg, tmp, strlen(tmp));
@@ -326,7 +202,8 @@ tcp_sentcb( void* arg ) { // data sent
 
 }
 
-//************************************************************************************************************************
+//**********************************************************************************************************************************
+
 
 
 res ICACHE_FLASH_ATTR
@@ -701,7 +578,7 @@ initWIFI( ) {
 	struct softap_config softapConf;
 	struct ip_info ipinfo;
 
-	if ( SPI_FLASH_RESULT_OK != spi_flash_read( USER_SECTOR_IN_FLASH_MEM * SPI_FLASH_SEC_SIZE , (uint32 *)tmp, SPI_FLASH_SEC_SIZE ) ) {
+	if ( SPI_FLASH_RESULT_OK != spi_flash_read( USER_SECTOR_IN_FLASH_MEM * SPI_FLASH_SEC_SIZE, (uint32 *)tmp, SPI_FLASH_SEC_SIZE ) ) {
 
 		ets_uart_printf("initWIFI Read fail");
 		while(1);
@@ -1209,6 +1086,320 @@ broadcastBuilder( void ){
 		*count++ = '\n';
 		*count = '\0';
  }
+
+
+LOCAL void
+ICACHE_FLASH_ATTR comandParser( void ) {
+
+	int i = 0;
+
+	if ( 0 == strcmp( tmp, TCP_REQUEST ) ) {
+
+	    	switch ( requestString( &tmp[ sizeof(TCP_REQUEST) + 1 ] ) ) {
+	    		case WRONG_LENGHT:
+	    			 tcpRespounseBuilder( TCP_WRONG_LENGHT );
+	    			 break;
+	    		case NOTHING_FOUND:
+	    			 tcpRespounseBuilder( TCP_NOTHING_FOUND );
+	    			 break;
+	    		case OPERATION_OK:
+	    			 tcpRespounseBuilder( TCP_OPERATION_OK );
+	    			 break;
+	    		case OPERATION_FAIL:
+	    			 tcpRespounseBuilder( TCP_OPERATION_FAIL );
+	    			 break;
+	    		default:
+
+	    			break;
+	    	}
+
+	    } else if ( 0 == strcmp( tmp, TCP_ENABLE_GPIO_1 ) ) {
+
+	    	if ( ENABLE != gpioStatusOut1 ) {
+
+	        	gpioStatusOut1 = ENABLE;
+	        	tcpRespounseBuilder( TCP_OPERATION_OK );
+	    	} else {
+
+	    		tcpRespounseBuilder( TCP_OPERATION_FAIL );
+	    	}
+
+	    } else if ( 0 == strcmp( tmp, TCP_ENABLE_GPIO_2 ) ) {
+
+	    	if ( ENABLE != gpioStatusOut2 ) {
+
+	        	gpioStatusOut2 = ENABLE;
+	        	tcpRespounseBuilder( TCP_OPERATION_OK );
+	    	} else {
+
+	    		tcpRespounseBuilder( TCP_OPERATION_FAIL );
+	    	}
+
+	    } else if ( 0 == strcmp( tmp, TCP_QUERY ) ) {
+
+	    	lenghtQuery = StringToInt( &tmp[ sizeof( TCP_QUERY ) + 1 + sizeof( TCP_ADRESS ) + 1 + \
+												  strlen( &tmp[ sizeof( TCP_QUERY ) + sizeof( TCP_ADRESS ) + 1 ] ) + 1 + 1 + \
+												  sizeof( TCP_LENGHT ) + 1 ] );
+
+	    	addressQuery = StringToInt( &tmp[ sizeof( TCP_QUERY ) + 1 + sizeof( TCP_ADRESS ) + 1 ] );
+
+	    	switch ( query( storage, &lenghtQuery, &addressQuery ) ) {
+
+	    	    case OPERATION_OK:
+
+	    	    	buildQueryResponse( TCP_OPERATION_OK );
+	    	    	break;
+	    	    case OPERATION_FAIL:
+
+	    	    	memcpy( tmp, TCP_QUERY, sizeof(TCP_QUERY) );
+	    	    	tmp[ sizeof(TCP_QUERY) ] = ' ';
+	    	    	memcpy( &tmp[ sizeof(TCP_QUERY) + 1 ], TCP_OPERATION_FAIL, ( sizeof(TCP_OPERATION_FAIL) ) );
+
+	    	    	tmp[ sizeof(TCP_QUERY) + 1 + sizeof(TCP_OPERATION_FAIL) ] = '\r';
+	    	    	tmp[ sizeof(TCP_QUERY) + 1 + sizeof(TCP_OPERATION_FAIL) + 1 ] = '\n';
+
+	    	    	if ( NULL != pespconn ) {
+
+	    	    		espconn_sent( pespconn, tmp, ( sizeof(TCP_QUERY) + 1 + sizeof(TCP_OPERATION_FAIL) + 1 + 1 ) );
+	    	    	}
+
+	    	    	break;
+	    	    case READ_DONE:
+
+	    	    	buildQueryResponse( TCP_READ_DONE );
+	    	    	break;
+	    		default:
+
+	    			break;
+	    	 }
+
+	    } else if ( 0 == strcmp( tmp, TCP_INSERT ) ) {
+
+	    	 switch ( insert( &tmp[ sizeof(TCP_INSERT) + 1 ] ) ) {
+	    	    case WRONG_LENGHT:
+	    	    	 tcpRespounseBuilder( TCP_WRONG_LENGHT );
+	    	    	 break;
+	    	    case NOT_ENOUGH_MEMORY:
+	    	    	 tcpRespounseBuilder( TCP_NOT_ENOUGH_MEMORY );
+	    	    	 break;
+	    	    case OPERATION_OK:
+	    	    	 tcpRespounseBuilder( TCP_OPERATION_OK );
+	    	    	 break;
+	    	    case OPERATION_FAIL:
+	    	    	 tcpRespounseBuilder( TCP_OPERATION_FAIL );
+	    	    	 break;
+	    	    case LINE_ALREADY_EXIST:
+	    	    	 tcpRespounseBuilder( TCP_LINE_ALREADY_EXIST );
+	    	    	 break;
+	    		default:
+
+	    			break;
+	    	 }
+
+	    } else if ( 0 == strcmp( tmp, TCP_DELETE ) ) {
+
+	    	 switch ( delete( &tmp[ sizeof(TCP_DELETE) + 1 ] ) ) {
+	    	    case WRONG_LENGHT:
+	    	    	 tcpRespounseBuilder( TCP_WRONG_LENGHT );
+	    	    	 break;
+	    	    case OPERATION_OK:
+	    	    	 tcpRespounseBuilder( TCP_OPERATION_OK );
+	    	    	 break;
+	    	    case OPERATION_FAIL:
+	    	    	 tcpRespounseBuilder( TCP_OPERATION_FAIL );
+	    	    	 break;
+	    	    case NOTHING_FOUND:
+	    	    	 tcpRespounseBuilder( TCP_NOTHING_FOUND );
+	    	    	 break;
+	    		default:
+
+	    			 break;
+	    	 }
+
+	    } else if ( 0 == strcmp( tmp, TCP_UPDATE ) ) {
+
+	    	for ( i = sizeof(TCP_DELETE) + 1; '\0' != tmp[i]; i++ ) {
+
+	    	}
+
+	    	i += 2;
+
+	    	switch ( update( &tmp[ sizeof(TCP_UPDATE) + 1 ], &tmp[i] ) ) {
+	        	case WRONG_LENGHT:
+	        	     tcpRespounseBuilder( TCP_WRONG_LENGHT );
+	        	     break;
+	        	case OPERATION_OK:
+	        	     tcpRespounseBuilder( TCP_OPERATION_OK );
+	        	     break;
+	        	case OPERATION_FAIL:
+	        	     tcpRespounseBuilder( TCP_OPERATION_FAIL );
+	        	     break;
+	        	case NOTHING_FOUND:
+	        	     tcpRespounseBuilder( TCP_NOTHING_FOUND );
+	        	     break;
+	        	case LINE_ALREADY_EXIST:
+	        	     tcpRespounseBuilder( TCP_LINE_ALREADY_EXIST );
+	        	     break;
+	        	default:
+
+	        	break;
+	        }
+
+	    } else if ( 0 == strcmp( tmp, TCP_FIND ) ) {
+
+	    	switch ( findString( &tmp[ sizeof(TCP_FIND) + 1 ] ) ) {
+	    		 case WRONG_LENGHT:
+	    		      tcpRespounseBuilder( TCP_WRONG_LENGHT );
+	    		      break;
+	    		 case OPERATION_FAIL:
+	    		      tcpRespounseBuilder( TCP_OPERATION_FAIL );
+	    		      break;
+	    		 case NOTHING_FOUND:
+	    		      tcpRespounseBuilder( TCP_NOTHING_FOUND );
+	    		      break;
+	    		 default:
+	    		       tcpRespounseBuilder( TCP_OPERATION_OK );
+	    		       break;
+	    	}
+
+	    } else if ( 0 == strcmp( tmp, TCP_RESET ) ) {
+
+	    	system_restart();
+
+	    } else if ( 0 == strcmp( tmp, TCP_CLEAR_HEAP ) ) {
+
+	    	 switch ( clearSectorsDB( ) ) {
+	    		 case OPERATION_OK:
+	    		      tcpRespounseBuilder( TCP_OPERATION_OK );
+	    		      break;
+	    		  case OPERATION_FAIL:
+	    		       tcpRespounseBuilder( TCP_OPERATION_FAIL );
+	    		       break;
+	    		 default:
+
+	    		     break;
+	    	}
+
+	    } else if ( 0 == strcmp( tmp, TCP_SSID_STA ) ) { // запись во флешь, изменение после перезагрузки
+
+	    	if ( LENGHT_OK == compareLenght( &tmp[ sizeof(TCP_SSID_STA) + 1 ],  SSID_MAX_LENGHT ) ) {
+
+	    		tcpRespounseBuilder( TCP_OPERATION_OK );
+	    	} else {
+
+	    		tcpRespounseBuilder( TCP_OPERATION_FAIL );
+	    	}
+
+	    } else if ( 0 == strcmp( tmp, TCP_PWD_STA ) ) { // запись во флешь, изменение после перезагрузки
+
+	    	if ( LENGHT_OK == compareLenght( &tmp[ sizeof(TCP_PWD_STA) + 1 ],  PWD_MAX_LENGHT ) ) {
+
+	    		tcpRespounseBuilder( TCP_OPERATION_OK );
+	    	} else {
+
+	    		tcpRespounseBuilder( TCP_OPERATION_FAIL );
+	    	}
+
+	    } else if ( 0 == strcmp( tmp, TCP_SSID_AP ) ) {	// запись во флешь, изменение после перезагрузки
+
+	    	if ( LENGHT_OK == compareLenght( &tmp[ sizeof(TCP_SSID_AP) + 1 ],  SSID_MAX_LENGHT ) ) {
+
+	    		tcpRespounseBuilder( TCP_OPERATION_OK );
+	    	} else {
+
+	    		tcpRespounseBuilder( TCP_OPERATION_FAIL );
+	    	}
+
+	    } else if ( 0 == strcmp( tmp, TCP_PWD_AP ) ) {	// запись во флешь, изменение после перезагрузки
+
+	    	if ( LENGHT_OK == compareLenght( &tmp[ sizeof(TCP_PWD_AP) + 1 ],  PWD_MAX_LENGHT ) ) {
+
+	    		tcpRespounseBuilder( TCP_OPERATION_OK );
+	    	} else {
+
+	    		tcpRespounseBuilder( TCP_OPERATION_FAIL );
+	    	}
+
+	    } else if ( 0 == strcmp( tmp, TCP_BROADCAST_NAME ) ) {
+
+	    	if ( LENGHT_OK == compareLenght( &tmp[ sizeof(TCP_BROADCAST_NAME) + 1 ],  BROADCAST_NAME_MAX_LENGHT ) ) {
+
+	    		tcpRespounseBuilder( TCP_OPERATION_OK );
+	    	} else {
+
+	    		tcpRespounseBuilder( TCP_OPERATION_FAIL );
+	    	}
+
+	    } else if ( 0 == strcmp( tmp, TCP_GPIO_MODE_1 ) ) {
+
+
+	    } else if ( 0 == strcmp( tmp, TCP_GPIO_MODE_2 ) ) {
+
+
+	    } else { // ERROR
+
+	    	memcpy( tmp, TCP_ERROR, ( sizeof(TCP_ERROR) ) );
+	    	tmp[ sizeof(TCP_ERROR) ] = '\r';
+	    	tmp[ sizeof(TCP_ERROR) + 1 ] = '\n';
+	    	espconn_sent( pespconn, tmp, ( sizeof( TCP_ERROR ) + 2 ) );
+
+	    }
+}
+
+
+void ICACHE_FLASH_ATTR
+tcpRespounseBuilder( uint8_t *responseCode ) {
+
+
+}
+
+
+/*
+ * compStr ICACHE_FLASH_ATTR
+ * compareLenght( uint8_t *string, uint16_t maxLenght )
+ *
+ * ¬озвращаемые значени€:
+ * LENGHT_ERROR
+ * LENGHT_OK
+ *
+ * @Description
+ * 		длина string сравниваетс€ с maxLenght без учета нуль символа
+ */
+compStr ICACHE_FLASH_ATTR
+compareLenght( uint8_t *string, uint16_t maxLenght ) {
+
+	uint16_t i;
+
+	for ( i = 0; ; i++ ) {
+
+		if ( '\0' == string[ i ] || i > maxLenght ) {
+
+			break;
+		}
+	}
+
+	if ( i > maxLenght || i == 0  ) {
+
+		return LENGHT_ERROR;
+	} else  {
+
+		return LENGHT_OK;
+	}
+}
+
+
+void ICACHE_FLASH_ATTR
+buildQueryResponse( uint8_t *responseStatus ) {
+
+
+}
+
+
+
+
+
+
+
 
 
 
