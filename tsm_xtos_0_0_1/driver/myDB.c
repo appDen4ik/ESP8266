@@ -486,7 +486,7 @@ findString( uint8_t *string ) {
 					break;
 				}
 
-				if ( 0 == strcmp( string, &tmp[i] ) ) {
+				if ( 0 == strcmp( string, &tmp[ i ] ) ) {
 
 				    return currentSector * SPI_FLASH_SEC_SIZE + i;                                // найдено совпадение
 				}

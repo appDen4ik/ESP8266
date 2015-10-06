@@ -16,7 +16,7 @@
 #include "spi_flash.h"
 
 
-#define STRING_SIZE	    256 	            // длинна записи
+#define STRING_SIZE	    100 	            // длинна записи
 
 #define START_SECTOR 	19                  // начальный сектор
 

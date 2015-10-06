@@ -129,6 +129,9 @@ uint32_t addressQuery;
 uint16_t lenghtQuery;
 
 
+
+uint8_t alignString[ ALIGN_STRING_SIZE ];
+
 void user_rf_pre_init(void)
 {
 
@@ -278,34 +281,60 @@ mScheduler(char *datagram, uint16 size) {
 
 	 if ( 0 == GPIO_INPUT_GET( INP_1_PIN ) ) {
 
-		 writeFlash( GPIO_OUT_1_MODE_OFSET, GPIO_OUT_TRIGGER_MODE );
-		 writeFlash( SSID_STA_OFSET, "TEST" );
-		 writeFlash( SSID_AP_OFSET, "TEST" );
-		 writeFlash( BROADCAST_NAME_OFSET, "testtesttest" );
-		 writeFlash( GPIO_OUT_2_DELEY_OFSET, "500" );
-		 writeFlash( SSID_STA_OFSET, "TEST" );
-		 writeFlash( PWD_STA_OFSET, "TESTTESTTEST" );
+		    uint16_t a, i;
+		    uint8_t *p, *str;
+			uint8_t ascii[10];
+			static uint8_t string[] = "HELLO";
+			static uint8_t string1[] = "Тестирование";
 
+			str = tmp;
 
-#ifdef DEBUG
-	{
+			memcpy( str, TCP_REQUEST, sizeof(TCP_REQUEST) );
 
-	uint16_t c, currentSector;
+			str += sizeof(TCP_REQUEST);
+			*str++ = ' ';
 
-
-	for ( currentSector = USER_SECTOR_IN_FLASH_MEM; currentSector <= USER_SECTOR_IN_FLASH_MEM; currentSector++ ) {
-			os_printf( " debug writeFlash 1 currentSector   %d", currentSector);
-			spi_flash_read( SPI_FLASH_SEC_SIZE * currentSector, (uint32 *)tmpFLASH, SPI_FLASH_SEC_SIZE );
-			for ( c = 0; SPI_FLASH_SEC_SIZE > c; c++ ) {
-				uart_tx_one_char(tmpFLASH[c]);
+			for ( a = 0; a < STRING_SIZE - 1; a++ ) {
+				str[a] = '0';
 			}
-			system_soft_wdt_stop();
-		}
 
-	os_delay_us(1000000);
+			p = ShortIntToString( 10, ascii );
 
-	}
-#endif
+			memcpy( &str[ STRING_SIZE - 39 ], string, strlen(string) );
+
+			str[ STRING_SIZE - 40 ] = START_OF_FIELD;
+			str[ STRING_SIZE - 20 ]  = END_OF_FIELD;
+
+
+			memcpy( &str[ STRING_SIZE - 1 - (p - ascii) - 1 - 40], ascii, (p - ascii) );
+
+			str[ STRING_SIZE - 15 - 40 ] = START_OF_FIELD;
+			str[ STRING_SIZE - 2 - 40 ]  = END_OF_FIELD;
+			str[ STRING_SIZE - 1 ]  = END_OF_STRING;
+
+
+			memcpy( &str[ STRING_SIZE - 40 - 15 - 20 ], string1, strlen( string1 ) );
+
+			str[ STRING_SIZE - 40 - 20 - 15 - 1 ] = START_OF_FIELD;
+			str[ STRING_SIZE - 41 - 15 ]  = END_OF_FIELD;
+
+			str += ALIGN_STRING_SIZE;
+			*str++ = '\r';
+			*str++ = '\n';
+
+
+			   for (i = 0; i < str - tmp; i++) {
+			        uart_tx_one_char(tmp[i]);
+			    }
+
+			   comandParser();
+			   os_printf( "tst");
+			   for (i = 0; '\r' < tmp[ i ]; i++) {
+			   		uart_tx_one_char(tmp[i]);
+			   	}
+			   uart_tx_one_char(tmp[i++]);
+			   uart_tx_one_char(tmp[i]);
+			while ( 0 == GPIO_INPUT_GET( INP_1_PIN ) );
 
 	 }
 //************************************************************************************
@@ -365,7 +394,7 @@ mScheduler(char *datagram, uint16 size) {
 
 
 		// Внешняя сеть
-		switch( wifi_station_get_connect_status() ) {
+/*		switch( wifi_station_get_connect_status() ) {
 			case STATION_GOT_IP:
 				if ( ( rssi = wifi_station_get_rssi() ) < -90 ){
 					count = rssiStr;
@@ -423,7 +452,7 @@ mScheduler(char *datagram, uint16 size) {
 				GPIO_OUTPUT_SET(LED_GPIO, ledState);
 				ledState ^=1;
 				break;
-		}
+		}*/
 	}
 
 	broadcastTmr += 10;
@@ -445,6 +474,105 @@ user_init(void) {
 	checkFlash();
 
 	initWIFI();
+
+//-----------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+	{
+
+
+		uint8_t ascii[10];
+		static uint8_t string[] = "HELLO";
+		static uint8_t string1[] = "Тестирование";
+
+
+		uint16_t lenght;
+		uint32_t adress;
+
+
+			uint8_t alignStr[ALIGN_STRING_SIZE];
+
+			uint8_t *p;
+
+			uint16_t c, currentSector;
+			uint32_t a, i;
+
+			result res;
+
+			clearSectorsDB();
+			for ( i = STRING_SIZE; i < ALIGN_STRING_SIZE; i++ ) {
+				alignString[i] = 0xff;
+			}
+
+			clearSectorsDB();
+
+			os_delay_us(500000);
+			ets_uart_printf(" Проверка query. Тест 1 ");
+			os_delay_us(500000);
+
+
+			ets_uart_printf(" П.1 Заполняем базу значениями (ASCII) выровняными по ALIGN_STRING_SIZE символов  ");
+
+			for ( i = 1; i <= ( SPI_FLASH_SEC_SIZE / ALIGN_STRING_SIZE ); i++ ) {
+
+				for ( a = 0; a < STRING_SIZE - 1; a++ ) {
+						alignString[a] = '0';
+				}
+
+				p = ShortIntToString( i, ascii );
+
+				memcpy( &alignString[ STRING_SIZE - 39 ], string, strlen(string) );
+
+				alignString[ STRING_SIZE - 40 ] = START_OF_FIELD;
+				alignString[ STRING_SIZE - 20 ]  = END_OF_FIELD;
+
+
+				memcpy( &alignString[ STRING_SIZE - 1 - (p - ascii) - 1 - 40], ascii, (p - ascii) );
+
+				alignString[ STRING_SIZE - 15 - 40 ] = START_OF_FIELD;
+				alignString[ STRING_SIZE - 2 - 40 ]  = END_OF_FIELD;
+				alignString[ STRING_SIZE - 1 ]  = END_OF_STRING;
+
+
+				memcpy( &alignString[ STRING_SIZE - 40 - 15 - 20 ], string1, strlen( string1 ) );
+
+				alignString[ STRING_SIZE - 40 - 20 - 15 - 1 ] = START_OF_FIELD;
+				alignString[ STRING_SIZE - 41 - 15 ]  = END_OF_FIELD;
+
+				os_printf( " \n %s \n String lenght %d", alignString, ( strlen( alignString ) + 1 ) );
+
+				switch ( res = insert( alignString ) ) {
+					case OPERATION_OK:
+						ets_uart_printf("OPERATION_OK");
+						system_soft_wdt_stop();
+						break;
+					case WRONG_LENGHT:
+						ets_uart_printf("WRONG_LENGHT");
+						break;
+					case OPERATION_FAIL:
+						ets_uart_printf("OPERATION_FAIL");
+						break;
+					case LINE_ALREADY_EXIST:
+						ets_uart_printf("LINE_ALREADY_EXIST");
+						break;
+					case NOT_ENOUGH_MEMORY:
+						ets_uart_printf("NOT_ENOUGH_MEMORY");
+						break;
+
+				}
+
+			}
+
+			spi_flash_read( SPI_FLASH_SEC_SIZE * START_SECTOR, (uint32 *)tmp, SPI_FLASH_SEC_SIZE );
+			for ( i = 0; SPI_FLASH_SEC_SIZE > i; i++ ) {
+				uart_tx_one_char(tmp[ i ]);
+			}
+
+	}
+
+
+
+
+//-----------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 
 	if ( SPI_FLASH_RESULT_OK == spi_flash_read( USER_SECTOR_IN_FLASH_MEM * SPI_FLASH_SEC_SIZE, \
@@ -1095,25 +1223,26 @@ ICACHE_FLASH_ATTR comandParser( void ) {
 
 	if ( 0 == strcmp( tmp, TCP_REQUEST ) ) {
 
-	    	switch ( requestString( &tmp[ sizeof(TCP_REQUEST) + 1 ] ) ) {
-	    		case WRONG_LENGHT:
-	    			 tcpRespounseBuilder( TCP_WRONG_LENGHT );
-	    			 break;
-	    		case NOTHING_FOUND:
-	    			 tcpRespounseBuilder( TCP_NOTHING_FOUND );
-	    			 break;
-	    		case OPERATION_OK:
-	    			 tcpRespounseBuilder( TCP_OPERATION_OK );
-	    			 break;
-	    		case OPERATION_FAIL:
-	    			 tcpRespounseBuilder( TCP_OPERATION_FAIL );
-	    			 break;
-	    		default:
+	    switch ( requestString( &tmp[ sizeof(TCP_REQUEST) + 1 ] ) ) {
+	    	case WRONG_LENGHT:
+	    		tcpRespounseBuilder( TCP_WRONG_LENGHT );
+	    		break;
+	    	case NOTHING_FOUND:
+	    		tcpRespounseBuilder( TCP_NOTHING_FOUND );
+	    		break;
+	    	case OPERATION_OK:
+	    		tcpRespounseBuilder( TCP_OPERATION_OK );
+	    		gpioStatusOut1 = ENABLE;
+	    		break;
+	    	case OPERATION_FAIL:
+	    		tcpRespounseBuilder( TCP_OPERATION_FAIL );
+	    		break;
+	    	default:
 
-	    			break;
-	    	}
+	    		break;
+	    }
 
-	    } else if ( 0 == strcmp( tmp, TCP_ENABLE_GPIO_1 ) ) {
+	} else if ( 0 == strcmp( tmp, TCP_ENABLE_GPIO_1 ) ) {
 
 	    	if ( ENABLE != gpioStatusOut1 ) {
 
@@ -1124,7 +1253,7 @@ ICACHE_FLASH_ATTR comandParser( void ) {
 	    		tcpRespounseBuilder( TCP_OPERATION_FAIL );
 	    	}
 
-	    } else if ( 0 == strcmp( tmp, TCP_ENABLE_GPIO_2 ) ) {
+	} else if ( 0 == strcmp( tmp, TCP_ENABLE_GPIO_2 ) ) {
 
 	    	if ( ENABLE != gpioStatusOut2 ) {
 
@@ -1135,22 +1264,20 @@ ICACHE_FLASH_ATTR comandParser( void ) {
 	    		tcpRespounseBuilder( TCP_OPERATION_FAIL );
 	    	}
 
-	    } else if ( 0 == strcmp( tmp, TCP_QUERY ) ) {
+	} else if ( 0 == strcmp( tmp, TCP_QUERY ) ) {
 
 	    	lenghtQuery = StringToInt( &tmp[ sizeof( TCP_QUERY ) + 1 + sizeof( TCP_ADRESS ) + 1 + \
-												  strlen( &tmp[ sizeof( TCP_QUERY ) + sizeof( TCP_ADRESS ) + 1 ] ) + 1 + 1 + \
-												  sizeof( TCP_LENGHT ) + 1 ] );
+												  strlen( &tmp[ sizeof( TCP_QUERY ) + 1 + sizeof( TCP_ADRESS ) + 1 ] ) + 1 + \
+												  1 + sizeof( TCP_LENGHT ) + 1 ] );
 
 	    	addressQuery = StringToInt( &tmp[ sizeof( TCP_QUERY ) + 1 + sizeof( TCP_ADRESS ) + 1 ] );
 
 	    	switch ( query( storage, &lenghtQuery, &addressQuery ) ) {
 
 	    	    case OPERATION_OK:
-
 	    	    	buildQueryResponse( TCP_OPERATION_OK );
 	    	    	break;
 	    	    case OPERATION_FAIL:
-
 	    	    	memcpy( tmp, TCP_QUERY, sizeof(TCP_QUERY) );
 	    	    	tmp[ sizeof(TCP_QUERY) ] = ' ';
 	    	    	memcpy( &tmp[ sizeof(TCP_QUERY) + 1 ], TCP_OPERATION_FAIL, ( sizeof(TCP_OPERATION_FAIL) ) );
@@ -1173,7 +1300,7 @@ ICACHE_FLASH_ATTR comandParser( void ) {
 	    			break;
 	    	 }
 
-	    } else if ( 0 == strcmp( tmp, TCP_INSERT ) ) {
+	} else if ( 0 == strcmp( tmp, TCP_INSERT ) ) {
 
 	    	 switch ( insert( &tmp[ sizeof(TCP_INSERT) + 1 ] ) ) {
 	    	    case WRONG_LENGHT:
@@ -1218,7 +1345,7 @@ ICACHE_FLASH_ATTR comandParser( void ) {
 
 	    } else if ( 0 == strcmp( tmp, TCP_UPDATE ) ) {
 
-	    	for ( i = sizeof(TCP_DELETE) + 1; '\0' != tmp[i]; i++ ) {
+	    	for ( i = sizeof(TCP_DELETE) + 1; '\0' != tmp[ i ]; i++ ) {
 
 	    	}
 
@@ -1332,25 +1459,106 @@ ICACHE_FLASH_ATTR comandParser( void ) {
 
 	    } else if ( 0 == strcmp( tmp, TCP_GPIO_MODE_1 ) ) {
 
+	    	if ( 0 == strcmp( &tmp[ sizeof(TCP_GPIO_MODE_1) + 1 ], DEF_GPIO_OUT_MODE ) ) {
+
+	    		 writeFlash( GPIO_OUT_1_MODE_OFSET, DEF_GPIO_OUT_MODE );
+	    		 gpioOutDeley1 = StringToInt( &tmp[ sizeof(TCP_GPIO_MODE_1) + 1 + sizeof(DEF_GPIO_OUT_MODE) + 1 ] );
+	    		 tcpRespounseBuilder( TCP_OPERATION_OK );
+
+	    	} else if ( 0 == strcmp( &tmp[ sizeof(TCP_GPIO_MODE_1) + 1 ], GPIO_OUT_TRIGGER_MODE ) ) {
+
+	    		 writeFlash( GPIO_OUT_1_MODE_OFSET, GPIO_OUT_TRIGGER_MODE );
+	    		 gpioOutDeley1 = StringToInt( &tmp[ sizeof(TCP_GPIO_MODE_1) + 1 + sizeof(GPIO_OUT_TRIGGER_MODE) + 1 ] );
+	    		 tcpRespounseBuilder( TCP_OPERATION_OK );
+
+	    	} else { // error
+
+		    	memcpy( tmp, TCP_ERROR, ( sizeof(TCP_ERROR) ) );
+		    	tmp[ sizeof(TCP_ERROR) ] = '\r';
+		    	tmp[ sizeof(TCP_ERROR) + 1 ] = '\n';
+//debug
+/*
+		    	if ( NULL != pespconn ) {
+
+		    		espconn_sent( pespconn, tmp, ( sizeof( TCP_ERROR ) + 2 ) );
+		    	}
+*/
+//
+	    	}
 
 	    } else if ( 0 == strcmp( tmp, TCP_GPIO_MODE_2 ) ) {
 
+	    	if ( 0 == strcmp( &tmp[ sizeof(TCP_GPIO_MODE_2) + 1 ], DEF_GPIO_OUT_MODE ) ) {
+
+	    		 writeFlash( GPIO_OUT_2_MODE_OFSET, DEF_GPIO_OUT_MODE );
+	    		 gpioOutDeley2 = StringToInt( &tmp[ sizeof(TCP_GPIO_MODE_2) + 1 + sizeof(DEF_GPIO_OUT_MODE) + 1 ] );
+	    		 tcpRespounseBuilder( TCP_OPERATION_OK );
+
+	    	} else if ( 0 == strcmp( &tmp[ sizeof(TCP_GPIO_MODE_2) + 1 ], GPIO_OUT_TRIGGER_MODE ) ) {
+
+	    		 writeFlash( GPIO_OUT_2_MODE_OFSET, GPIO_OUT_TRIGGER_MODE );
+	    		 gpioOutDeley2 = StringToInt( &tmp[ sizeof(TCP_GPIO_MODE_2) + 1 + sizeof(GPIO_OUT_TRIGGER_MODE) + 1 ] );
+	    		 tcpRespounseBuilder( TCP_OPERATION_OK );
+	    	} else { // error
+		    	memcpy( tmp, TCP_ERROR, ( sizeof(TCP_ERROR) ) );
+		    	tmp[ sizeof(TCP_ERROR) ] = '\r';
+		    	tmp[ sizeof(TCP_ERROR) + 1 ] = '\n';
+//debug
+/*
+	       	    if ( NULL != pespconn ) {
+
+	    			espconn_sent( pespconn, tmp, ( sizeof( TCP_ERROR ) + 2 ) );
+	       	    }
+*/
+//
+	    	}
 
 	    } else { // ERROR
 
 	    	memcpy( tmp, TCP_ERROR, ( sizeof(TCP_ERROR) ) );
 	    	tmp[ sizeof(TCP_ERROR) ] = '\r';
 	    	tmp[ sizeof(TCP_ERROR) + 1 ] = '\n';
-	    	espconn_sent( pespconn, tmp, ( sizeof( TCP_ERROR ) + 2 ) );
+//debug
+/*
+	    	if ( NULL != pespconn ) {
 
+	    		espconn_sent( pespconn, tmp, ( sizeof( TCP_ERROR ) + 2 ) );
+	    	}
+*/
+//
 	    }
 }
+
 
 
 void ICACHE_FLASH_ATTR
 tcpRespounseBuilder( uint8_t *responseCode ) {
 
+	uint16_t i, lenght;
 
+	for ( i = 0; '\r' != tmp[ i ] && i < TMP_SIZE; i++ ) {
+
+	}
+
+	for ( ; ' ' != tmp[ i ]; i-- ) {
+
+	}
+
+	i++;
+	lenght = strlen( responseCode ) + 1 ;
+	memcpy( &tmp[ i ], responseCode, lenght );
+	i += lenght;
+	tmp[ i++ ] = '\r';
+	tmp[ i++ ] = '\n';
+
+//debug
+/*
+	if ( NULL != pespconn ) {
+
+		espconn_sent( pespconn, tmp, i );
+	}
+*/
+//
 }
 
 
@@ -1370,7 +1578,7 @@ compareLenght( uint8_t *string, uint16_t maxLenght ) {
 
 	uint16_t i;
 
-	for ( i = 0; ; i++ ) {
+	for ( i = 0; '\0' != string[ i ]; i++ ) {
 
 		if ( '\0' == string[ i ] || i > maxLenght ) {
 
@@ -1391,6 +1599,30 @@ compareLenght( uint8_t *string, uint16_t maxLenght ) {
 void ICACHE_FLASH_ATTR
 buildQueryResponse( uint8_t *responseStatus ) {
 
+	uint16_t i;
+
+	uint8_t *p = &tmp[ sizeof(TCP_QUERY) + 1 + sizeof(TCP_LENGHT) + 1 ];
+
+	p = ShortIntToString( lenghtQuery, p );
+	*p++ = '\0';
+	*p++ = ' ';
+	memcpy( p, TCP_ADRESS, sizeof( TCP_ADRESS ) );
+	p += sizeof( TCP_ADRESS );
+	*p++ = ' ';
+	p = ShortIntToString( addressQuery, p );
+	*p++ = '\0';
+	*p++ = '\r';
+	*p = '\n';
+
+	i = p - tmp + 1;
+//debug
+/*
+if ( NULL != pespconn ) {
+
+	espconn_sent( pespconn, tmp, i );
+}
+*/
+//
 
 }
 
