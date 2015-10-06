@@ -479,7 +479,7 @@ user_init(void) {
 
 	{
 
-
+		uint8_t fsdlf[50];
 		uint8_t ascii[10];
 		static uint8_t string[] = "HELLO";
 		static uint8_t string1[] = "Тестирование";
@@ -566,7 +566,8 @@ user_init(void) {
 			for ( i = 0; SPI_FLASH_SEC_SIZE > i; i++ ) {
 				uart_tx_one_char(tmp[ i ]);
 			}
-
+			os_printf( " wifi_station_get_hostname  %s ", wifi_station_get_hostname() );
+			os_delay_us(500000);
 	}
 
 
@@ -761,7 +762,7 @@ initWIFI( ) {
 
 	if ( wifi_softap_get_config( &softapConf ) ) {
 
-		wifi_station_dhcpc_stop();
+		wifi_softap_dhcps_stop();
 
 		if ( 0 != strcmp( softapConf.ssid, &tmp[ SSID_AP_OFSET ] ) ) {
 
@@ -849,7 +850,7 @@ initWIFI( ) {
 		os_printf( " ipinfo.ip.addr  %d", ipinfo.ip.addr );
 #endif
 
-	wifi_station_dhcpc_start();
+		wifi_softap_dhcps_start();
 
 }
 
