@@ -68,7 +68,8 @@
 * WIFI:
 *
 * - resetWIFI\r\n
-* 				перезагрузить модуль
+* 				перезагрузить модуль. Ответ
+* 				resetWIFI OPERATION_OK\r\n
 *
 * - ssidSTA ssid\r\n
 * 					Задать ssid роутера, макс длинна 32 символа. Ответ
@@ -221,7 +222,7 @@
 
 #define  SSID_MAX_LENGHT         		32
 #define  PWD_MAX_LENGHT         		64
-#define  BROADCAST_NAME_MAX_LENGHT		50
+#define  BROADCAST_NAME_MAX_LENGHT		32
 
 #define  GPIO_OUT_1_HEADER		 	"GPIO OUT 1:"
 #define  GPIO_OUT_1_HEADER_OFSET	1000
@@ -335,23 +336,23 @@ typedef enum {
 #define TCP_ADRESS					"address"
 #define TCP_LENGHT					"length"
 
-#define TCP_QUERY					"query"//
-#define TCP_INSERT					"insert"//
-#define TCP_DELETE					"delete"//
-#define TCP_UPDATE					"update"//
-#define TCP_REQUEST					"request"//
-#define TCP_FIND					"find"//
-#define TCP_SSID_STA				"ssidSTA"//
-#define TCP_PWD_STA					"pwdSTA"//
-#define TCP_SSID_AP					"ssidAP"//
-#define TCP_PWD_AP					"pwdAP"//
-#define TCP_BROADCAST_NAME			"broadcastName"//
-#define TCP_GPIO_MODE_1				"gpioMode_1"//
+#define TCP_QUERY					"query"
+#define TCP_INSERT					"insert" 		//+
+#define TCP_DELETE					"delete"		//+
+#define TCP_UPDATE					"update"		//+
+#define TCP_REQUEST					"request"		//+
+#define TCP_FIND					"find"			//+
+#define TCP_SSID_STA				"ssidSTA"		//+
+#define TCP_PWD_STA					"pwdSTA"		//+
+#define TCP_SSID_AP					"ssidAP"		//+
+#define TCP_PWD_AP					"pwdAP"			//+
+#define TCP_BROADCAST_NAME			"broadcastName"
+#define TCP_GPIO_MODE_1				"gpioMode_1"
 #define TCP_GPIO_MODE_2				"gpioMode_2"
-#define TCP_ENABLE_GPIO_1			"enableGpio_1"//
-#define TCP_ENABLE_GPIO_2			"enableGpio_2"//
-#define TCP_CLEAR_HEAP              "clearDB"//
-#define TCP_RESET                   "resetWIFI"//
+#define TCP_ENABLE_GPIO_1			"enableGpio_1"  //++
+#define TCP_ENABLE_GPIO_2			"enableGpio_2"  //++
+#define TCP_CLEAR_HEAP              "clearDB"
+#define TCP_RESET                   "resetWIFI"		//++
 
 #define TCP_ERROR					"ERROR"
 
