@@ -9,10 +9,10 @@
 *                         данных в методе query
 *
 * heap:
-* - query address n length b\r\n
-* 					Запросить базу данных. При первом запросе n = 0, b = 0. При каждом последующем
+* - query address n \r\n
+* 					Запросить базу данных. При первом запросе n = 0. При каждом последующем
 * 					в запросе передается то что модуль ответил ( n, и b ) Формат ответа:
-* 					n - номер посилки, b - длинна. При отправке последнего пакета ответ следующий:
+* 					n - номер посилки, b - длина. Ответ:
 *		 			query address n length b данные OPERATION_OK\r\n - если ОК
 *		 			query address n length b данные READ_DONE\r\n    - последняя посилка
 *		 			query OPERATION_FAIL\r\n
@@ -65,6 +65,9 @@
 *
 * - clearDB\r\n
 *
+* - restore\r\n
+* 					Восстановить настройки по умаолчанию
+*
 * WIFI:
 *
 * - resetWIFI\r\n
@@ -109,14 +112,16 @@
 * 					gpioMode_2 Trigger/Impulse delay OPERATION_FAIL\r\n
 *
 * - enableGpio_1\r\n
-* 					установить флаг gpioStatusOut1 = Enable. Ответ
 * 					enableGpio1 OPERATION_OK\r\n
-* 					enableGpio1 OPERATION_FAIL\r\n
 *
 * - enableGpio_2\r\n
-*					установить флаг gpioStatusOut2 = Enable. Ответ
 * 					enableGpio2 OPERATION_OK\r\n
-* 					enableGpio2 OPERATION_FAIL\r\n
+*
+* - disableGpio_1\r\n
+* 					enableGpio1 OPERATION_OK\r\n
+*
+* - disableGpio_2\r\n
+* 					enableGpio2 OPERATION_OK\r\n
 *************************************************************************************************************************************
 */
 
@@ -336,7 +341,7 @@ typedef enum {
 #define TCP_ADRESS					"address"
 #define TCP_LENGHT					"length"
 
-#define TCP_QUERY					"query"
+#define TCP_QUERY					"query"			//+
 #define TCP_INSERT					"insert" 		//+
 #define TCP_DELETE					"delete"		//+
 #define TCP_UPDATE					"update"		//+
@@ -346,12 +351,14 @@ typedef enum {
 #define TCP_PWD_STA					"pwdSTA"		//+
 #define TCP_SSID_AP					"ssidAP"		//+
 #define TCP_PWD_AP					"pwdAP"			//+
-#define TCP_BROADCAST_NAME			"broadcastName"
-#define TCP_GPIO_MODE_1				"gpioMode_1"
-#define TCP_GPIO_MODE_2				"gpioMode_2"
+#define TCP_BROADCAST_NAME			"broadcastName" //+
+#define TCP_GPIO_MODE_1				"gpioMode_1"    //+
+#define TCP_GPIO_MODE_2				"gpioMode_2"	//+
+#define TCP_DISABLE_GPIO_1			"disableGpio_1"  //++
+#define TCP_DISABLE_GPIO_2   		"disableGpio_2"  //+
 #define TCP_ENABLE_GPIO_1			"enableGpio_1"  //++
 #define TCP_ENABLE_GPIO_2			"enableGpio_2"  //++
-#define TCP_CLEAR_HEAP              "clearDB"
+#define TCP_RESTORE                 "restore"		//+
 #define TCP_RESET                   "resetWIFI"		//++
 
 #define TCP_ERROR					"ERROR"

@@ -39,24 +39,16 @@
 
 //**********************************************************************************************************************************
 LOCAL inline void ICACHE_FLASH_ATTR comandParser( void )  __attribute__((always_inline));
-
 LOCAL inline void ICACHE_FLASH_ATTR initPeriph( void )  __attribute__((always_inline));
 LOCAL void ICACHE_FLASH_ATTR initWIFI( void );
 LOCAL inline void ICACHE_FLASH_ATTR checkFlash( void ) __attribute__((always_inline));
-
 LOCAL inline void ICACHE_FLASH_ATTR broadcastBuilder( void ) __attribute__((always_inline));
-
 LOCAL void ICACHE_FLASH_ATTR buildQueryResponse( uint8_t *responseStatus );
-
 LOCAL void ICACHE_FLASH_ATTR tcpRespounseBuilder( uint8_t *responseStatus );
-
 LOCAL compStr ICACHE_FLASH_ATTR compareLenght( uint8_t *string, uint16_t maxLenght );
-
 LOCAL uint32_t ICACHE_FLASH_ATTR StringToInt(uint8_t *data);
-LOCAL uint8_t* ICACHE_FLASH_ATTR  ShortIntToString(uint16_t data, uint8_t *adressDestenation);
-
+LOCAL uint8_t* ICACHE_FLASH_ATTR  ShortIntToString(uint32_t data, uint8_t *adressDestenation);
 LOCAL uint8_t * ICACHE_FLASH_ATTR intToStringHEX(uint8_t data, uint8_t *adressDestenation);
-
 LOCAL res ICACHE_FLASH_ATTR writeFlash( uint16_t where, uint8_t *what );
 //**********************************************************************************************************************************
 
@@ -70,6 +62,10 @@ LOCAL uint8_t tmp[TMP_SIZE];
 //**********************************************************************************************************************************
 
 LOCAL uint8_t tmpFLASH[SPI_FLASH_SEC_SIZE];
+
+//**********************************************************************************************************************************
+
+LOCAL uint8_t writeFlashTmp[ SPI_FLASH_SEC_SIZE ];
 
 //**********************************************************************************************************************************
 
@@ -217,25 +213,25 @@ writeFlash( uint16_t where, uint8_t *what ) {
 	uint16_t i;
 
 	if ( SPI_FLASH_RESULT_OK != spi_flash_read( USER_SECTOR_IN_FLASH_MEM * SPI_FLASH_SEC_SIZE, \
-				                                     (uint32 *)tmpFLASH, ALIGN_FLASH_READY_SIZE ) ) {
+				                                     (uint32 *)writeFlashTmp, SPI_FLASH_SEC_SIZE ) ) {
 
 		return ERROR;
 	}
 
-	for ( i = where ; '\n' != tmpFLASH[ i ]; i++ ) {
+	for ( i = where ; '\n' != writeFlashTmp[ i ]; i++ ) {
 
-		tmpFLASH[ i ] = 0xff;
+		writeFlashTmp[ i ] = 0xff;
 	}
 
-	tmpFLASH[ i ] = 0xff;
+	writeFlashTmp[ i ] = 0xff;
 
 	for (  i = 0; '\0' != what[ i ]; i++, where++ ) {
 
-		tmpFLASH[ where ] = what[ i ];
+		writeFlashTmp[ where ] = what[ i ];
 	}
 
-	tmpFLASH[ where++ ] = '\0';
-	tmpFLASH[ where ] = '\n';
+	writeFlashTmp[ where++ ] = '\0';
+	writeFlashTmp[ where ] = '\n';
 
 
 	if ( SPI_FLASH_RESULT_OK != spi_flash_erase_sector( USER_SECTOR_IN_FLASH_MEM ) ) {
@@ -244,7 +240,7 @@ writeFlash( uint16_t where, uint8_t *what ) {
 	}
 
 	if ( SPI_FLASH_RESULT_OK != spi_flash_write( USER_SECTOR_IN_FLASH_MEM * SPI_FLASH_SEC_SIZE, \
-			                                                                            (uint32 *)tmpFLASH, SPI_FLASH_SEC_SIZE ) ) {
+			                                                                            (uint32 *)writeFlashTmp, SPI_FLASH_SEC_SIZE ) ) {
 
 		return ERROR;
 	}
@@ -261,25 +257,39 @@ mScheduler(char *datagram, uint16 size) {
 //************************************************************************************
 	 if ( 0 == GPIO_INPUT_GET( INP_3_PIN ) ) {
 
-		 spi_flash_erase_sector( USER_SECTOR_IN_FLASH_MEM );
+			 uint8_t *str;
+			 str = tmp;
+				 memcpy( str, TCP_RESTORE, sizeof(TCP_RESTORE) );
+				 str += sizeof(TCP_RESTORE);
+				*str++ = '\r';
+				*str++ = '\n';
 
-			{
+				comandParser();
+	 }
 
-			uint16_t c, currentSector;
+	 if ( 0 == GPIO_INPUT_GET( INP_2_PIN ) ) {
 
+			 uint8_t *str;
+			 str = tmp;
+			 clearSectorsDB(  );
+				 memcpy( str, TCP_ENABLE_GPIO_2, sizeof(TCP_ENABLE_GPIO_2) );
+				 str += sizeof(TCP_ENABLE_GPIO_2);
+				*str++ = '\r';
+				*str++ = '\n';
 
-			for ( currentSector = USER_SECTOR_IN_FLASH_MEM; currentSector <= USER_SECTOR_IN_FLASH_MEM; currentSector++ ) {
-					os_printf( " currentSector   %d", currentSector);
-					spi_flash_read( SPI_FLASH_SEC_SIZE * currentSector, (uint32 *)tmpFLASH, SPI_FLASH_SEC_SIZE );
-					for ( c = 0; SPI_FLASH_SEC_SIZE > c; c++ ) {
-						uart_tx_one_char(tmpFLASH[c]);
-					}
-					system_soft_wdt_stop();
-				}
+				comandParser();
+	 }
 
-			}
-		 gpioStatusOut1 = ENABLE;
-		 system_restart();
+	 if ( 0 == GPIO_INPUT_GET( INP_4_PIN ) ) {
+
+			 uint8_t *str;
+			 str = tmp;
+				 memcpy( str, TCP_DISABLE_GPIO_2, sizeof(TCP_DISABLE_GPIO_2) );
+				 str += sizeof(TCP_DISABLE_GPIO_2);
+				*str++ = '\r';
+				*str++ = '\n';
+
+				comandParser();
 	 }
 
 	 if ( 0 == GPIO_INPUT_GET( INP_1_PIN ) ) {
@@ -351,16 +361,26 @@ mScheduler(char *datagram, uint16 size) {
 
 		 uint8_t *p, *str;
 		 uint32_t i, currentSector;
-		 uint8_t data[] = "12345678901234567890123456789012123456789012345678901234567890121";
-		 uint8_t data2[] ="12345678901234567890123456789012";
+		 uint8_t data[] = "1234567890";
+		 uint8_t data2[] ="test";
+
 		 str = tmp;
-		 memcpy( str, TCP_PWD_AP, sizeof(TCP_PWD_AP) );
-		 str += sizeof(TCP_PWD_AP);
+		 memcpy( str, TCP_GPIO_MODE_2, sizeof(TCP_GPIO_MODE_2) );
+		 str += sizeof(TCP_GPIO_MODE_2);
 		 *str++ = ' ';
-		 memcpy( str, data, strlen(data) + 1 );
-		 str += strlen(data) + 1;
+
+		 memcpy( str, DEF_GPIO_OUT_MODE, sizeof(DEF_GPIO_OUT_MODE) );
+		 str += sizeof(DEF_GPIO_OUT_MODE);
+		 *str++ = ' ';
+
+		 *str++ = '2';
+		 *str++ = '3';
+		 *str++ = '2';
+		 *str++ = '2';
+		 *str++ = '\0';
 		*str++ = '\r';
 		*str++ = '\n';
+
 
 			   os_printf( " Request ");
 			   for (i = 0; i < str - tmp; i++) {
@@ -368,6 +388,7 @@ mScheduler(char *datagram, uint16 size) {
 			  	}
 
 			   comandParser();
+
 
 /*
 				for ( currentSector = USER_SECTOR_IN_FLASH_MEM; currentSector <= USER_SECTOR_IN_FLASH_MEM; currentSector++ ) {
@@ -519,15 +540,21 @@ user_init(void) {
 	LOCAL esp_tcp tcpServer;
 	LOCAL esp_udp udpClient;
 
-	initPeriph();
 
+	initPeriph();
+	os_printf( " module version 0.0.1 ");
 	checkFlash();
 
 	initWIFI();
 
+	if ( SPI_FLASH_RESULT_OK != spi_flash_read( USER_SECTOR_IN_FLASH_MEM * SPI_FLASH_SEC_SIZE, \
+				                                          (uint32 *)tmpFLASH, SPI_FLASH_SEC_SIZE ) ) {
+
+	}
+
 //-----------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-/*	clearSectorsDB();
+	clearSectorsDB();
 	{
 
 		uint8_t fsdlf[50];
@@ -561,7 +588,7 @@ user_init(void) {
 
 			ets_uart_printf(" П.1 Заполняем базу значениями (ASCII) выровняными по ALIGN_STRING_SIZE символов  ");
 
-			for ( i = 1; i <=  ( SPI_FLASH_SEC_SIZE / ALIGN_STRING_SIZE ) * ( END_SECTOR - START_SECTOR + 1 ); i++ ) {
+			for ( i = 1; i <=  ( SPI_FLASH_SEC_SIZE / ALIGN_STRING_SIZE ) - 25; i++ ) {
 
 				for ( a = 0; a < STRING_SIZE - 1; a++ ) {
 						alignString[a] = '0';
@@ -611,7 +638,7 @@ user_init(void) {
 
 			}
 
-			for ( currentSector = START_SECTOR; currentSector <= END_SECTOR; currentSector++ ) {
+			for ( currentSector = START_SECTOR; currentSector <= START_SECTOR; currentSector++ ) {
 				spi_flash_read( SPI_FLASH_SEC_SIZE * currentSector, (uint32 *)tmp, SPI_FLASH_SEC_SIZE );
 				for ( i = 0; SPI_FLASH_SEC_SIZE > i; i++ ) {
 					uart_tx_one_char(tmp[ i ]);
@@ -620,17 +647,14 @@ user_init(void) {
 				system_soft_wdt_stop();
 			}
 
-			os_printf( " wifi_station_get_hostname  %s ", wifi_station_get_hostname() );
-			os_delay_us(500000);
 	}
-*/
+
 
 
 
 //-----------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-	os_printf( " wifi_station_get_hostname  %s ", wifi_station_get_hostname() );
-os_printf( " wifi_station_get_hostname  %s ", wifi_station_get_hostname() );
+
 			os_delay_us(500000);
 	if ( SPI_FLASH_RESULT_OK == spi_flash_read( USER_SECTOR_IN_FLASH_MEM * SPI_FLASH_SEC_SIZE, \
 				                            (uint32 *)tmp, SPI_FLASH_SEC_SIZE ) ) {
@@ -774,11 +798,11 @@ initWIFI( ) {
 		while(1);
 	}
 
- 	if ( 0 != strcmp( &tmp[BROADCAST_NAME_OFSET],  wifi_station_get_hostname( ) ) ) {
+/* 	if ( 0 != strcmp( &tmp[BROADCAST_NAME_OFSET],  wifi_station_get_hostname( ) ) ) {
 
 		wifi_station_set_hostname( &tmp[BROADCAST_NAME_OFSET] );
 	}
-
+*/
 	if ( STATIONAP_MODE != wifi_get_opmode() ) {
 
 		wifi_set_opmode( STATIONAP_MODE );
@@ -924,6 +948,7 @@ initWIFI( ) {
 void ICACHE_FLASH_ATTR
 checkFlash( void ) {
 
+
 	uint16_t i;
 
 	for ( i = 0; i < SPI_FLASH_SEC_SIZE; i++ ) {
@@ -1012,12 +1037,11 @@ checkFlash( void ) {
 		system_restore();
 
 	}
-
 }
 
 
 // Перевод числа в последовательность ASCII
-uint8_t * ShortIntToString(uint16_t data, uint8_t *adressDestenation) {
+uint8_t * ShortIntToString(uint32_t data, uint8_t *adressDestenation) {
 	uint8_t *startAdressDestenation = adressDestenation;
 	uint8_t *endAdressDestenation;
 	uint8_t buff;
@@ -1084,11 +1108,6 @@ broadcastBuilder( void ) {
 
 	uint8_t macadr[10];
 
-	if ( SPI_FLASH_RESULT_OK != spi_flash_read( USER_SECTOR_IN_FLASH_MEM * SPI_FLASH_SEC_SIZE, \
-				                            (uint32 *)tmpFLASH, SPI_FLASH_SEC_SIZE ) ) {
-
-	}
-
 	//выделяем бродкаст айпишку
 	wifi_get_ip_info( STATION_IF, &inf );
 
@@ -1100,8 +1119,8 @@ broadcastBuilder( void ) {
 	memcpy( count, NAME, ( sizeof( NAME ) - 1 ) );
 	count += sizeof( NAME ) - 1;
 
-	os_sprintf( count, "%s", &tmp[ BROADCAST_NAME_OFSET ] );
-	count += strlen( &tmp[ BROADCAST_NAME_OFSET ] );
+	os_sprintf( count, "%s", &tmpFLASH[ BROADCAST_NAME_OFSET ] );
+	count += strlen( &tmpFLASH[ BROADCAST_NAME_OFSET ] );
 
 //================================================================
 	memcpy( count, MAC, ( sizeof( MAC ) - 1 ) );
@@ -1169,7 +1188,7 @@ broadcastBuilder( void ) {
 	memcpy( count, GPIO_1, ( sizeof( GPIO_1 ) - 1 ) );
 	count += sizeof( GPIO_1 ) - 1;
 
-	if ( 0 == strcmp( &tmp[GPIO_OUT_1_MODE_OFSET], DEF_GPIO_OUT_MODE ) ) {
+	if ( 0 == strcmp( &tmpFLASH[GPIO_OUT_1_MODE_OFSET], DEF_GPIO_OUT_MODE ) ) {
 
 		memcpy( count, DEF_GPIO_OUT_MODE, ( sizeof( DEF_GPIO_OUT_MODE ) - 1 ) );
 		count += sizeof( DEF_GPIO_OUT_MODE ) - 1;
@@ -1177,13 +1196,13 @@ broadcastBuilder( void ) {
 		memcpy( count, DELAY_NAME, ( sizeof( DELAY_NAME ) - 1 ) );
 		count += sizeof( DELAY_NAME ) - 1;
 
-		os_sprintf( count, "%s", &tmp[ GPIO_OUT_1_DELEY_OFSET ] );
-		count += strlen( &tmp[ GPIO_OUT_1_DELEY_OFSET ] );
+		os_sprintf( count, "%s", &tmpFLASH[ GPIO_OUT_1_DELEY_OFSET ] );
+		count += strlen( &tmpFLASH[ GPIO_OUT_1_DELEY_OFSET ] );
 
 		memcpy( count, MS, ( sizeof( MS ) - 1 ) );
 		count += sizeof( MS ) - 1;
 
-	} else if ( 0 == strcmp( &tmp[GPIO_OUT_1_MODE_OFSET], GPIO_OUT_TRIGGER_MODE ) ) {
+	} else if ( 0 == strcmp( &tmpFLASH[GPIO_OUT_1_MODE_OFSET], GPIO_OUT_TRIGGER_MODE ) ) {
 
 		memcpy( count, GPIO_OUT_TRIGGER_MODE, ( sizeof( GPIO_OUT_TRIGGER_MODE ) - 1 ) );
 		count += sizeof( GPIO_OUT_TRIGGER_MODE ) - 1;
@@ -1191,8 +1210,8 @@ broadcastBuilder( void ) {
 		memcpy( count, DELAY_NAME, ( sizeof( DELAY_NAME ) - 1 ) );
 		count += sizeof( DELAY_NAME ) - 1;
 
-		os_sprintf( count, "%s", &tmp[ GPIO_OUT_1_DELEY_OFSET ] );
-		count += strlen( &tmp[ GPIO_OUT_1_DELEY_OFSET ] );
+		os_sprintf( count, "%s", &tmpFLASH[ GPIO_OUT_1_DELEY_OFSET ] );
+		count += strlen( &tmpFLASH[ GPIO_OUT_1_DELEY_OFSET ] );
 
 		memcpy( count, MS, ( sizeof( MS ) - 1 ) );
 		count += sizeof( MS ) - 1;
@@ -1201,7 +1220,7 @@ broadcastBuilder( void ) {
 	memcpy( count, GPIO_2, ( sizeof( GPIO_2 ) - 1 ) );
 	count += sizeof( GPIO_2 ) - 1;
 
-	if ( 0 == strcmp( &tmp[GPIO_OUT_2_MODE_OFSET], DEF_GPIO_OUT_MODE ) ) {
+	if ( 0 == strcmp( &tmpFLASH[GPIO_OUT_2_MODE_OFSET], DEF_GPIO_OUT_MODE ) ) {
 
 		memcpy( count, DEF_GPIO_OUT_MODE, ( sizeof( DEF_GPIO_OUT_MODE ) - 1 ) );
 		count += sizeof( DEF_GPIO_OUT_MODE ) - 1;
@@ -1209,12 +1228,12 @@ broadcastBuilder( void ) {
 		memcpy( count, DELAY_NAME, ( sizeof( DELAY_NAME ) - 1 ) );
 		count += sizeof( DELAY_NAME ) - 1;
 
-		os_sprintf( count, "%s", &tmp[ GPIO_OUT_2_DELEY_OFSET ] );
-		count += strlen( &tmp[ GPIO_OUT_2_DELEY_OFSET ] );
+		os_sprintf( count, "%s", &tmpFLASH[ GPIO_OUT_2_DELEY_OFSET ] );
+		count += strlen( &tmpFLASH[ GPIO_OUT_2_DELEY_OFSET ] );
 
 		memcpy( count, MS, ( sizeof( MS ) - 1 ) );
 		count += sizeof( MS ) - 1;
-	} else if ( 0 == strcmp( &tmp[GPIO_OUT_2_MODE_OFSET], GPIO_OUT_TRIGGER_MODE ) ) {
+	} else if ( 0 == strcmp( &tmpFLASH[GPIO_OUT_2_MODE_OFSET], GPIO_OUT_TRIGGER_MODE ) ) {
 
 		memcpy( count, GPIO_OUT_TRIGGER_MODE, ( sizeof( GPIO_OUT_TRIGGER_MODE ) - 1 ) );
 		count += sizeof( GPIO_OUT_TRIGGER_MODE ) - 1;
@@ -1222,8 +1241,8 @@ broadcastBuilder( void ) {
 		memcpy( count, DELAY_NAME, ( sizeof( DELAY_NAME ) - 1 ) );
 		count += sizeof( DELAY_NAME ) - 1;
 
-		os_sprintf( count, "%s", &tmp[ GPIO_OUT_2_DELEY_OFSET ] );
-		count += strlen( &tmp[ GPIO_OUT_2_DELEY_OFSET ] );
+		os_sprintf( count, "%s", &tmpFLASH[ GPIO_OUT_2_DELEY_OFSET ] );
+		count += strlen( &tmpFLASH[ GPIO_OUT_2_DELEY_OFSET ] );
 
 		memcpy( count, MS, ( sizeof( MS ) - 1 ) );
 		count += sizeof( MS ) - 1;
@@ -1284,6 +1303,7 @@ broadcastBuilder( void ) {
  }
 
 
+
 LOCAL void
 ICACHE_FLASH_ATTR comandParser( void ) {
 
@@ -1312,55 +1332,49 @@ ICACHE_FLASH_ATTR comandParser( void ) {
 
 	} else if ( 0 == strcmp( tmp, TCP_ENABLE_GPIO_1 ) ) {  //++
 
-	    	if ( ENABLE != gpioStatusOut1 ) {
-
-	        	gpioStatusOut1 = ENABLE;
+	    		GPIO_OUTPUT_SET(OUT_1_GPIO, 1);
 	        	tcpRespounseBuilder( TCP_OPERATION_OK );
-	    	} else {
-
-	    		tcpRespounseBuilder( TCP_OPERATION_FAIL );
-	    	}
 
 	} else if ( 0 == strcmp( tmp, TCP_ENABLE_GPIO_2 ) ) {  //++
 
-	    	if ( ENABLE != gpioStatusOut2 ) {
-
-	        	gpioStatusOut2 = ENABLE;
+	    		GPIO_OUTPUT_SET(OUT_2_GPIO, 1);
 	        	tcpRespounseBuilder( TCP_OPERATION_OK );
-	    	} else {
 
-	    		tcpRespounseBuilder( TCP_OPERATION_FAIL );
-	    	}
+	} else if ( 0 == strcmp( tmp, TCP_DISABLE_GPIO_1 ) ) {  //++
 
-	} else if ( 0 == strcmp( tmp, TCP_QUERY ) ) {
+	    		GPIO_OUTPUT_SET(OUT_1_GPIO, 0);
+	        	tcpRespounseBuilder( TCP_OPERATION_OK );
 
-	    	lenghtQuery = StringToInt( &tmp[ sizeof( TCP_QUERY ) + 1 + sizeof( TCP_ADRESS ) + 1 + \
-												  strlen( &tmp[ sizeof( TCP_QUERY ) + 1 + sizeof( TCP_ADRESS ) + 1 ] ) + 1 + \
-												  1 + sizeof( TCP_LENGHT ) + 1 ] );
+	} else if ( 0 == strcmp( tmp, TCP_DISABLE_GPIO_2 ) ) {  //++
+
+	    		GPIO_OUTPUT_SET(OUT_2_GPIO, 0);
+	        	tcpRespounseBuilder( TCP_OPERATION_OK );
+
+	} else if ( 0 == strcmp( tmp, TCP_QUERY ) ) {                                               //++
 
 	    	addressQuery = StringToInt( &tmp[ sizeof( TCP_QUERY ) + 1 + sizeof( TCP_ADRESS ) + 1 ] );
-
+//	    	os_printf("addressQuery %d", addressQuery);
 	    	switch ( query( storage, &lenghtQuery, &addressQuery ) ) {
 
 	    	    case OPERATION_OK:
+//	    	    	os_printf("addressQuery %d", addressQuery);
 	    	    	buildQueryResponse( TCP_OPERATION_OK );
 	    	    	break;
 	    	    case OPERATION_FAIL:
 	    	    	memcpy( tmp, TCP_QUERY, sizeof(TCP_QUERY) );
 	    	    	tmp[ sizeof(TCP_QUERY) ] = ' ';
 	    	    	memcpy( &tmp[ sizeof(TCP_QUERY) + 1 ], TCP_OPERATION_FAIL, ( sizeof(TCP_OPERATION_FAIL) ) );
-
 	    	    	tmp[ sizeof(TCP_QUERY) + 1 + sizeof(TCP_OPERATION_FAIL) ] = '\r';
 	    	    	tmp[ sizeof(TCP_QUERY) + 1 + sizeof(TCP_OPERATION_FAIL) + 1 ] = '\n';
-
+/*
 	    	    	if ( NULL != pespconn ) {
 
 	    	    		espconn_sent( pespconn, tmp, ( sizeof(TCP_QUERY) + 1 + sizeof(TCP_OPERATION_FAIL) + 1 + 1 ) );
 	    	    	}
-
+*/
 	    	    	break;
 	    	    case READ_DONE:
-
+//	    	    	os_printf("addressQuery %d", addressQuery);
 	    	    	buildQueryResponse( TCP_READ_DONE );
 	    	    	break;
 	    		default:
@@ -1462,19 +1476,11 @@ ICACHE_FLASH_ATTR comandParser( void ) {
 	    	tcpRespounseBuilder( TCP_OPERATION_OK );
 	    	system_restart();
 
-	    } else if ( 0 == strcmp( tmp, TCP_CLEAR_HEAP ) ) {
+	    } else if ( 0 == strcmp( tmp, TCP_RESTORE ) ) {
 
-	    	 switch ( clearSectorsDB( ) ) {
-	    		 case OPERATION_OK:
-	    		      tcpRespounseBuilder( TCP_OPERATION_OK );
-	    		      break;
-	    		  case OPERATION_FAIL:
-	    		       tcpRespounseBuilder( TCP_OPERATION_FAIL );
-	    		       break;
-	    		 default:
-
-	    		     break;
-	    	}
+	    	tcpRespounseBuilder( TCP_OPERATION_OK );
+			//spi_flash_erase_sector( USER_SECTOR_IN_FLASH_MEM );
+			system_restart();
 
 	    } else if ( 0 == strcmp( tmp, TCP_SSID_STA ) ) { 												//++
 
@@ -1524,72 +1530,100 @@ ICACHE_FLASH_ATTR comandParser( void ) {
 	    		tcpRespounseBuilder( TCP_OPERATION_FAIL );
 	    	}
 
-	    } else if ( 0 == strcmp( tmp, TCP_BROADCAST_NAME ) ) {
+	    } else if ( 0 == strcmp( tmp, TCP_BROADCAST_NAME ) ) {											//++
 
 	    	if ( LENGHT_OK == compareLenght( &tmp[ sizeof(TCP_BROADCAST_NAME) + 1 ],  BROADCAST_NAME_MAX_LENGHT ) ) {
 
+	    		writeFlash( BROADCAST_NAME_OFSET, &tmp[ sizeof(TCP_BROADCAST_NAME) + 1 ] );
+	    		if ( 0 != strcmp( &tmp[ sizeof(TCP_BROADCAST_NAME) + 1 ],  wifi_station_get_hostname( ) ) ) {
+
+	    			wifi_station_set_hostname( &tmp[ sizeof(TCP_BROADCAST_NAME) + 1 ] );
+	    		}
+
+	    		if ( SPI_FLASH_RESULT_OK != spi_flash_read( USER_SECTOR_IN_FLASH_MEM * SPI_FLASH_SEC_SIZE, \
+	    					                                                  (uint32 *)tmpFLASH, SPI_FLASH_SEC_SIZE ) ) {
+	    		}
 	    		tcpRespounseBuilder( TCP_OPERATION_OK );
+
 	    	} else {
 
 	    		tcpRespounseBuilder( TCP_OPERATION_FAIL );
 	    	}
 
-	    } else if ( 0 == strcmp( tmp, TCP_GPIO_MODE_1 ) ) {
+	    } else if ( 0 == strcmp( tmp, TCP_GPIO_MODE_1 ) ) {                                                     //++
 
 	    	if ( 0 == strcmp( &tmp[ sizeof(TCP_GPIO_MODE_1) + 1 ], DEF_GPIO_OUT_MODE ) ) {
 
-	    		 writeFlash( GPIO_OUT_1_MODE_OFSET, DEF_GPIO_OUT_MODE );
-	    		 gpioOutDeley1 = StringToInt( &tmp[ sizeof(TCP_GPIO_MODE_1) + 1 + sizeof(DEF_GPIO_OUT_MODE) + 1 ] );
-	    		 tcpRespounseBuilder( TCP_OPERATION_OK );
+	    		writeFlash( GPIO_OUT_1_MODE_OFSET, DEF_GPIO_OUT_MODE );
+	    		memcpy(gpioModeOut1, DEF_GPIO_OUT_MODE, sizeof(DEF_GPIO_OUT_MODE) );
+	    		gpioOutDeley1 = StringToInt( &tmp[ sizeof(TCP_GPIO_MODE_1) + 1 + sizeof(DEF_GPIO_OUT_MODE) + 1 ] );
+	    		os_printf("gpioOutDeley1 %d", gpioOutDeley1);
+	    		writeFlash( GPIO_OUT_1_DELEY_OFSET ,&tmp[ sizeof(TCP_GPIO_MODE_1) + 1 + sizeof(DEF_GPIO_OUT_MODE) + 1 ] );
+	    		tcpRespounseBuilder( TCP_OPERATION_OK );
+		    	if ( SPI_FLASH_RESULT_OK != spi_flash_read( USER_SECTOR_IN_FLASH_MEM * SPI_FLASH_SEC_SIZE, \
+		    					                                                  (uint32 *)tmpFLASH, SPI_FLASH_SEC_SIZE ) ) {
+		    	}
 
 	    	} else if ( 0 == strcmp( &tmp[ sizeof(TCP_GPIO_MODE_1) + 1 ], GPIO_OUT_TRIGGER_MODE ) ) {
 
-	    		 writeFlash( GPIO_OUT_1_MODE_OFSET, GPIO_OUT_TRIGGER_MODE );
-	    		 gpioOutDeley1 = StringToInt( &tmp[ sizeof(TCP_GPIO_MODE_1) + 1 + sizeof(GPIO_OUT_TRIGGER_MODE) + 1 ] );
-	    		 tcpRespounseBuilder( TCP_OPERATION_OK );
-
-
+	    		writeFlash( GPIO_OUT_1_MODE_OFSET, GPIO_OUT_TRIGGER_MODE );
+	    		memcpy(gpioModeOut1, GPIO_OUT_TRIGGER_MODE, sizeof(GPIO_OUT_TRIGGER_MODE) );
+	    		gpioOutDeley1 = StringToInt( &tmp[ sizeof(TCP_GPIO_MODE_1) + 1 + sizeof(GPIO_OUT_TRIGGER_MODE) + 1 ] );
+	    		writeFlash( GPIO_OUT_1_DELEY_OFSET ,&tmp[ sizeof(TCP_GPIO_MODE_1) + 1 + sizeof(GPIO_OUT_TRIGGER_MODE) + 1 ] );
+	    		tcpRespounseBuilder( TCP_OPERATION_OK );
+		    	if ( SPI_FLASH_RESULT_OK != spi_flash_read( USER_SECTOR_IN_FLASH_MEM * SPI_FLASH_SEC_SIZE, \
+		    					                                                  (uint32 *)tmpFLASH, SPI_FLASH_SEC_SIZE ) ) {
+		    	}
 
 	    	} else { // error
 
 		    	memcpy( tmp, TCP_ERROR, ( sizeof(TCP_ERROR) ) );
 		    	tmp[ sizeof(TCP_ERROR) ] = '\r';
 		    	tmp[ sizeof(TCP_ERROR) + 1 ] = '\n';
-//debug
 /*
 		    	if ( NULL != pespconn ) {
 
 		    		espconn_sent( pespconn, tmp, ( sizeof( TCP_ERROR ) + 2 ) );
 		    	}
 */
-//
 	    	}
 
 	    } else if ( 0 == strcmp( tmp, TCP_GPIO_MODE_2 ) ) {
 
 	    	if ( 0 == strcmp( &tmp[ sizeof(TCP_GPIO_MODE_2) + 1 ], DEF_GPIO_OUT_MODE ) ) {
 
-	    		 writeFlash( GPIO_OUT_2_MODE_OFSET, DEF_GPIO_OUT_MODE );
-	    		 gpioOutDeley2 = StringToInt( &tmp[ sizeof(TCP_GPIO_MODE_2) + 1 + sizeof(DEF_GPIO_OUT_MODE) + 1 ] );
-	    		 tcpRespounseBuilder( TCP_OPERATION_OK );
+	    		writeFlash( GPIO_OUT_2_MODE_OFSET, DEF_GPIO_OUT_MODE );
+	    		memcpy(gpioModeOut2, DEF_GPIO_OUT_MODE, sizeof(DEF_GPIO_OUT_MODE) );
+	    		gpioOutDeley2 = StringToInt( &tmp[ sizeof(TCP_GPIO_MODE_2) + 1 + sizeof(DEF_GPIO_OUT_MODE) + 1 ] );
+	    		os_printf("gpioModeOut2 %s, gpioOutDeley2 %d",gpioModeOut2, gpioOutDeley2);
+	    		writeFlash( GPIO_OUT_2_DELEY_OFSET ,&tmp[ sizeof(TCP_GPIO_MODE_2) + 1 + sizeof(DEF_GPIO_OUT_MODE) + 1 ] );
+	    		tcpRespounseBuilder( TCP_OPERATION_OK );
+		    	if ( SPI_FLASH_RESULT_OK != spi_flash_read( USER_SECTOR_IN_FLASH_MEM * SPI_FLASH_SEC_SIZE, \
+		    					                                                  (uint32 *)tmpFLASH, SPI_FLASH_SEC_SIZE ) ) {
+		    	}
 
 	    	} else if ( 0 == strcmp( &tmp[ sizeof(TCP_GPIO_MODE_2) + 1 ], GPIO_OUT_TRIGGER_MODE ) ) {
 
-	    		 writeFlash( GPIO_OUT_2_MODE_OFSET, GPIO_OUT_TRIGGER_MODE );
-	    		 gpioOutDeley2 = StringToInt( &tmp[ sizeof(TCP_GPIO_MODE_2) + 1 + sizeof(GPIO_OUT_TRIGGER_MODE) + 1 ] );
-	    		 tcpRespounseBuilder( TCP_OPERATION_OK );
+	    		writeFlash( GPIO_OUT_2_MODE_OFSET, GPIO_OUT_TRIGGER_MODE );
+	    		memcpy(gpioModeOut2, GPIO_OUT_TRIGGER_MODE, sizeof(GPIO_OUT_TRIGGER_MODE) );
+	    		gpioOutDeley2 = StringToInt( &tmp[ sizeof(TCP_GPIO_MODE_2) + 1 + sizeof(GPIO_OUT_TRIGGER_MODE) + 1 ] );
+	    		os_printf("gpioModeOut2 %s, gpioOutDeley2 %d",gpioModeOut2, gpioOutDeley2);
+	    		writeFlash( GPIO_OUT_2_DELEY_OFSET ,&tmp[ sizeof(TCP_GPIO_MODE_2) + 1 + sizeof(GPIO_OUT_TRIGGER_MODE) + 1 ] );
+	    		tcpRespounseBuilder( TCP_OPERATION_OK );
+		    	if ( SPI_FLASH_RESULT_OK != spi_flash_read( USER_SECTOR_IN_FLASH_MEM * SPI_FLASH_SEC_SIZE, \
+		    					                                                  (uint32 *)tmpFLASH, SPI_FLASH_SEC_SIZE ) ) {
+		    	}
+
 	    	} else { // error
 		    	memcpy( tmp, TCP_ERROR, ( sizeof(TCP_ERROR) ) );
 		    	tmp[ sizeof(TCP_ERROR) ] = '\r';
 		    	tmp[ sizeof(TCP_ERROR) + 1 ] = '\n';
-//debug
 /*
 	       	    if ( NULL != pespconn ) {
 
 	    			espconn_sent( pespconn, tmp, ( sizeof( TCP_ERROR ) + 2 ) );
 	       	    }
 */
-//
 	    	}
 
 	  } else { // ERROR
@@ -1603,7 +1637,6 @@ ICACHE_FLASH_ATTR comandParser( void ) {
 	    		espconn_sent( pespconn, tmp, ( sizeof( TCP_ERROR ) + 2 ) );
 	    	}
 */
-
 	 }
 }
 
@@ -1624,7 +1657,15 @@ tcpRespounseBuilder( uint8_t *responseCode ) {
 	tmp[ i++ ] = '\r';
 	tmp[ i++ ] = '\n';
 
+
 //debug
+	{
+			uint16_t a;
+			for ( a = 0; a < i; a++) {
+				uart_tx_one_char(tmp[a]);
+			}
+		}
+
 /*
 	if ( NULL != pespconn ) {
 
@@ -1674,21 +1715,34 @@ buildQueryResponse( uint8_t *responseStatus ) {
 
 	uint16_t i;
 
-	uint8_t *p = &tmp[ sizeof(TCP_QUERY) + 1 + sizeof(TCP_LENGHT) + 1 ];
+	uint8_t *p = &tmp[ sizeof(TCP_QUERY) + 1 + sizeof(TCP_ADRESS) + 1 ];
 
+	p = ShortIntToString( addressQuery, p );
+	*p++ = '\0';
+	*p++ = ' ';
+	memcpy( p, TCP_LENGHT, sizeof(TCP_LENGHT) );
+	p += sizeof( TCP_LENGHT );
+	*p++ = ' ';
 	p = ShortIntToString( lenghtQuery, p );
 	*p++ = '\0';
 	*p++ = ' ';
-	memcpy( p, TCP_ADRESS, sizeof( TCP_ADRESS ) );
-	p += sizeof( TCP_ADRESS );
+	memcpy( p, storage, lenghtQuery );
+	p += lenghtQuery;
 	*p++ = ' ';
-	p = ShortIntToString( addressQuery, p );
-	*p++ = '\0';
+	memcpy( p, responseStatus, strlen(responseStatus) + 1 );
+	p += strlen(responseStatus) + 1;
 	*p++ = '\r';
-	*p = '\n';
+	*p++ = '\n';
 
-	i = p - tmp + 1;
+	i = p - tmp;
 //debug
+/*	{
+		uint16_t a;
+		for ( a = 0; a < i; a++) {
+			uart_tx_one_char(tmp[a]);
+		}
+	}
+*/
 /*
 if ( NULL != pespconn ) {
 
