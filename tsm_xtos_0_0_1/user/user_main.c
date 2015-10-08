@@ -185,7 +185,7 @@ tcp_connectcb( void* arg ) { // TCP connected successfully
 	struct espconn *pespconn = (struct espconn *) arg;
 
 //	sint8 espconn_get_connection_info( pespconn, remot_info **pcon_info, uint8 typeflags );
-// os_printf( "bssid : %x:%x:%x:%x:%x:%x ip : %d.%d.%d.%d Connected\r\n", MAC2STR(pespconn->bssid), IP2STR(&station->ip) );
+ os_printf( "ip : %d.%d.%d.%d Connected\r\n",  IP2STR() );
 }
 
 LOCAL void ICACHE_FLASH_ATTR
