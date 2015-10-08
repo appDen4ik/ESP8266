@@ -66,7 +66,7 @@ typedef enum {
 } result;
 
 
-
+// все строки в параметрах должны быть нуль терминальными
 result ICACHE_FLASH_ATTR insert( uint8_t *string );
 uint32_t ICACHE_FLASH_ATTR findString( uint8_t *string );
 result ICACHE_FLASH_ATTR delete( uint8_t *removableString );

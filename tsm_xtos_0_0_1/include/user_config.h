@@ -71,8 +71,8 @@
 * WIFI:
 *
 * - resetWIFI\r\n
-* 				перезагрузить модуль. Ответ
-* 				resetWIFI OPERATION_OK\r\n
+* 					перезагрузить модуль. Ответ
+* 					resetWIFI OPERATION_OK\r\n
 *
 * - ssidSTA ssid\r\n
 * 					Задать ssid роутера, макс длинна 32 символа. Ответ
@@ -122,6 +122,15 @@
 *
 * - disableGpio_2\r\n
 * 					enableGpio2 OPERATION_OK\r\n
+*
+* - setIP ip\r\n
+* 					setIP ip OPERATION_OK\r\n
+* 					setIP ip OPERATION_FAIL\r\n
+*
+* - setUdpPort port\r\n
+* 					setUdpPort port OPERATION_OK\r\n
+* 					setUdpPort port OPERATION_FAIL\r\n
+*
 *************************************************************************************************************************************
 */
 
@@ -202,8 +211,21 @@
  *
  *  1400....................1416
  * |   BROADCAST NAME:\0   | \n |          header
- *  1417.........1068
- * |    NAME\0   | \n |           		   max lenght 50
+ *  1417.........1450
+ * |    NAME\0   | \n |           		   max lenght 32
+ *
+ *  1600.................1612
+ * |  IP SOFT AP:\0   |  \n  |
+ *  1613............1629
+ * |     ip\0    | \n |
+ *
+ *  1700................1710
+ * |   UDP PORT:\0   |  \n  |
+ *  1711.............1717
+ * |      port\0   | \n  |
+ *
+ *  1800...1805
+ * |  clear\0  |  \n  |
  */
 
 
@@ -248,6 +270,19 @@
 #define BROADCAST_NAME					"WIFI MODULE"
 #define BROADCAST_NAME_OFSET			1417
 //***********************************************************************************************************************************
+#define DEF_IP_SOFT_AP_HEADER        	"IP SOFT AP:"
+#define DEF_IP_SOFT_AP_HEADER_OFSET		1600
+#define DEF_IP_SOFT_AP					"172.18.4.1"
+#define DEF_IP_SOFT_AP_OFSET			1613
+
+#define DEF_UDP_PORT_HEADER				"UDP PORT:"
+#define DEF_UDP_PORT_HEADER_OFSET		1700
+#define DEF_UDP_PORT					"9876"
+#define DEF_UDP_PORT_OFSET				1711
+//***********************************************************************************************************************************
+#define CLEAR_DB_STATUS			"clear"
+#define CLEAR_DB_STATUS_EMPTY	" "
+#define CLEAR_DB_STATUS_OFSET	1800
 //***********************************************************************************************************************************
 // wifi AP parameters
 #define DEF_CHANEL      7
@@ -263,8 +298,6 @@
 
 #define TCP_SERVER_TIMEOUT	60  // SEC
 #define TCP_PORT			80
-
-#define UDP_REMOTE_PORT		9876
 
 //STA
 //#define SSID_STA /*"TSM_Guest" */"DIR-320"
@@ -354,12 +387,15 @@ typedef enum {
 #define TCP_BROADCAST_NAME			"broadcastName" //+
 #define TCP_GPIO_MODE_1				"gpioMode_1"    //+
 #define TCP_GPIO_MODE_2				"gpioMode_2"	//+
-#define TCP_DISABLE_GPIO_1			"disableGpio_1"  //++
-#define TCP_DISABLE_GPIO_2   		"disableGpio_2"  //+
-#define TCP_ENABLE_GPIO_1			"enableGpio_1"  //++
-#define TCP_ENABLE_GPIO_2			"enableGpio_2"  //++
+#define TCP_DISABLE_GPIO_1			"disableGpio_1" //+
+#define TCP_DISABLE_GPIO_2   		"disableGpio_2" //+
+#define TCP_ENABLE_GPIO_1			"enableGpio_1"  //+
+#define TCP_ENABLE_GPIO_2			"enableGpio_2"  //+
+#define TCP_RESET                   "resetWIFI"		//+
+#define TCP_SET_IP					"setIP"			//+
+#define TCP_SET_UDP_PORT			"setUdpPort"    //+
+#define TCP_CLEAR_DB				"clearDB"		//+
 #define TCP_RESTORE                 "restore"		//+
-#define TCP_RESET                   "resetWIFI"		//++
 
 #define TCP_ERROR					"ERROR"
 
