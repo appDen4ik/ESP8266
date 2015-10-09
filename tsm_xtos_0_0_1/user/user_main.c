@@ -456,7 +456,7 @@ mScheduler(char *datagram, uint16 size) {
 
 	if ( broadcastTmr >= BROADCAST_TIMER ) {
 
-		struct station_info * station = wifi_softap_get_station_info();
+	//	struct station_info * station = wifi_softap_get_station_info();
 
 		broadcastTmr = 0;
 
@@ -465,23 +465,23 @@ mScheduler(char *datagram, uint16 size) {
 		os_timer_disarm(&task_timer);
 
 		// ¬нутренн€ сеть
-		while ( station ) {
+/*		while ( station ) {
 
 			IP4_ADDR( (ip_addr_t *)brodcastSSA.proto.udp->remote_ip, (uint8_t)(station->ip.addr), (uint8_t)(station->ip.addr >> 8),\
 															(uint8_t)(station->ip.addr >> 16), (uint8_t)(station->ip.addr >> 24) );
 #ifdef DEBUG
 		os_printf( "bssid : %x:%x:%x:%x:%x:%x ip : %d.%d.%d.%d ", MAC2STR(station->bssid), IP2STR(&station->ip) );
 #endif
-
+*/
 			espconn_create(&brodcastSSA);
 			espconn_sent(&brodcastSSA, brodcastMessage, strlen(brodcastMessage));
 			espconn_delete(&brodcastSSA);
 
-			station = STAILQ_NEXT(station, next);
+/*			station = STAILQ_NEXT(station, next);
 		}
 
 		wifi_softap_free_station_info();
-
+*/
 
 		// ¬нешн€€ сеть
 		switch( wifi_station_get_connect_status() ) {
@@ -556,6 +556,7 @@ void ICACHE_FLASH_ATTR
 user_init(void) {
 
 	uint8_t clearStatus[ sizeof(CLEAR_DB_STATUS) ];
+	struct ip_info ipinfoMain;
 
 	initPeriph();
 
@@ -807,10 +808,15 @@ user_init(void) {
 
 
     { //udp клиент AP
+    	wifi_get_ip_info(SOFTAP_IF, &ipinfoMain );
+
     	brodcastSSA.type = ESPCONN_UDP;
     	brodcastSSA.state = ESPCONN_NONE;
     	brodcastSSA.proto.udp = &udpSTA;
     	brodcastSSA.proto.udp->remote_port = StringToInt( &writeFlashTmp[DEF_UDP_PORT_OFSET] );
+
+    	IP4_ADDR( (ip_addr_t *)brodcastSSA.proto.udp->remote_ip, (uint8_t)(172), (uint8_t)(18),\
+    																(uint8_t)(4), (uint8_t)(255) );
 
     	//IP4_ADDR( (ip_addr_t *)brodcastSSA.proto.udp->remote_ip, 172, 18, 4, 2 );
 
