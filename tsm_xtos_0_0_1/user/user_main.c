@@ -132,7 +132,6 @@ uint16_t lenghtQuery;
 LOCAL struct espconn espconnServer;
 LOCAL esp_tcp tcpServer;
 LOCAL esp_udp udpClient;
-LOCAL udpRemotePort;
 
 //**********************************************************************************************************************************
 
@@ -814,7 +813,6 @@ user_init(void) {
     	brodcastSSA.state = ESPCONN_NONE;
     	brodcastSSA.proto.udp = &udpSTA;
     	brodcastSSA.proto.udp->remote_port = StringToInt( &writeFlashTmp[DEF_UDP_PORT_OFSET] );
-
     	IP4_ADDR( (ip_addr_t *)brodcastSSA.proto.udp->remote_ip, (uint8_t)(172), (uint8_t)(18),\
     																(uint8_t)(4), (uint8_t)(255) );
 
@@ -1579,6 +1577,7 @@ comandParser( void ) {
 
 	    	writeFlash( DEF_UDP_PORT_OFSET, &tmp[ sizeof(TCP_SET_UDP_PORT) + 1 ] );
 	    	broadcast.proto.udp->remote_port = StringToInt( &tmp[ sizeof(TCP_SET_UDP_PORT) + 1 ] );
+	    	brodcastSSA.proto.udp->remote_port = broadcast.proto.udp->remote_port;
 	    	tcpRespounseBuilder( TCP_OPERATION_OK );
 
 	    } else if ( 0 == strcmp( tmp, TCP_SET_IP ) ) {													//+
