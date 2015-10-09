@@ -22,12 +22,10 @@
  ************************************************************************************
  */
 
-
 #include "ets_sys.h"
 #include "osapi.h"
 #include "os_type.h"
 #include "user_interface.h"
-
 
 #include "espconn.h"
 #include "mem.h"
@@ -113,7 +111,7 @@ LOCAL struct ip_info inf;
 //**********************************************************************************************************************************
 
 LOCAL tcp_stat tcpSt = TCP_FREE;
-uint8_t storage[1000];
+LOCAL uint8_t storage[1000];
 LOCAL uint16_t counterForTmp = 0;
 
 //**********************************************************************************************************************************
@@ -124,6 +122,24 @@ struct espconn *pespconn;
 
 uint32_t addressQuery;
 uint16_t lenghtQuery;
+
+//**********************************************************************************************************************************
+//authorization
+
+
+//**********************************************************************************************************************************
+
+LOCAL struct espconn espconnServer;
+LOCAL esp_tcp tcpServer;
+LOCAL esp_udp udpClient;
+LOCAL udpRemotePort;
+
+//**********************************************************************************************************************************
+
+LOCAL struct espconn brodcastSSA;
+LOCAL esp_udp udpSTA;
+
+//**********************************************************************************************************************************
 
 //****************************debug***********************
 uint16_t digit;
@@ -140,7 +156,13 @@ void user_rf_pre_init(void)
 LOCAL void ICACHE_FLASH_ATTR
 tcp_recvcb( void *arg, char *pdata, unsigned short len ) { // data received
 
-    if ( '\r' == pdata[ len - 2 ] && TCP_FREE == tcpSt ) {
+	int i;
+	struct espconn *pespconn = (struct espconn *) arg;
+	for ( i = 0; i < len; i++) {
+		uart_tx_one_char( pdata[i] );
+	}
+	espconn_sent( pespconn, pdata, len );
+  /*  if ( '\r' == pdata[ len - 2 ] && TCP_FREE == tcpSt ) {
 
     	pespconn = (struct espconn *) arg;
 
@@ -174,7 +196,7 @@ tcp_recvcb( void *arg, char *pdata, unsigned short len ) { // data received
     		tmp[ sizeof(TCP_ERROR) + 1 ] = '\n';
     		espconn_sent( pespconn, tmp, ( sizeof( TCP_ERROR ) + 2 ) );
     	}
-    }
+    } */
 }
 
 // espconn_sent(arg, tmp, strlen(tmp));
@@ -183,15 +205,16 @@ LOCAL void ICACHE_FLASH_ATTR
 tcp_connectcb( void* arg ) { // TCP connected successfully
 
 	struct espconn *pespconn = (struct espconn *) arg;
-
+//	pespconn->proto.tcp->remote_ip[0];
 //	sint8 espconn_get_connection_info( pespconn, remot_info **pcon_info, uint8 typeflags );
- os_printf( "ip : %d.%d.%d.%d Connected\r\n",  IP2STR() );
+	os_printf( "ip : %d.%d.%d.%d Connected\r\n",  IP2STR( &pespconn->proto.tcp->remote_ip ) );
 }
 
 LOCAL void ICACHE_FLASH_ATTR
 tcp_disnconcb( void* arg ) { // TCP disconnected successfully
 	ets_uart_printf("Disconnect");
 //	os_printf( "disconnect result = %d", espconn_delete((struct espconn *) arg));
+
 }
 
 LOCAL void ICACHE_FLASH_ATTR
@@ -201,7 +224,9 @@ tcp_reconcb( void* arg, sint8 err ) { // error, or TCP disconnected
 
 LOCAL void ICACHE_FLASH_ATTR
 tcp_sentcb( void* arg ) { // data sent
-
+	struct espconn *pespconn = (struct espconn *) arg;
+	os_printf( "DATA sent for ip : %d.%d.%d.%d\r\n",  IP2STR( &pespconn->proto.tcp->remote_ip ) );
+	espconn_disconnect(pespconn);
 }
 
 //**********************************************************************************************************************************
@@ -251,8 +276,8 @@ writeFlash( uint16_t where, uint8_t *what ) {
 void ICACHE_FLASH_ATTR
 mScheduler(char *datagram, uint16 size) {
 
-//************************************************************************************
-	 if ( 0 == GPIO_INPUT_GET( INP_3_PIN ) ) {
+//*************************************************************************************
+/*	 if ( 0 == GPIO_INPUT_GET( INP_3_PIN ) ) {
 
 			 uint8_t *str;
 			 str = tmp;
@@ -355,7 +380,7 @@ mScheduler(char *datagram, uint16 size) {
 			   			system_soft_wdt_stop();
 			   	}*/
 
-		 uint8_t *p, *str;
+/*		 uint8_t *p, *str;
 		 uint32_t i, currentSector;
 		const uint8_t data[] = "25621";
 		 uint8_t data2[] ="test";
@@ -394,14 +419,14 @@ mScheduler(char *datagram, uint16 size) {
 						system_soft_wdt_stop();
 					}
 */
-			while ( 0 == GPIO_INPUT_GET( INP_1_PIN ) ) {
+/*			while ( 0 == GPIO_INPUT_GET( INP_1_PIN ) ) {
 
 				system_soft_wdt_stop();
 			}
 			os_printf( "check point ");
 
 
-	 }
+	 }*/
 //************************************************************************************
 	if ( ENABLE == gpioStatusOut1 ) {
 		if (  0 == strcmp( gpioModeOut1, GPIO_OUT_TRIGGER_MODE ) || 0 == strcmp( gpioModeOut1, DEF_GPIO_OUT_MODE ) ) {
@@ -442,15 +467,15 @@ mScheduler(char *datagram, uint16 size) {
 		// ¬нутренн€ сеть
 		while ( station ) {
 
-			IP4_ADDR( (ip_addr_t *)broadcast.proto.udp->remote_ip, (uint8_t)(station->ip.addr), (uint8_t)(station->ip.addr >> 8),\
+			IP4_ADDR( (ip_addr_t *)brodcastSSA.proto.udp->remote_ip, (uint8_t)(station->ip.addr), (uint8_t)(station->ip.addr >> 8),\
 															(uint8_t)(station->ip.addr >> 16), (uint8_t)(station->ip.addr >> 24) );
 #ifdef DEBUG
 		os_printf( "bssid : %x:%x:%x:%x:%x:%x ip : %d.%d.%d.%d ", MAC2STR(station->bssid), IP2STR(&station->ip) );
 #endif
 
-			espconn_create(&broadcast);
-			espconn_sent(&broadcast, brodcastMessage, strlen(brodcastMessage));
-			espconn_delete(&broadcast);
+			espconn_create(&brodcastSSA);
+			espconn_sent(&brodcastSSA, brodcastMessage, strlen(brodcastMessage));
+			espconn_delete(&brodcastSSA);
 
 			station = STAILQ_NEXT(station, next);
 		}
@@ -459,7 +484,7 @@ mScheduler(char *datagram, uint16 size) {
 
 
 		// ¬нешн€€ сеть
-/*		switch( wifi_station_get_connect_status() ) {
+		switch( wifi_station_get_connect_status() ) {
 			case STATION_GOT_IP:
 				if ( ( rssi = wifi_station_get_rssi() ) < -90 ){
 					count = rssiStr;
@@ -517,7 +542,7 @@ mScheduler(char *datagram, uint16 size) {
 				GPIO_OUTPUT_SET(LED_GPIO, ledState);
 				ledState ^=1;
 				break;
-		}*/
+		}
 	}
 
 	broadcastTmr += 10;
@@ -530,11 +555,7 @@ mScheduler(char *datagram, uint16 size) {
 void ICACHE_FLASH_ATTR
 user_init(void) {
 
-	LOCAL struct espconn espconnServer;
-	LOCAL esp_tcp tcpServer;
-	LOCAL esp_udp udpClient;
 	uint8_t clearStatus[ sizeof(CLEAR_DB_STATUS) ];
-
 
 	initPeriph();
 
@@ -585,7 +606,7 @@ user_init(void) {
 
 //-----------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-	clearSectorsDB();
+/*	clearSectorsDB();
 
 	{
 		uint8_t fsdlf[50];
@@ -768,7 +789,7 @@ user_init(void) {
 
 	}
 
-    { //udp клиент
+    { //udp клиент Sta
 
     	if ( SPI_FLASH_RESULT_OK != spi_flash_read( USER_SECTOR_IN_FLASH_MEM * SPI_FLASH_SEC_SIZE, \
     			                                                                  (uint32 *)writeFlashTmp, SPI_FLASH_SEC_SIZE ) ) {
@@ -782,6 +803,17 @@ user_init(void) {
 #ifdef DEBUG
     	os_printf( "broadcast.proto.udp->remote_port %d", broadcast.proto.udp->remote_port );
 #endif
+    }
+
+
+    { //udp клиент AP
+    	brodcastSSA.type = ESPCONN_UDP;
+    	brodcastSSA.state = ESPCONN_NONE;
+    	brodcastSSA.proto.udp = &udpSTA;
+    	brodcastSSA.proto.udp->remote_port = StringToInt( &writeFlashTmp[DEF_UDP_PORT_OFSET] );
+
+    	//IP4_ADDR( (ip_addr_t *)brodcastSSA.proto.udp->remote_ip, 172, 18, 4, 2 );
+
     }
 
 	// os_timer_disarm(ETSTimer *ptimer)
@@ -1159,10 +1191,16 @@ broadcastBuilder( void ) {
 	uint8_t macadr[10];
 
 	//выдел€ем бродкаст айпишку
-	wifi_get_ip_info( STATION_IF, &inf );
 
-	IP4_ADDR((ip_addr_t *)broadcast.proto.udp->remote_ip, (uint8_t)(inf.ip.addr), (uint8_t)(inf.ip.addr >> 8),\
+	if (STATION_GOT_IP == wifi_station_get_connect_status() ) {
+
+		wifi_get_ip_info( STATION_IF, &inf );
+		IP4_ADDR((ip_addr_t *)broadcast.proto.udp->remote_ip, (uint8_t)(inf.ip.addr), (uint8_t)(inf.ip.addr >> 8),\
 															(uint8_t)(inf.ip.addr >> 16), 255);
+	} else {
+
+		inf.ip.addr = 0;
+	}
 
 	count = brodcastMessage;
 
