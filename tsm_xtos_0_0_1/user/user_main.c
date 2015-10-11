@@ -1360,6 +1360,12 @@ broadcastBuilder( void ) {
     	*count++ = '.';
     count = ShortIntToString( (uint8_t)(inf.ip.addr  >> 24), count);
 //================================================================
+    memcpy( count, IP_AP, ( sizeof( IP_AP ) - 1 ) );
+    count += sizeof( IP_AP ) - 1;
+
+    os_sprintf( count, "%s", &tmpFLASH[ DEF_IP_SOFT_AP_OFSET ] );
+    count += strlen( &tmpFLASH[ DEF_IP_SOFT_AP_OFSET ] );
+//================================================================
     memcpy( count, SERVER_PORT, ( sizeof( SERVER_PORT ) - 1 ) );
     count += sizeof( SERVER_PORT ) - 1;
 

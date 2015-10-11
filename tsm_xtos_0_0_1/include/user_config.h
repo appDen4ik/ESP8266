@@ -362,7 +362,8 @@ typedef enum {
 
 #define NAME 				"\nname: "
 #define MAC 				"\nmacSTA: "
-#define IP 					"\nip: "
+#define IP 					"\nipSTA: "
+#define IP_AP 				"\nipAP: "
 #define SERVER_PORT 		"\nserver port: "
 #define RSSI 				"\nrssi: "
 #define STATUSES 			"\nstatuses: "
