@@ -127,6 +127,7 @@ LOCAL tcp_stat tcpSt = TCP_FREE;
 LOCAL uint16_t counterForTmp = 0;
 LOCAL struct espconn *pespconn;
 LOCAL uint32_t ipAdd;
+LOCAL mark marker = mCLEAR;
 
 //**********************************************************************************************************************************
 
@@ -230,9 +231,18 @@ tcp_connectcb( void *arg ) { // TCP connected successfully
 		os_printf( "ip : %d.%d.%d.%d Connected\r\n",  IP2STR( pespconn->proto.tcp->remote_ip ) );
 #endif
 
-	} else if ( TCP_BUSY == tcpSt ) {
+	} else if ( TCP_BUSY == tcpSt && *(uint32 *)( conn->proto.tcp->remote_ip ) == ipAdd ) {
 
 		uint8_t erB[] = { 'B', 'U', 'S', 'Y', '\0', '\r', '\n' };
+		marker = mSET;
+		espconn_sent( conn, erB, sizeof(erB) );
+#ifdef DEBUG
+		os_printf( "ip : %d.%d.%d.%d Connect busy...\r\n",  IP2STR( ( (struct espconn *) arg)->proto.tcp->remote_ip ) );
+#endif
+	} else if ( TCP_BUSY == tcpSt && *(uint32 *)( conn->proto.tcp->remote_ip ) != ipAdd ) {
+
+		uint8_t erB[] = { 'B', 'U', 'S', 'Y', '\0', '\r', '\n' };
+
 		espconn_sent( conn, erB, sizeof(erB) );
 #ifdef DEBUG
 		os_printf( "ip : %d.%d.%d.%d Connect busy...\r\n",  IP2STR( ( (struct espconn *) arg)->proto.tcp->remote_ip ) );
@@ -251,22 +261,22 @@ tcp_disnconcb( void *arg ) { // TCP disconnected successfully
 #ifdef DEBUG
 	os_printf( "TCP disconnected successfully : %d.%d.%d.%d\r\n",  IP2STR( conn->proto.tcp->remote_ip ) );
 #endif
-#ifdef DEBUG
-//		os_printf( "ip : %d Connected\r\n",  *(uint32 *)( pespconn->proto.tcp->remote_ip ) );
-#endif
+
 	if ( NULL != pespconn ) {
 #ifdef DEBUG
 	os_printf( " tcp_disnconcb check point" );
 #endif
-		if ( *(uint32 *)( conn->proto.tcp->remote_ip ) == ipAdd ) {
-#ifdef DEBUG
-	os_printf( " tcp_disnconcb check point 2" );
-#endif
+		if ( *(uint32 *)( conn->proto.tcp->remote_ip ) == ipAdd && marker == mCLEAR ) {
 			pespconn = NULL;
 			tcpSt = TCP_FREE;
 #ifdef DEBUG
 	os_printf( " tcp_disnconcb tcp free" );
 #endif
+		} else if ( *(uint32 *)( conn->proto.tcp->remote_ip ) == ipAdd && marker == mSET ) {
+#ifdef DEBUG
+	os_printf( " tcp_disnconcb double connect" );
+#endif
+			marker = mCLEAR;
 		}
 	}
 }
@@ -277,15 +287,24 @@ tcp_reconcb( void *arg, sint8 err ) { // error, or TCP disconnected
 	struct espconn *conn = (struct espconn *) arg;
 
 #ifdef DEBUG
-	os_printf( "TCP ERROR : %d.%d.%d.%d  code %d \r\n",  IP2STR( conn->proto.tcp->remote_ip ), err );
+	os_printf( "TCP RECON : %d.%d.%d.%d\r\n",  IP2STR( conn->proto.tcp->remote_ip ) );
 #endif
+
 	if ( NULL != pespconn ) {
-		if ( *(uint32 *)( conn->proto.tcp->remote_ip ) == ipAdd ) {
+#ifdef DEBUG
+	os_printf( " tcp_reconcb check point" );
+#endif
+		if ( *(uint32 *)( conn->proto.tcp->remote_ip ) == ipAdd && marker == mCLEAR ) {
 			pespconn = NULL;
 			tcpSt = TCP_FREE;
 #ifdef DEBUG
 	os_printf( " tcp_reconcb tcp free" );
 #endif
+		} else if ( *(uint32 *)( conn->proto.tcp->remote_ip ) == ipAdd && marker == mSET ) {
+#ifdef DEBUG
+	os_printf( " tcp_reconcb double connect" );
+#endif
+			marker = mCLEAR;
 		}
 	}
 }
@@ -298,11 +317,15 @@ tcp_sentcb( void *arg ) { // data sent
 	os_printf( "DATA sent for ip : %d.%d.%d.%d\r\n",  IP2STR( conn->proto.tcp->remote_ip ) );
 #endif
 	if ( NULL != pespconn ) {
-		if ( (uint32)( conn->proto.tcp->remote_ip[0] ) == (uint32)( pespconn->proto.tcp->remote_ip[0]) ) {
+		if ( (uint32)( conn->proto.tcp->remote_ip[0] ) == (uint32)( pespconn->proto.tcp->remote_ip[0]) && marker == mCLEAR ) {
 			pespconn = NULL;
 			tcpSt = TCP_FREE;
 #ifdef DEBUG
 	os_printf( " tcp_sentcb tcp free" );
+#endif
+		} else if ( (uint32)( conn->proto.tcp->remote_ip[0] ) == (uint32)( pespconn->proto.tcp->remote_ip[0]) && marker == mSET ) {
+#ifdef DEBUG
+	os_printf( " tcp_sentcb double connect" );
 #endif
 		}
 	}
@@ -585,7 +608,7 @@ mScheduler(char *datagram, uint16 size) {
 
 						ets_uart_printf("WiFi connected\r\n");
 						os_delay_us(1000);
-//						os_printf( "%s", brodcastMessage );
+						os_printf( "%s", brodcastMessage );
 
 						espconn_create(&broadcast);
 						espconn_sent(&broadcast, brodcastMessage, strlen(brodcastMessage));
@@ -598,7 +621,7 @@ mScheduler(char *datagram, uint16 size) {
 				os_delay_us(1000);
 		    	os_printf( "routerSSID %s ", routerSSID );
 		    	os_printf( "routerPWD %s", routerPWD );
-//				os_printf( "%s", broadcastShift );
+				os_printf( "%s", broadcastShift );
 				GPIO_OUTPUT_SET(LED_GPIO, ledState);
 				ledState ^=1;
 				break;
@@ -607,7 +630,7 @@ mScheduler(char *datagram, uint16 size) {
 				os_delay_us(1000);
 		    	os_printf( "routerSSID %s ", routerSSID );
 		    	os_printf( "routerPWD %s", routerPWD );
-//				os_printf( "%s", broadcastShift );
+				os_printf( "%s", broadcastShift );
 				GPIO_OUTPUT_SET(LED_GPIO, ledState);
 				ledState ^=1;
 				break;
@@ -616,7 +639,7 @@ mScheduler(char *datagram, uint16 size) {
 				os_delay_us(1000);
 		    	os_printf( "routerSSID %s ", routerSSID );
 		    	os_printf( "routerPWD %s", routerPWD );
-//				os_printf( "%s", broadcastShift );
+				os_printf( "%s", broadcastShift );
 				GPIO_OUTPUT_SET(LED_GPIO, ledState);
 				ledState ^=1;
 				break;
@@ -625,7 +648,7 @@ mScheduler(char *datagram, uint16 size) {
 				os_delay_us(1000);
 		    	os_printf( "routerSSID %s ", routerSSID );
 		    	os_printf( "routerPWD %s", routerPWD );
-//				os_printf( "%s", broadcastShift );
+				os_printf( "%s", broadcastShift );
 				GPIO_OUTPUT_SET(LED_GPIO, ledState);
 				ledState ^=1;
 				break;

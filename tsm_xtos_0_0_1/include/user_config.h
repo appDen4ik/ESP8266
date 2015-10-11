@@ -100,17 +100,18 @@
 *					pwdSTA pwd OPERATION_FAIL\r\n
 *
 * - ssidAP ssid\r\n
-* 					Задать ssid есп, макс длинна 32 символа. Ответ
+* 					Задать ssid есп soft ap, макс длинна 32 символа. Ответ
 *					ssidAP ssid OPERATION_OK\r\n
 *					ssidAP ssid OPERATION_FAIL\r\n
 *
 * - pwdAP  pwd\r\n
-*					Задать pwd есп, макс длинна 64 символа. Ответ
+*					Задать pwd есп soft ap, макс длинна 64 символа. Ответ
 *					pwdAP pwd OPERATION_OK\r\n
 *					pwdAP pwd OPERATION_FAIL\r\n
 *
 * - broadcastName name\r\n
-* 					Задать BROADCAST_NAME есп, макс длинна 32 символа. Ответ
+* 					Задать BROADCAST_NAME есп (имя есп при широковещательных запросах),
+* 					макс длинна 32 символа. Ответ
 *					broadcastName name OPERATION_OK\r\n
 *					broadcastName name OPERATION_FAIL\r\n
 *
@@ -323,7 +324,7 @@
 #define DELAY 	10 /* milliseconds */
 //***********************************************************************************************************************************
 // broadcast timer
-#define BROADCAST_TIMER		200 //ms
+#define BROADCAST_TIMER		2000 //ms
 //***********************************************************************************************************************************
 
 typedef enum {
@@ -331,6 +332,12 @@ typedef enum {
 	DISABLE
 
 } stat;
+
+typedef enum {
+	mSET= 0,
+	mCLEAR
+
+} mark;
 
 typedef enum {
 	DONE = 0,
