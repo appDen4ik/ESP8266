@@ -61,13 +61,14 @@
 * 					update oldString newString LINE_ALREADY_EXIST\r\n
 *
 *
-* - request string\r\n
+* - request string\r\n  ( команда ассоциирована с out1 )
 * 					Найти запись по полю/полям. Между командой и параметром
 * 					один пробел. Ответ
 * 					request string OPERATION_OK\r\n - если операция выполнилась успешно,
 * 					request string NOTHING_FOUND\r\n
 * 					request string OPERATION_FAIL\r\n
 * 					request string WRONG_LENGHT\r\n
+*
 *
 * - find string\r\n
 * 					Найти запись (все поля заполнены). Между командой и
@@ -116,13 +117,15 @@
 *					broadcastName name OPERATION_FAIL\r\n
 *
 * - gpioMode_1 Trigger/Impulse delay\r\n
-* 					Задать режим работы out1 Trigger/Impulse, и установить таймаут delay.
+* 					Задать режим работы out1 Trigger/Impulse, и установить таймаут delay ms.
+* 					(время приблизительное)
 * 					Ответ
 * 					gpioMode_1 Trigger/Impulse delay OPERATION_OK\r\n
 * 					gpioMode_1 Trigger/Impulse delay OPERATION_FAIL\r\n
 *
 * - gpioMode_2 Trigger/Impulse delay\r\n
-*					Задать режим работы out2 Trigger/Impulse, и установить таймаут delay.
+*					Задать режим работы out2 Trigger/Impulse, и установить таймаут delay ms.
+*					(время приблизительное)
 * 					Ответ
 * 					gpioMode_2 Trigger/Impulse delay OPERATION_OK\r\n
 * 					gpioMode_2 Trigger/Impulse delay OPERATION_FAIL\r\n
@@ -324,7 +327,7 @@
 #define DELAY 	10 /* milliseconds */
 //***********************************************************************************************************************************
 // broadcast timer
-#define BROADCAST_TIMER		200 //ms
+#define BROADCAST_TIMER		250 //ms
 //***********************************************************************************************************************************
 
 typedef enum {

@@ -96,7 +96,7 @@ LOCAL struct espconn broadcast;
 LOCAL uint8_t ledState = 0;
 LOCAL uint32_t broadcastTmr;
 LOCAL uint8_t *broadcastShift;
-LOCAL uint8_t brodcastMessage[250] = { 0 };
+LOCAL uint8_t brodcastMessage[300] = { 0 };
 
 //**********************************************************************************************************************************
 
@@ -595,6 +595,7 @@ mScheduler(char *datagram, uint16 size) {
 					*count = '\0';
 					os_printf( "Bad signal, rssi = %s", rssiStr);
 					os_delay_us(1000);
+					os_printf( "Broadcast port %s", tmpFLASH[DEF_UDP_PORT_OFSET] );
 					os_printf( "%s", broadcastShift );
 					GPIO_OUTPUT_SET(LED_GPIO, ledState);
 					ledState ^=1;
@@ -608,6 +609,7 @@ mScheduler(char *datagram, uint16 size) {
 
 						ets_uart_printf("WiFi connected\r\n");
 						os_delay_us(1000);
+						os_printf( "Broadcast port %s", &tmpFLASH[DEF_UDP_PORT_OFSET] );
 						os_printf( "%s", brodcastMessage );
 
 						espconn_create(&broadcast);
@@ -621,6 +623,7 @@ mScheduler(char *datagram, uint16 size) {
 				os_delay_us(1000);
 		    	os_printf( "routerSSID %s ", routerSSID );
 		    	os_printf( "routerPWD %s", routerPWD );
+		    	os_printf( "Broadcast port %s", &tmpFLASH[DEF_UDP_PORT_OFSET] );
 				os_printf( "%s", broadcastShift );
 				GPIO_OUTPUT_SET(LED_GPIO, ledState);
 				ledState ^=1;
@@ -630,6 +633,7 @@ mScheduler(char *datagram, uint16 size) {
 				os_delay_us(1000);
 		    	os_printf( "routerSSID %s ", routerSSID );
 		    	os_printf( "routerPWD %s", routerPWD );
+		    	os_printf( "Broadcast port %s", &tmpFLASH[DEF_UDP_PORT_OFSET] );
 				os_printf( "%s", broadcastShift );
 				GPIO_OUTPUT_SET(LED_GPIO, ledState);
 				ledState ^=1;
@@ -639,6 +643,7 @@ mScheduler(char *datagram, uint16 size) {
 				os_delay_us(1000);
 		    	os_printf( "routerSSID %s ", routerSSID );
 		    	os_printf( "routerPWD %s", routerPWD );
+		    	os_printf( "Broadcast port %s", &tmpFLASH[DEF_UDP_PORT_OFSET] );
 				os_printf( "%s", broadcastShift );
 				GPIO_OUTPUT_SET(LED_GPIO, ledState);
 				ledState ^=1;
@@ -648,14 +653,16 @@ mScheduler(char *datagram, uint16 size) {
 				os_delay_us(1000);
 		    	os_printf( "routerSSID %s ", routerSSID );
 		    	os_printf( "routerPWD %s", routerPWD );
+		    	os_printf( "Broadcast port %s", &tmpFLASH[DEF_UDP_PORT_OFSET] );
 				os_printf( "%s", broadcastShift );
 				GPIO_OUTPUT_SET(LED_GPIO, ledState);
 				ledState ^=1;
 				break;
 		}
-	}
+	} else {
 
-	broadcastTmr += 10;
+		broadcastTmr += 10;
+	}
 
 	os_timer_setfn(&task_timer, (os_timer_func_t *)mScheduler, (void *)0);
 	os_timer_arm(&task_timer, DELAY, 0);
@@ -935,6 +942,8 @@ user_init(void) {
     	os_printf( "routerPWD %s", routerPWD );
 #endif
 
+    	ets_wdt_enable();
+        system_soft_wdt_restart();
 
 	// os_timer_disarm(ETSTimer *ptimer)
 	os_timer_disarm(&task_timer);
@@ -1707,6 +1716,9 @@ comandParser( void ) {
 	    	writeFlash( DEF_UDP_PORT_OFSET, &tmp[ sizeof(TCP_SET_UDP_PORT) + 1 ] );
 	    	broadcast.proto.udp->remote_port = StringToInt( &tmp[ sizeof(TCP_SET_UDP_PORT) + 1 ] );
 	    	brodcastSSA.proto.udp->remote_port = broadcast.proto.udp->remote_port;
+	    	if ( SPI_FLASH_RESULT_OK != spi_flash_read( USER_SECTOR_IN_FLASH_MEM * SPI_FLASH_SEC_SIZE, \
+	    			    					                                                  (uint32 *)tmpFLASH, SPI_FLASH_SEC_SIZE ) ) {
+	    	}
 	    	tcpRespounseBuilder( TCP_OPERATION_OK );
 
 	    } else if ( 0 == strcmp( tmp, TCP_SET_IP ) ) {															//+
