@@ -146,6 +146,8 @@ esp_tcp tcpServer;
 esp_udp udpClient;
 
 
+uint8_t alignString[ALIGN_STRING_SIZE];
+
 void user_rf_pre_init(void)
 {
 
@@ -176,7 +178,7 @@ tcp_recvcb( void *arg, char *pdata, unsigned short len ) { // data received
     	{
     		int i;
     		os_printf( " tcp_recvcb check point ");
-			for (i = 0; '\n' != tmp[i]; i++) {
+			for (i = 0; '\r' != tmp[i]; i++) {
 		  			   uart_tx_one_char(tmp[i]);
 		 	 }
 			uart_tx_one_char(tmp[i]);
@@ -531,8 +533,10 @@ mScheduler(char *datagram, uint16 size) {
 
 //************************************************************************************
 	if ( ENABLE == gpioStatusOut1 ) {
+//		os_printf("GPIO SET CHECK POINT");
 		if (  0 == strcmp( gpioModeOut1, GPIO_OUT_TRIGGER_MODE ) || 0 == strcmp( gpioModeOut1, DEF_GPIO_OUT_MODE ) ) {
 			if ( gpioOutDeley1Counter < gpioOutDeley1 && GPIO_INPUT_GET(INP_2_PIN) ) {
+//				os_printf("GPIO SET CHECK POINT 2 ");
 				gpioOutDeley1Counter += 15;
 				GPIO_OUTPUT_SET(OUT_1_GPIO, 1);
 			} else {
@@ -734,12 +738,12 @@ user_init(void) {
 		uint16_t lenght;
 		uint32_t adress;
 
-			uint8_t *p;
+			uint8_t *p; */
 
 			uint16_t c, currentSector;
 			uint32_t a, i;
 
-			result res;
+/*			result res;
 
 			clearSectorsDB();
 
@@ -803,7 +807,7 @@ user_init(void) {
 						break;
 
 				}
-			}
+			} */
 
 			for ( currentSector = START_SECTOR; currentSector <= START_SECTOR; currentSector++ ) {
 				spi_flash_read( SPI_FLASH_SEC_SIZE * currentSector, (uint32 *)tmp, SPI_FLASH_SEC_SIZE );
@@ -814,8 +818,8 @@ user_init(void) {
 
 	        }
 
-	}
-/*
+/*	}
+
 	uint16_t c, currentSector;
 	uint32_t a, i;
 
@@ -841,6 +845,11 @@ user_init(void) {
 		while(1);
 	}
 
+	if ( SPI_FLASH_RESULT_OK != spi_flash_read( USER_SECTOR_IN_FLASH_MEM * SPI_FLASH_SEC_SIZE, \
+			                                                                          (uint32 *)tmp, SPI_FLASH_SEC_SIZE ) ) {
+		ets_uart_printf("Read for gpioMode fail!!");
+		while(1);
+	}
 
 	if ( 0 == strcmp( &tmp[GPIO_OUT_1_MODE_OFSET], DEF_GPIO_OUT_MODE ) || \
 				                                             0 == strcmp( &tmp[GPIO_OUT_1_MODE_OFSET], GPIO_OUT_TRIGGER_MODE ) ) {
@@ -1542,8 +1551,8 @@ comandParser( void ) {
 	    		tcpRespounseBuilder( TCP_NOTHING_FOUND );
 	    		break;
 	    	case OPERATION_OK:
-	    		tcpRespounseBuilder( TCP_OPERATION_OK );
 	    		gpioStatusOut1 = ENABLE;
+	    		tcpRespounseBuilder( TCP_OPERATION_OK );
 	    		break;
 	    	case OPERATION_FAIL:
 	    		tcpRespounseBuilder( TCP_OPERATION_FAIL );
@@ -1923,6 +1932,7 @@ tcpRespounseBuilder( uint8_t *responseCode ) {
 
 	}
 
+	tmp[i++] = ' ';
 	lenght = strlen( responseCode ) + 1 ;
 	memcpy( &tmp[ i ], responseCode, lenght );
 	i += lenght;
@@ -1932,6 +1942,7 @@ tcpRespounseBuilder( uint8_t *responseCode ) {
 #ifdef DEBUG
 	{
 			uint16_t a;
+			os_printf("tcp answer");
 			for ( a = 0; a < i; a++) {
 				uart_tx_one_char(tmp[a]);
 			}
