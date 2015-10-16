@@ -738,12 +738,12 @@ user_init(void) {
 		uint16_t lenght;
 		uint32_t adress;
 
-			uint8_t *p; */
+			uint8_t *p;
 
 			uint16_t c, currentSector;
 			uint32_t a, i;
 
-/*			result res;
+			result res;
 
 			clearSectorsDB();
 
@@ -760,7 +760,7 @@ user_init(void) {
 
 			ets_uart_printf(" П.1 Заполняем базу значениями (ASCII) выровняными по ALIGN_STRING_SIZE символов  ");
 
-			for ( i = 1; i <=  ( SPI_FLASH_SEC_SIZE / ALIGN_STRING_SIZE ) - 24; i++ ) {
+			for ( i = 1; i <=  ( SPI_FLASH_SEC_SIZE / ALIGN_STRING_SIZE ) * (END_SECTOR - START_SECTOR + 1) - 1; i++ ) {
 
 				for ( a = 0; a < STRING_SIZE - 1; a++ ) {
 						alignString[a] = '0';
@@ -807,9 +807,9 @@ user_init(void) {
 						break;
 
 				}
-			} */
+			}
 
-			for ( currentSector = START_SECTOR; currentSector <= START_SECTOR; currentSector++ ) {
+			for ( currentSector = END_SECTOR; currentSector <= END_SECTOR; currentSector++ ) {
 				spi_flash_read( SPI_FLASH_SEC_SIZE * currentSector, (uint32 *)tmp, SPI_FLASH_SEC_SIZE );
 				for ( i = 0; SPI_FLASH_SEC_SIZE > i; i++ ) {
 					uart_tx_one_char(tmp[ i ]);
@@ -818,12 +818,14 @@ user_init(void) {
 
 	        }
 
-/*	}
+	}*/
 
+{
 	uint16_t c, currentSector;
-	uint32_t a, i;
+	uint32_t i;
 
 	for ( currentSector = START_SECTOR; currentSector <= END_SECTOR; currentSector++ ) {
+		os_printf("currentSector: %d", currentSector);
 		spi_flash_read( SPI_FLASH_SEC_SIZE * currentSector, (uint32 *)tmp, SPI_FLASH_SEC_SIZE );
 		for ( i = 0; SPI_FLASH_SEC_SIZE > i; i++ ) {
 			uart_tx_one_char(tmp[ i ]);
@@ -831,7 +833,8 @@ user_init(void) {
 		}
 
 		system_soft_wdt_stop();
-	}*/
+	}
+}
 //-----------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 	initWIFI(); // настройка sta ap
