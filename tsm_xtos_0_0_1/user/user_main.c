@@ -159,6 +159,10 @@ tcp_recvcb( void *arg, char *pdata, unsigned short len ) { // data received
 
 	struct espconn *conn = (struct espconn *) arg;
 	uint8_t *str;
+#ifdef DEBUG
+	os_printf( " tcp_recvcb remote ip Connected : %d.%d.%d.%d \r\n ",  IP2STR( conn->proto.tcp->remote_ip ) );
+	os_printf( " tcp_recvcb local ip Connected : %d.%d.%d.%d \r\n ",  IP2STR( conn->proto.tcp->local_ip ) );
+#endif
 
 #ifdef DEBUG
 	{
@@ -225,12 +229,12 @@ tcp_connectcb( void *arg ) { // TCP connected successfully
 		pespconn = (struct espconn *) arg;
 		ipAdd = *(uint32 *)( pespconn->proto.tcp->remote_ip );
 #ifdef DEBUG
-		os_printf( "ip : %d Connected\r\n",  ipAdd );
+		os_printf( "ip : %d Connected\r\n ",  ipAdd );
 #endif
 		tcpSt = TCP_BUSY;
 
 #ifdef DEBUG
-		os_printf( "ip : %d.%d.%d.%d Connected\r\n",  IP2STR( pespconn->proto.tcp->remote_ip ) );
+		os_printf( "ip : %d.%d.%d.%d Connected\r\n ",  IP2STR( pespconn->proto.tcp->remote_ip ) );
 #endif
 
 	} else if ( TCP_BUSY == tcpSt && *(uint32 *)( conn->proto.tcp->remote_ip ) == ipAdd ) {
@@ -239,7 +243,7 @@ tcp_connectcb( void *arg ) { // TCP connected successfully
 		marker = mSET;
 		espconn_sent( conn, erB, sizeof(erB) );
 #ifdef DEBUG
-		os_printf( "ip : %d.%d.%d.%d Connect busy...\r\n",  IP2STR( ( (struct espconn *) arg)->proto.tcp->remote_ip ) );
+		os_printf( "ip : %d.%d.%d.%d Connect busy...\r\n ",  IP2STR( ( (struct espconn *) arg)->proto.tcp->remote_ip ) );
 #endif
 	} else if ( TCP_BUSY == tcpSt && *(uint32 *)( conn->proto.tcp->remote_ip ) != ipAdd ) {
 
@@ -247,7 +251,7 @@ tcp_connectcb( void *arg ) { // TCP connected successfully
 
 		espconn_sent( conn, erB, sizeof(erB) );
 #ifdef DEBUG
-		os_printf( "ip : %d.%d.%d.%d Connect busy...\r\n",  IP2STR( ( (struct espconn *) arg)->proto.tcp->remote_ip ) );
+		os_printf( "ip : %d.%d.%d.%d Connect busy...\r\n ",  IP2STR( ( (struct espconn *) arg)->proto.tcp->remote_ip ) );
 #endif
 	}
 
@@ -261,22 +265,22 @@ tcp_disnconcb( void *arg ) { // TCP disconnected successfully
 	struct espconn *conn = (struct espconn *) arg;
 
 #ifdef DEBUG
-	os_printf( "TCP disconnected successfully : %d.%d.%d.%d\r\n",  IP2STR( conn->proto.tcp->remote_ip ) );
+	os_printf( "TCP disconnected successfully : %d.%d.%d.%d\r\n ",  IP2STR( conn->proto.tcp->remote_ip ) );
 #endif
 
 	if ( NULL != pespconn ) {
 #ifdef DEBUG
-	os_printf( " tcp_disnconcb check point" );
+	os_printf( " tcp_disnconcb check point " );
 #endif
 		if ( *(uint32 *)( conn->proto.tcp->remote_ip ) == ipAdd && marker == mCLEAR ) {
 			pespconn = NULL;
 			tcpSt = TCP_FREE;
 #ifdef DEBUG
-	os_printf( " tcp_disnconcb tcp free" );
+	os_printf( " tcp_disnconcb tcp free " );
 #endif
 		} else if ( *(uint32 *)( conn->proto.tcp->remote_ip ) == ipAdd && marker == mSET ) {
 #ifdef DEBUG
-	os_printf( " tcp_disnconcb double connect" );
+	os_printf( " tcp_disnconcb double connect " );
 #endif
 			marker = mCLEAR;
 		}
@@ -294,17 +298,17 @@ tcp_reconcb( void *arg, sint8 err ) { // error, or TCP disconnected
 
 	if ( NULL != pespconn ) {
 #ifdef DEBUG
-	os_printf( " tcp_reconcb check point" );
+	os_printf( " tcp_reconcb check point " );
 #endif
 		if ( *(uint32 *)( conn->proto.tcp->remote_ip ) == ipAdd && marker == mCLEAR ) {
 			pespconn = NULL;
 			tcpSt = TCP_FREE;
 #ifdef DEBUG
-	os_printf( " tcp_reconcb tcp free" );
+	os_printf( " tcp_reconcb tcp free " );
 #endif
 		} else if ( *(uint32 *)( conn->proto.tcp->remote_ip ) == ipAdd && marker == mSET ) {
 #ifdef DEBUG
-	os_printf( " tcp_reconcb double connect" );
+	os_printf( " tcp_reconcb double connect " );
 #endif
 			marker = mCLEAR;
 		}
@@ -323,11 +327,11 @@ tcp_sentcb( void *arg ) { // data sent
 			pespconn = NULL;
 			tcpSt = TCP_FREE;
 #ifdef DEBUG
-	os_printf( " tcp_sentcb tcp free" );
+	os_printf( " tcp_sentcb tcp free " );
 #endif
 		} else if ( (uint32)( conn->proto.tcp->remote_ip[0] ) == (uint32)( pespconn->proto.tcp->remote_ip[0]) && marker == mSET ) {
 #ifdef DEBUG
-	os_printf( " tcp_sentcb double connect" );
+	os_printf( " tcp_sentcb double connect " );
 #endif
 		}
 	}
@@ -597,10 +601,10 @@ mScheduler(char *datagram, uint16 size) {
 					*count++ = '-';
 					count = ShortIntToString( ~rssi, count );
 					*count = '\0';
-					os_printf( "Bad signal, rssi = %s", rssiStr);
+					os_printf( "Bad signal, rssi = %s ", rssiStr);
 					os_delay_us(1000);
-					os_printf( "Broadcast port %s", tmpFLASH[DEF_UDP_PORT_OFSET] );
-					os_printf( "%s", broadcastShift );
+					os_printf( "Broadcast port %s ", tmpFLASH[DEF_UDP_PORT_OFSET] );
+					os_printf( "%s ", broadcastShift );
 					GPIO_OUTPUT_SET(LED_GPIO, ledState);
 					ledState ^=1;
 				} else {
@@ -611,10 +615,10 @@ mScheduler(char *datagram, uint16 size) {
 
 					if ( 0 != inf.ip.addr ) {
 
-						ets_uart_printf("WiFi connected\r\n");
+						ets_uart_printf("WiFi connected\r\n ");
 						os_delay_us(1000);
-						os_printf( "Broadcast port %s", &tmpFLASH[DEF_UDP_PORT_OFSET] );
-						os_printf( "%s", brodcastMessage );
+						os_printf( "Broadcast port %s ", &tmpFLASH[DEF_UDP_PORT_OFSET] );
+						os_printf( "%s ", brodcastMessage );
 
 						espconn_create(&broadcast);
 						espconn_sent(&broadcast, brodcastMessage, strlen(brodcastMessage));
@@ -623,42 +627,42 @@ mScheduler(char *datagram, uint16 size) {
 				}
 				break;
 			case STATION_WRONG_PASSWORD:
-				ets_uart_printf("WiFi connecting error, wrong password\r\n");
+				ets_uart_printf("WiFi connecting error, wrong password\r\n ");
 				os_delay_us(1000);
 		    	os_printf( "routerSSID %s ", routerSSID );
-		    	os_printf( "routerPWD %s", routerPWD );
-		    	os_printf( "Broadcast port %s", &tmpFLASH[DEF_UDP_PORT_OFSET] );
-				os_printf( "%s", broadcastShift );
+		    	os_printf( "routerPWD %s ", routerPWD );
+		    	os_printf( "Broadcast port %s ", &tmpFLASH[DEF_UDP_PORT_OFSET] );
+				os_printf( "%s ", broadcastShift );
 				GPIO_OUTPUT_SET(LED_GPIO, ledState);
 				ledState ^=1;
 				break;
 			case STATION_NO_AP_FOUND:
-				ets_uart_printf("WiFi connecting error, ap not found\r\n");
+				ets_uart_printf("WiFi connecting error, ap not found\r\n" );
 				os_delay_us(1000);
 		    	os_printf( "routerSSID %s ", routerSSID );
-		    	os_printf( "routerPWD %s", routerPWD );
-		    	os_printf( "Broadcast port %s", &tmpFLASH[DEF_UDP_PORT_OFSET] );
-				os_printf( "%s", broadcastShift );
+		    	os_printf( "routerPWD %s ", routerPWD );
+		    	os_printf( "Broadcast port %s ", &tmpFLASH[DEF_UDP_PORT_OFSET] );
+				os_printf( "%s ", broadcastShift );
 				GPIO_OUTPUT_SET(LED_GPIO, ledState);
 				ledState ^=1;
 				break;
 			case STATION_CONNECT_FAIL:
-				ets_uart_printf("WiFi connecting fail\r\n");
+				ets_uart_printf("WiFi connecting fail\r\n ");
 				os_delay_us(1000);
 		    	os_printf( "routerSSID %s ", routerSSID );
-		    	os_printf( "routerPWD %s", routerPWD );
-		    	os_printf( "Broadcast port %s", &tmpFLASH[DEF_UDP_PORT_OFSET] );
-				os_printf( "%s", broadcastShift );
+		    	os_printf( "routerPWD %s ", routerPWD );
+		    	os_printf( "Broadcast port %s ", &tmpFLASH[DEF_UDP_PORT_OFSET] );
+				os_printf( "%s ", broadcastShift );
 				GPIO_OUTPUT_SET(LED_GPIO, ledState);
 				ledState ^=1;
 				break;
 			default:
-				ets_uart_printf("WiFi connecting...\r\n");
+				ets_uart_printf("WiFi connecting...\r\n ");
 				os_delay_us(1000);
 		    	os_printf( "routerSSID %s ", routerSSID );
-		    	os_printf( "routerPWD %s", routerPWD );
-		    	os_printf( "Broadcast port %s", &tmpFLASH[DEF_UDP_PORT_OFSET] );
-				os_printf( "%s", broadcastShift );
+		    	os_printf( "routerPWD %s ", routerPWD );
+		    	os_printf( "Broadcast port %s ", &tmpFLASH[DEF_UDP_PORT_OFSET] );
+				os_printf( "%s ", broadcastShift );
 				GPIO_OUTPUT_SET(LED_GPIO, ledState);
 				ledState ^=1;
 				break;
@@ -687,7 +691,7 @@ user_init(void) {
 	if ( SPI_FLASH_RESULT_OK != spi_flash_read( USER_SECTOR_IN_FLASH_MEM * SPI_FLASH_SEC_SIZE, \
 			                                                                  (uint32 *)writeFlashTmp, ALIGN_FLASH_READY_SIZE ) ) {
 
-		ets_uart_printf("Read fail");
+		ets_uart_printf("Read fail ");
 		while(1);
 	}
 
@@ -695,7 +699,7 @@ user_init(void) {
 
 		if ( OPERATION_OK != clearSectorsDB() ) {
 
-			ets_uart_printf("clearSectorsDB() fail");
+			ets_uart_printf("clearSectorsDB() fail ");
 			while(1);
 		}
 
@@ -706,18 +710,18 @@ user_init(void) {
 	if ( SPI_FLASH_RESULT_OK != spi_flash_read( USER_SECTOR_IN_FLASH_MEM * SPI_FLASH_SEC_SIZE, \
 			                            (uint32 *)writeFlashTmp, SPI_FLASH_SEC_SIZE ) ) {
 
-		ets_uart_printf("Clear db fail");
+		ets_uart_printf("Clear db fail ");
 		while(1);
 	}
 
 	if ( 0 == strcmp( CLEAR_DB_STATUS, &writeFlashTmp[ CLEAR_DB_STATUS_OFSET ] ) ) {
 #ifdef DEBUG
-		ets_uart_printf("clearSectorsDB() check point");
+		ets_uart_printf("clearSectorsDB() check point ");
 #endif
 		writeFlash( CLEAR_DB_STATUS_OFSET, CLEAR_DB_STATUS_EMPTY );
 		if ( OPERATION_OK != clearSectorsDB() ) {
 
-			ets_uart_printf("clearSectorsDB() fail");
+			ets_uart_printf("clearSectorsDB() fail ");
 			while(1);
 		}
 	}
@@ -825,7 +829,7 @@ user_init(void) {
 	uint32_t i;
 
 	for ( currentSector = START_SECTOR; currentSector <= END_SECTOR; currentSector++ ) {
-		os_printf("currentSector: %d", currentSector);
+		os_printf("currentSector: %d ", currentSector);
 		spi_flash_read( SPI_FLASH_SEC_SIZE * currentSector, (uint32 *)tmp, SPI_FLASH_SEC_SIZE );
 		for ( i = 0; SPI_FLASH_SEC_SIZE > i; i++ ) {
 			uart_tx_one_char(tmp[ i ]);
@@ -862,7 +866,7 @@ user_init(void) {
 		os_sprintf( gpioModeOut1, "%s", &tmp[ GPIO_OUT_1_MODE_OFSET ] );
 
 #ifdef DEBUG
-	  os_printf( " gpioModeOut1  %s,  gpioOutDeley1  %d", gpioModeOut1, gpioOutDeley1 );
+	  os_printf( " gpioModeOut1  %s,  gpioOutDeley1  %d ", gpioModeOut1, gpioOutDeley1 );
 	  os_delay_us(500000);
 #endif
 
@@ -876,7 +880,7 @@ user_init(void) {
 		os_sprintf( gpioModeOut2, "%s", &tmp[ GPIO_OUT_2_MODE_OFSET ] );
 
 #ifdef DEBUG
-	  os_printf( " gpioModeOut2  %s,  gpioOutDeley2  %d", gpioModeOut2, gpioOutDeley2 );
+	  os_printf( " gpioModeOut2  %s,  gpioOutDeley2  %d ", gpioModeOut2, gpioOutDeley2 );
 	  os_delay_us(500000);
 #endif
 
@@ -888,7 +892,7 @@ user_init(void) {
 	uint16_t c, currentSector;
 
 	for ( currentSector = USER_SECTOR_IN_FLASH_MEM; currentSector <= USER_SECTOR_IN_FLASH_MEM; currentSector++ ) {
-			os_printf( " currentSector   %d", currentSector);
+			os_printf( " currentSector   %d ", currentSector);
 			spi_flash_read( SPI_FLASH_SEC_SIZE * currentSector, (uint32 *)tmp, SPI_FLASH_SEC_SIZE );
 			for ( c = 0; SPI_FLASH_SEC_SIZE > c; c++ ) {
 				uart_tx_one_char(tmp[c]);
@@ -927,7 +931,7 @@ user_init(void) {
     	broadcast.proto.udp = &udpClient;
     	broadcast.proto.udp->remote_port = StringToInt( &writeFlashTmp[DEF_UDP_PORT_OFSET] );
 #ifdef DEBUG
-    	os_printf( "broadcast.proto.udp->remote_port %d", broadcast.proto.udp->remote_port );
+    	os_printf( "broadcast.proto.udp->remote_port %d ", broadcast.proto.udp->remote_port );
 #endif
 
      //udp клиент AP
@@ -941,7 +945,7 @@ user_init(void) {
     															 (uint8_t)( ipaddr_addr( &writeFlashTmp[ DEF_IP_SOFT_AP_OFSET ] ) >> 8 ),\
 																 (uint8_t)( ipaddr_addr( &writeFlashTmp[ DEF_IP_SOFT_AP_OFSET ] ) >> 16 ), 255 );
 #ifdef DEBUG
-    	os_printf( "brodcastSSA.proto.udp->remote_ip %d.%d.%d.%d", IP2STR(brodcastSSA.proto.udp->remote_ip) );
+    	os_printf( "brodcastSSA.proto.udp->remote_ip %d.%d.%d.%d ", IP2STR(brodcastSSA.proto.udp->remote_ip) );
 #endif
     }
 
@@ -1019,7 +1023,7 @@ initWIFI( ) {
 	if ( SPI_FLASH_RESULT_OK != spi_flash_read( USER_SECTOR_IN_FLASH_MEM * SPI_FLASH_SEC_SIZE, \
 																		(uint32 *)writeFlashTmp, SPI_FLASH_SEC_SIZE ) ) {
 
-		ets_uart_printf("initWIFI Read fail");
+		ets_uart_printf("initWIFI Read fail ");
 		while(1);
 	}
 
@@ -1045,15 +1049,15 @@ initWIFI( ) {
 		  os_sprintf( stationConf.ssid, "%s", &writeFlashTmp[ SSID_STA_OFSET ] );
 	  }
 #ifdef DEBUG
-	  os_printf( " stationConf.ssid  %s,  &tmp[ SSID_STA_OFSET ]  %s", stationConf.ssid, &writeFlashTmp[ SSID_STA_OFSET ] );
+	  os_printf( " stationConf.ssid  %s,  &tmp[ SSID_STA_OFSET ]  %s ", stationConf.ssid, &writeFlashTmp[ SSID_STA_OFSET ] );
 #endif
 	  if ( 0 != strcmp( stationConf.password, &writeFlashTmp[ PWD_STA_OFSET ] ) ) {
 
 		  os_memset( stationConf.password, 0, sizeof(&stationConf.password) );
-		  os_sprintf( stationConf.password, "%s", &writeFlashTmp[ PWD_STA_OFSET ] );
+		  os_sprintf( stationConf.password, "%s ", &writeFlashTmp[ PWD_STA_OFSET ] );
 	  }
 #ifdef DEBUG
-	  os_printf( " stationConf.password  %s,  &tmp[ PWD_STA_OFSET ]  %s", stationConf.password, &writeFlashTmp[ PWD_STA_OFSET ] );
+	  os_printf( " stationConf.password  %s,  &tmp[ PWD_STA_OFSET ]  %s ", stationConf.password, &writeFlashTmp[ PWD_STA_OFSET ] );
 #endif
 	  if ( 0 !=  stationConf.bssid_set ) {
 
@@ -1062,12 +1066,12 @@ initWIFI( ) {
 
 	 if ( !wifi_station_set_config( &stationConf ) ) {
 
-		 ets_uart_printf("Module not set station config!\r\n");
+		 ets_uart_printf("Module not set station config!\r\n ");
 	 }
 
 	} else {
 
-		ets_uart_printf("read station config fail\r\n");
+		ets_uart_printf("read station config fail\r\n ");
 	}
 
 	wifi_station_connect();
@@ -1103,7 +1107,7 @@ initWIFI( ) {
 			softapConf.channel = DEF_CHANEL;
 		}
 #ifdef DEBUG
-		os_printf( " softapConf.channel  %d", softapConf.channel );
+		os_printf( " softapConf.channel  %d ", softapConf.channel );
 #endif
 
 		if ( softapConf.authmode != DEF_AUTH ) {
@@ -1111,7 +1115,7 @@ initWIFI( ) {
 			softapConf.authmode = DEF_AUTH;
 		}
 #ifdef DEBUG
-		os_printf( " softapConf.authmode  %d", softapConf.authmode );
+		os_printf( " softapConf.authmode  %d ", softapConf.authmode );
 #endif
 
 		if ( softapConf.max_connection != MAX_CON ) {
@@ -1119,7 +1123,7 @@ initWIFI( ) {
 		    softapConf.max_connection = MAX_CON;
 		}
 #ifdef DEBUG
-		os_printf( " softapConf.max_connection  %d", softapConf.max_connection );
+		os_printf( " softapConf.max_connection  %d ", softapConf.max_connection );
 #endif
 
 		if ( softapConf.ssid_hidden != NO_HIDDEN ) {
@@ -1127,7 +1131,7 @@ initWIFI( ) {
 			softapConf.ssid_hidden = NO_HIDDEN;
 		}
 #ifdef DEBUG
-		os_printf( " softapConf.ssid_hidden  %d", softapConf.ssid_hidden );
+		os_printf( " softapConf.ssid_hidden  %d ", softapConf.ssid_hidden );
 #endif
 
 		if ( softapConf.beacon_interval != BEACON_INT ) {
@@ -1135,18 +1139,18 @@ initWIFI( ) {
 			softapConf.beacon_interval = BEACON_INT;
 		}
 #ifdef DEBUG
-		os_printf( " softapConf.beacon_interval  %d", softapConf.beacon_interval );
+		os_printf( " softapConf.beacon_interval  %d ", softapConf.beacon_interval );
 #endif
 
 		if( !wifi_softap_set_config( &softapConf ) ) {
 			#ifdef DEBUG
-					ets_uart_printf("Module not set AP config!\r\n");
+					ets_uart_printf("Module not set AP config!\r\n ");
 			#endif
 		}
 
 	} else {
 
-		ets_uart_printf("read soft ap config fail\r\n");
+		ets_uart_printf("read soft ap config fail\r\n ");
 	}
 
 
@@ -1160,10 +1164,10 @@ initWIFI( ) {
 
 	} else {
 
-		ets_uart_printf("read ip ap fail\r\n");
+		ets_uart_printf("read ip ap fail\r\n ");
 	}
 #ifdef DEBUG
-		os_printf( " ipinfo.ip.addr  %d", ipinfo.ip.addr );
+		os_printf( " ipinfo.ip.addr  %d ", ipinfo.ip.addr );
 #endif
 
 		wifi_softap_dhcps_start();
@@ -1183,7 +1187,7 @@ loadDefParam( void ) {
 
 	if ( SPI_FLASH_RESULT_OK != spi_flash_erase_sector( USER_SECTOR_IN_FLASH_MEM )  ) {
 
-		ets_uart_printf("Erase USER_SECTOR_IN_FLASH_MEM fail");
+		ets_uart_printf("Erase USER_SECTOR_IN_FLASH_MEM fail ");
 		while(1);
 	}
 
@@ -1257,7 +1261,7 @@ loadDefParam( void ) {
 	if ( SPI_FLASH_RESULT_OK != spi_flash_write( USER_SECTOR_IN_FLASH_MEM * SPI_FLASH_SEC_SIZE, \
 																				(uint32 *)writeFlashTmp, SPI_FLASH_SEC_SIZE ) ) {
 
-		ets_uart_printf("write default param fail");
+		ets_uart_printf("write default param fail ");
 		while(1);
 	}
 
@@ -1589,13 +1593,13 @@ comandParser( void ) {
 
 	    	addressQuery = StringToInt( &tmp[ sizeof( TCP_QUERY ) + 1 + sizeof( TCP_ADRESS ) + 1 ] );
 #ifdef DEBUG
-	    	os_printf("addressQuery %d", addressQuery);
+	    	os_printf("addressQuery %d ", addressQuery);
 #endif
 	    	switch ( query( storage, &lenghtQuery, &addressQuery ) ) {
 
 	    	    case OPERATION_OK:
 #ifdef DEBUG
-	    	    	os_printf("addressQuery %d", addressQuery);
+	    	    	os_printf("addressQuery %d ", addressQuery);
 #endif
 	    	    	buildQueryResponse( TCP_OPERATION_OK );
 	    	    	break;
@@ -1614,7 +1618,7 @@ comandParser( void ) {
 	    	    	break;
 	    	    case READ_DONE:
 #ifdef DEBUG
-	    	    	os_printf("addressQuery %d", addressQuery);
+	    	    	os_printf("addressQuery %d ", addressQuery);
 #endif
 	    	    	buildQueryResponse( TCP_READ_DONE );
 	    	    	break;
@@ -1753,7 +1757,7 @@ comandParser( void ) {
 
 	    		os_sprintf( routerSSID, "%s", &tmp[ sizeof(TCP_SSID_STA) + 1 ] );
 #ifdef DEBUG
-	    os_printf( "routerSSID %s", routerSSID );
+	    os_printf( "routerSSID %s ", routerSSID );
 #endif
 	    		tcpRespounseBuilder( TCP_OPERATION_OK );
 	    		initWIFI();
@@ -1770,7 +1774,7 @@ comandParser( void ) {
 
 	    		os_sprintf( routerPWD, "%s", &tmp[ sizeof(TCP_PWD_STA) + 1 ] );
 #ifdef DEBUG
-	    		os_printf( "routerPWD %s", routerPWD );
+	    		os_printf( "routerPWD %s ", routerPWD );
 #endif
 	    		tcpRespounseBuilder( TCP_OPERATION_OK );
 	    		initWIFI();
@@ -1831,7 +1835,7 @@ comandParser( void ) {
 	    		memcpy(gpioModeOut1, DEF_GPIO_OUT_MODE, sizeof(DEF_GPIO_OUT_MODE) );
 	    		gpioOutDeley1 = StringToInt( &tmp[ sizeof(TCP_GPIO_MODE_1) + 1 + sizeof(DEF_GPIO_OUT_MODE) + 1 ] );
 #ifdef DEBUG
-	   os_printf("gpioModeOut1 %s, gpioOutDeley1 %d",gpioModeOut1, gpioOutDeley1);
+	   os_printf("gpioModeOut1 %s, gpioOutDeley1 %d ",gpioModeOut1, gpioOutDeley1);
 #endif
 	    		writeFlash( GPIO_OUT_1_DELEY_OFSET ,&tmp[ sizeof(TCP_GPIO_MODE_1) + 1 + sizeof(DEF_GPIO_OUT_MODE) + 1 ] );
 	    		tcpRespounseBuilder( TCP_OPERATION_OK );
@@ -1845,7 +1849,7 @@ comandParser( void ) {
 	    		memcpy(gpioModeOut1, GPIO_OUT_TRIGGER_MODE, sizeof(GPIO_OUT_TRIGGER_MODE) );
 	    		gpioOutDeley1 = StringToInt( &tmp[ sizeof(TCP_GPIO_MODE_1) + 1 + sizeof(GPIO_OUT_TRIGGER_MODE) + 1 ] );
 #ifdef DEBUG
-	   os_printf("gpioModeOut1 %s, gpioOutDeley1 %d",gpioModeOut1, gpioOutDeley1);
+	   os_printf("gpioModeOut1 %s, gpioOutDeley1 %d ",gpioModeOut1, gpioOutDeley1);
 #endif
 	    		writeFlash( GPIO_OUT_1_DELEY_OFSET ,&tmp[ sizeof(TCP_GPIO_MODE_1) + 1 + sizeof(GPIO_OUT_TRIGGER_MODE) + 1 ] );
 	    		tcpRespounseBuilder( TCP_OPERATION_OK );
@@ -1874,7 +1878,7 @@ comandParser( void ) {
 	    		memcpy(gpioModeOut2, DEF_GPIO_OUT_MODE, sizeof(DEF_GPIO_OUT_MODE) );
 	    		gpioOutDeley2 = StringToInt( &tmp[ sizeof(TCP_GPIO_MODE_2) + 1 + sizeof(DEF_GPIO_OUT_MODE) + 1 ] );
 #ifdef DEBUG
-	   os_printf("gpioModeOut2 %s, gpioOutDeley2 %d",gpioModeOut2, gpioOutDeley2);
+	   os_printf("gpioModeOut2 %s, gpioOutDeley2 %d ",gpioModeOut2, gpioOutDeley2);
 #endif
 	    		writeFlash( GPIO_OUT_2_DELEY_OFSET ,&tmp[ sizeof(TCP_GPIO_MODE_2) + 1 + sizeof(DEF_GPIO_OUT_MODE) + 1 ] );
 	    		tcpRespounseBuilder( TCP_OPERATION_OK );
@@ -1888,7 +1892,7 @@ comandParser( void ) {
 	    		memcpy(gpioModeOut2, GPIO_OUT_TRIGGER_MODE, sizeof(GPIO_OUT_TRIGGER_MODE) );
 	    		gpioOutDeley2 = StringToInt( &tmp[ sizeof(TCP_GPIO_MODE_2) + 1 + sizeof(GPIO_OUT_TRIGGER_MODE) + 1 ] );
 #ifdef DEBUG
-	    os_printf("gpioModeOut2 %s, gpioOutDeley2 %d",gpioModeOut2, gpioOutDeley2);
+	    os_printf("gpioModeOut2 %s, gpioOutDeley2 %d ",gpioModeOut2, gpioOutDeley2);
 #endif
 	    		writeFlash( GPIO_OUT_2_DELEY_OFSET ,&tmp[ sizeof(TCP_GPIO_MODE_2) + 1 + sizeof(GPIO_OUT_TRIGGER_MODE) + 1 ] );
 	    		tcpRespounseBuilder( TCP_OPERATION_OK );
@@ -1914,7 +1918,7 @@ comandParser( void ) {
 	    	 tmp[ sizeof(TCP_ERROR) ] = '\r';
 	    	 tmp[ sizeof(TCP_ERROR) + 1 ] = '\n';
 #ifdef DEBUG
-	    os_printf("error check");
+	    os_printf("error check ");
 #endif
 	    	if ( NULL != pespconn ) {
 
@@ -1945,7 +1949,7 @@ tcpRespounseBuilder( uint8_t *responseCode ) {
 #ifdef DEBUG
 	{
 			uint16_t a;
-			os_printf("tcp answer");
+			os_printf("tcp answer ");
 			for ( a = 0; a < i; a++) {
 				uart_tx_one_char(tmp[a]);
 			}
