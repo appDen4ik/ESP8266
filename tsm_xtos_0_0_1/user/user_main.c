@@ -924,18 +924,18 @@ user_init(void) {
 		espconn_regist_sentcb(&espconnServer, tcp_sentcb);          // data sent
 		espconn_regist_reconcb(&espconnServer, tcp_reconcb);        // error, or TCP disconnected
 
-		espconn_tcp_set_max_con(1);
+		espconn_tcp_set_max_con(2);
 
 #ifdef DEBUG
     	os_printf( "espconn_tcp_get_max_con(); %d ", espconn_tcp_get_max_con() );
 #endif
 
-    	if ( 0 == espconn_tcp_set_max_con_allow( &espconnServer, 1 ) ) {
+    	if ( 0 == espconn_tcp_set_max_con_allow( &espconnServer, 2 ) ) {
 
-    		os_printf( "espconn_tcp_set_max_con_allow( espconnServer, 1 ) fail " );
+    		os_printf( "espconn_tcp_set_max_con_allow( espconnServer, 2 ) fail " );
     	} else {
 
-    		os_printf( "espconn_tcp_get_max_con_allow( espconnServer, 1 ) %d ", espconn_tcp_get_max_con_allow(&espconnServer) );
+    		os_printf( "espconn_tcp_get_max_con_allow( espconnServer, 2 ) %d ", espconn_tcp_get_max_con_allow(&espconnServer) );
     	}
 
 	}

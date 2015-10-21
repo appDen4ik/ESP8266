@@ -314,7 +314,7 @@
 
 #define TMP_SIZE		    10000
 
-#define TCP_SERVER_TIMEOUT	60  // SEC
+#define TCP_SERVER_TIMEOUT	25  // SEC
 #define TCP_PORT			80
 
 //STA
