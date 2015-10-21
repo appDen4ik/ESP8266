@@ -322,7 +322,8 @@ tcp_sentcb( void *arg ) { // data sent
 #ifdef DEBUG
 	os_printf( "DATA sent for ip : %d.%d.%d.%d\r\n",  IP2STR( conn->proto.tcp->remote_ip ) );
 #endif
-	if ( NULL != pespconn ) {
+	if ( NULL != pespconn && NULL != conn) {
+		os_printf( "check point " );
 		if ( (uint32)( conn->proto.tcp->remote_ip[0] ) == (uint32)( pespconn->proto.tcp->remote_ip[0]) && marker == mCLEAR ) {
 			pespconn = NULL;
 			tcpSt = TCP_FREE;
@@ -336,7 +337,7 @@ tcp_sentcb( void *arg ) { // data sent
 		}
 	}
 	if ( NULL != conn ) {
-
+		os_printf( "check point 1 " );
 		espconn_disconnect(conn);
 	}
 }
@@ -1000,6 +1001,7 @@ initPeriph( ) {
 	GPIO_OUTPUT_SET(OUT_2_GPIO, 0);
 
 	PIN_FUNC_SELECT(LED_MUX, LED_FUNC);
+	GPIO_OUTPUT_SET(LED_GPIO, 0);
 
 	PIN_FUNC_SELECT(INP_1_MUX, INP_1_FUNC);
 	gpio_output_set(0, 0, 0, INP_1);
