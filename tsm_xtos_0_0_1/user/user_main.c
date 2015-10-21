@@ -335,7 +335,10 @@ tcp_sentcb( void *arg ) { // data sent
 #endif
 		}
 	}
-	espconn_disconnect(conn);
+	if ( NULL != conn ) {
+
+		espconn_disconnect(conn);
+	}
 }
 
 //**********************************************************************************************************************************
