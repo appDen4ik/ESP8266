@@ -732,6 +732,7 @@ mScheduler(char *datagram, uint16 size) {
 		    	os_printf( "Broadcast port %s ", &tmpFLASH[DEF_UDP_PORT_OFSET] );
 				os_printf( "%s ", broadcastShift );
 				system_restart();
+				os_delay_us(100000);
 				GPIO_OUTPUT_SET(LED_GPIO, ledState);
 				ledState ^=1;
 				break;
