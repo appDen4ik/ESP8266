@@ -38,7 +38,7 @@
 //**********************************************************************************************************************************
 LOCAL inline void ICACHE_FLASH_ATTR comandParser( void )  __attribute__((always_inline));
 LOCAL inline void ICACHE_FLASH_ATTR initPeriph( void )  __attribute__((always_inline));
-LOCAL void ICACHE_FLASH_ATTR initWIFI( void );
+LOCAL inline void ICACHE_FLASH_ATTR initWIFI( void ) __attribute__((always_inline));
 LOCAL inline void ICACHE_FLASH_ATTR loadDefParam( void ) __attribute__((always_inline));
 LOCAL inline void ICACHE_FLASH_ATTR broadcastBuilder( void ) __attribute__((always_inline));
 LOCAL void ICACHE_FLASH_ATTR buildQueryResponse( uint8_t *responseStatus );
@@ -670,6 +670,10 @@ mScheduler(char *datagram, uint16 size) {
 
 		wifi_softap_free_station_info();
 */
+			struct station_config stationConf;
+			 wifi_station_get_config( &stationConf );
+			 os_printf( " stationConf.ssid  %s ", stationConf.ssid, &stationConf.ssid );
+			 os_printf( " stationConf.password  %s ", stationConf.password, &stationConf.password );
 
 		// ¬нешн€€ сеть
 		switch( wifi_station_get_connect_status() ) {
@@ -756,6 +760,27 @@ mScheduler(char *datagram, uint16 size) {
 	os_timer_arm(&task_timer, DELAY, 0);
 }
 
+
+void ICACHE_FLASH_ATTR
+config(void) {
+
+	initWIFI(); // настройка sta ap
+
+   	ets_wdt_init();
+    ets_wdt_disable();
+   	ets_wdt_enable();
+   	system_soft_wdt_stop();
+    system_soft_wdt_restart();
+
+//    wifi_station_set_reconnect_policy(true);
+
+	// os_timer_disarm(ETSTimer *ptimer)
+//	os_timer_disarm(&task_timer);
+	// os_timer_setfn(ETSTimer *ptimer, ETSTimerFunc *pfunction, void *parg)
+//	os_timer_setfn(&task_timer, (os_timer_func_t *)mScheduler, (void *)0);
+	// void os_timer_arm(ETSTimer *ptimer,uint32_t milliseconds, bool repeat_flag)
+//	os_timer_arm(&task_timer, DELAY, 0);
+}
 
 void ICACHE_FLASH_ATTR
 user_init(void) {
@@ -919,7 +944,7 @@ user_init(void) {
 	}*/
 
 
- if ( 0 == GPIO_INPUT_GET(INP_3_PIN) ) {
+ if ( 0 == GPIO_INPUT_GET(INP_3_PIN) )  {
 
 	uint16_t c, currentSector;
 	uint32_t i;
@@ -936,9 +961,9 @@ user_init(void) {
 	}
 }
 //-----------------------------------------------------------------------------------------------------------------------------------------------------------------
-	initWIFI(); // настройка sta ap
 
 
+ //wifi_set_opmode_current (NULL_MODE);
 	// broadcast
 	if ( SPI_FLASH_RESULT_OK != spi_flash_read( USER_SECTOR_IN_FLASH_MEM * SPI_FLASH_SEC_SIZE, \
 			                                                                          (uint32 *)tmpFLASH, SPI_FLASH_SEC_SIZE ) ) {
@@ -1020,13 +1045,13 @@ user_init(void) {
     	os_printf( "espconn_tcp_get_max_con(); %d ", espconn_tcp_get_max_con() );
 #endif
 
-    	if ( 0 == espconn_tcp_set_max_con_allow( &espconnServer, 2 ) ) {
+  /*  	if ( 0 == espconn_tcp_set_max_con_allow( &espconnServer, 2 ) ) {
 
     		os_printf( "espconn_tcp_set_max_con_allow( espconnServer, 2 ) fail " );
     	} else {
 
     		os_printf( "espconn_tcp_get_max_con_allow( espconnServer, 2 ) %d ", espconn_tcp_get_max_con_allow(&espconnServer) );
-    	}
+    	}*/
 
 	}
 
@@ -1061,24 +1086,25 @@ user_init(void) {
     }
 
 
-     memcpy( routerSSID, &writeFlashTmp[SSID_STA_OFSET], strlen(&writeFlashTmp[SSID_STA_OFSET]) + 1 );
-     memcpy( routerPWD, &writeFlashTmp[PWD_STA_OFSET], strlen(&writeFlashTmp[PWD_STA_OFSET]) + 1 );
+	initWIFI(); // настройка sta ap
+
+   	ets_wdt_init();
+    ets_wdt_disable();
+   	system_soft_wdt_stop();
+   	ets_wdt_enable();
+    system_soft_wdt_restart();
+
+    memcpy( routerSSID, &writeFlashTmp[SSID_STA_OFSET], strlen(&writeFlashTmp[SSID_STA_OFSET]) + 1 );
+    memcpy( routerPWD, &writeFlashTmp[PWD_STA_OFSET], strlen(&writeFlashTmp[PWD_STA_OFSET]) + 1 );
 
 #ifdef DEBUG
     	os_printf( "routerSSID %s", routerSSID );
     	os_printf( "routerPWD %s", routerPWD );
 #endif
 
-    	ets_wdt_init();
-    	ets_wdt_disable();
-   	    ets_wdt_enable();
-   	    system_soft_wdt_stop();
-        system_soft_wdt_restart();
-
-        wifi_station_set_reconnect_policy(true);
 
 	// os_timer_disarm(ETSTimer *ptimer)
-	os_timer_disarm(&task_timer);
+    os_timer_disarm(&task_timer);
 	// os_timer_setfn(ETSTimer *ptimer, ETSTimerFunc *pfunction, void *parg)
 	os_timer_setfn(&task_timer, (os_timer_func_t *)mScheduler, (void *)0);
 	// void os_timer_arm(ETSTimer *ptimer,uint32_t milliseconds, bool repeat_flag)
@@ -1090,7 +1116,7 @@ user_init(void) {
 void ICACHE_FLASH_ATTR
 initPeriph( ) {
 
-	ets_wdt_enable();
+//	ets_wdt_enable();
 	ets_wdt_disable();
 
 	system_soft_wdt_stop();
@@ -1102,7 +1128,7 @@ initPeriph( ) {
 
 	os_install_putc1(uart_tx_one_char);
 
-	if ( SYS_CPU_160MHZ == system_get_cpu_freq() ) {
+	if ( SYS_CPU_160MHZ != system_get_cpu_freq() ) {
 		system_update_cpu_freq(SYS_CPU_160MHZ);
 	}
 
@@ -1171,7 +1197,7 @@ initWIFI( ) {
 	  if ( 0 != strcmp( stationConf.password, &writeFlashTmp[ PWD_STA_OFSET ] ) ) {
 
 		  os_memset( stationConf.password, 0, sizeof(&stationConf.password) );
-		  os_sprintf( stationConf.password, "%s ", &writeFlashTmp[ PWD_STA_OFSET ] );
+		  os_sprintf( stationConf.password, "%s", &writeFlashTmp[ PWD_STA_OFSET ] );
 	  }
 #ifdef DEBUG
 	  os_printf( " stationConf.password  %s,  &tmp[ PWD_STA_OFSET ]  %s ", stationConf.password, &writeFlashTmp[ PWD_STA_OFSET ] );
@@ -1193,7 +1219,7 @@ initWIFI( ) {
 
 	wifi_station_connect();
 	wifi_station_dhcpc_start();
-	wifi_station_set_auto_connect(1);
+//	wifi_station_set_auto_connect(1);
 
 
 	if ( wifi_softap_get_config( &softapConf ) ) {
@@ -1288,6 +1314,15 @@ initWIFI( ) {
 #endif
 
 		wifi_softap_dhcps_start();
+
+		if(wifi_station_get_auto_connect() == 0) {
+
+				wifi_station_set_auto_connect(1);
+		}
+		if(wifi_get_phy_mode() != PHY_MODE_11N) {
+
+				wifi_set_phy_mode(PHY_MODE_11N);
+		}
 
 }
 
@@ -1387,7 +1422,8 @@ loadDefParam( void ) {
 
 
 // ѕеревод числа в последовательность ASCII
-uint8_t * ShortIntToString(uint32_t data, uint8_t *adressDestenation) {
+uint8_t * ICACHE_FLASH_ATTR
+ShortIntToString(uint32_t data, uint8_t *adressDestenation) {
 	uint8_t *startAdressDestenation = adressDestenation;
 	uint8_t *endAdressDestenation;
 	uint8_t buff;
@@ -1408,7 +1444,8 @@ uint8_t * ShortIntToString(uint32_t data, uint8_t *adressDestenation) {
 }
 
 // ѕеревод последовательности ASCII в число
-uint32_t StringToInt(uint8_t *data) {
+uint32_t ICACHE_FLASH_ATTR
+StringToInt(uint8_t *data) {
 	uint32_t returnedValue = 0;
 	for (;*data >= '0' && *data <= '9'; data++) {
 
@@ -1418,7 +1455,9 @@ uint32_t StringToInt(uint8_t *data) {
 }
 
 // ѕеревод шестнадцетиричного числа в последовательность ASCII
-uint8_t * intToStringHEX(uint8_t data, uint8_t *adressDestenation) {
+
+uint8_t * ICACHE_FLASH_ATTR
+intToStringHEX(uint8_t data, uint8_t *adressDestenation) {
 	if ( ( data >> 4 ) < 10 ) {
 		*adressDestenation++ = ( data >> 4 ) + '0';
 	} else {
@@ -1869,6 +1908,10 @@ comandParser( void ) {
 	    	loadDefParam();
 	    	tcpRespounseBuilder( TCP_OPERATION_OK );
 			system_restart();
+    	/*	while (1) {
+    		    ets_wdt_disable();
+    		   	system_soft_wdt_stop();
+    		}*/
 
 	    } else if ( 0 == strcmp( tmp, TCP_SET_UDP_PORT ) ) {													//+
 
@@ -1903,6 +1946,11 @@ comandParser( void ) {
 	    os_printf( "routerSSID %s ", routerSSID );
 #endif
 	    		tcpRespounseBuilder( TCP_OPERATION_OK );
+	    		//system_restart();
+	    		/*while (1) {
+	   		    ets_wdt_disable();
+	    		   	system_soft_wdt_stop();
+	    		}*/
 	    		initWIFI();
 	    	} else {
 
@@ -1920,6 +1968,11 @@ comandParser( void ) {
 	    		os_printf( "routerPWD %s ", routerPWD );
 #endif
 	    		tcpRespounseBuilder( TCP_OPERATION_OK );
+	    		//system_restart();
+	    		/*while (1) {
+	    		    ets_wdt_disable();
+	    		   	system_soft_wdt_stop();
+	    		}*/
 	    		initWIFI();
 	    	} else {
 
