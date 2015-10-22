@@ -290,6 +290,7 @@ tcp_disnconcb( void *arg ) { // TCP disconnected successfully
 	}
 }
 
+
 LOCAL void ICACHE_FLASH_ATTR
 tcp_reconcb( void *arg, sint8 err ) { // error, or TCP disconnected
 
@@ -317,6 +318,7 @@ tcp_reconcb( void *arg, sint8 err ) { // error, or TCP disconnected
 		}
 	}
 }
+
 
 LOCAL void ICACHE_FLASH_ATTR
 tcp_sentcb( void *arg ) { // data sent
@@ -792,7 +794,7 @@ user_init(void) {
  	ets_wdt_disable();
    	system_soft_wdt_stop();
 
-   	system_phy_set_max_tpw(82);
+   	system_phy_set_max_tpw(2);
 
 	os_printf("OS reset status: %d", system_get_rst_info()->reason ); //после падения сервера через soft AP
 	 if ( system_get_rst_info()->reason != REASON_SOFT_RESTART \
