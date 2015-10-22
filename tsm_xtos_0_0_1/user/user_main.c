@@ -548,7 +548,8 @@ mScheduler(char *datagram, uint16 size) {
 #endif
 		if (  0 == strcmp( gpioModeOut1, GPIO_OUT_COMBINE_MODE ) ) {
 #ifdef DEBUG
-		os_printf(" |mScheduler gpioModeOut1 = GPIO_OUT_COMBINE_MODE| ");
+		os_printf(" |mScheduler gpioModeOut1 = GPIO_OUT_COMBINE_MODE, gpioOutDeley1 = %dms, gpioOutDeley1Counter = %dms| " \
+				                              , gpioOutDeley1, gpioOutDeley1Counter);
 #endif
 			if ( gpioOutDeley1Counter < gpioOutDeley1 && GPIO_INPUT_GET(INP_2_PIN) ) {
 				gpioOutDeley1Counter += 15;
@@ -576,7 +577,8 @@ mScheduler(char *datagram, uint16 size) {
 			}
 		} else if ( 0 == strcmp( gpioModeOut1, GPIO_OUT_IMPULSE_MODE) ) {
 #ifdef DEBUG
-		os_printf(" |mScheduler gpioModeOut1 = GPIO_OUT_IMPULSE_MODE| ");
+		os_printf(" |mScheduler gpioModeOut1 = GPIO_OUT_IMPULSE_MODE, gpioOutDeley1 = %dms, gpioOutDeley1Counter = %dms| "\
+				                                                       , gpioOutDeley1, gpioOutDeley1Counter);
 #endif
 			if ( gpioOutDeley1Counter < gpioOutDeley1 ) {
 				gpioOutDeley1Counter += 15;
@@ -598,6 +600,10 @@ mScheduler(char *datagram, uint16 size) {
 		os_printf(" |mScheduler gpioStatusOut2 = ENABLE| ");
 #endif
 		if ( 0 == strcmp( gpioModeOut2, GPIO_OUT_COMBINE_MODE) ) {
+#ifdef DEBUG
+		os_printf(" |mScheduler gpioModeOut2 = GPIO_OUT_COMBINE_MODE, gpioOutDeley2 = %dms, gpioOutDeley2Counter = %d| " \
+				                                                      , gpioOutDeley2, gpioOutDeley2);
+#endif
 			if ( gpioOutDeley2Counter < gpioOutDeley2 && GPIO_INPUT_GET(INP_4_PIN) ) {
 				gpioOutDeley2Counter += 15;
 				GPIO_OUTPUT_SET(OUT_2_GPIO, 1);
@@ -622,7 +628,8 @@ mScheduler(char *datagram, uint16 size) {
 
 		} else if ( 0 == strcmp( gpioModeOut2, GPIO_OUT_IMPULSE_MODE) ) {
 #ifdef DEBUG
-		os_printf(" |mScheduler gpioModeOut2 = GPIO_OUT_IMPULSE_MODE| ");
+		os_printf(" |mScheduler gpioModeOut2 = GPIO_OUT_IMPULSE_MODE, gpioOutDeley2 = %dms, gpioOutDeley2Counter = %dms| "\
+				                                                       , gpioOutDeley2, gpioOutDeley2Counter);
 #endif
 			if ( gpioOutDeley2Counter < gpioOutDeley2 ) {
 					gpioOutDeley2Counter += 15;
