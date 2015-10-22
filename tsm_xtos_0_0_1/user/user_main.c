@@ -75,8 +75,8 @@ LOCAL uint32_t gpioOutDeley2;
 LOCAL uint32_t gpioOutDeley1Counter;
 LOCAL uint32_t gpioOutDeley2Counter;
 
-LOCAL uint8_t gpioModeOut1[ sizeof(DEF_GPIO_OUT_MODE) ];
-LOCAL uint8_t gpioModeOut2[ sizeof(DEF_GPIO_OUT_MODE) ];
+LOCAL uint8_t gpioModeOut1[ sizeof(GPIO_OUT_IMPULSE_MODE) ];
+LOCAL uint8_t gpioModeOut2[ sizeof(GPIO_OUT_IMPULSE_MODE) ];
 
 LOCAL stat gpioStatusOut1 = DISABLE;
 LOCAL stat gpioStatusOut2 = DISABLE;
@@ -544,13 +544,49 @@ mScheduler(char *datagram, uint16 size) {
 
 //************************************************************************************
 	if ( ENABLE == gpioStatusOut1 ) {
-//		os_printf("GPIO SET CHECK POINT");
-		if (  0 == strcmp( gpioModeOut1, GPIO_OUT_TRIGGER_MODE ) || 0 == strcmp( gpioModeOut1, DEF_GPIO_OUT_MODE ) ) {
+#ifdef DEBUG
+		os_printf(" |mScheduler gpioStatusOut1 = ENABLE| ");
+#endif
+		if (  0 == strcmp( gpioModeOut1, GPIO_OUT_COMBINE_MODE ) ) {
+#ifdef DEBUG
+		os_printf(" |mScheduler gpioModeOut1 = GPIO_OUT_COMBINE_MODE| ");
+#endif
 			if ( gpioOutDeley1Counter < gpioOutDeley1 && GPIO_INPUT_GET(INP_2_PIN) ) {
-//				os_printf("GPIO SET CHECK POINT 2 ");
 				gpioOutDeley1Counter += 15;
 				GPIO_OUTPUT_SET(OUT_1_GPIO, 1);
 			} else {
+#ifdef DEBUG
+		os_printf(" |mScheduler GPIO_OUT_COMBINE_MODE gpioStatusOut1 = DISABLE| ");
+#endif
+				GPIO_OUTPUT_SET(OUT_1_GPIO, 0);
+				gpioOutDeley1Counter = 0;
+				gpioStatusOut1 = DISABLE;
+			}
+		} else if ( 0 == strcmp( gpioModeOut1, GPIO_OUT_TRIGGER_MODE) ) {
+#ifdef DEBUG
+		os_printf(" |mScheduler gpioModeOut1 = GPIO_OUT_TRIGGER_MODE| ");
+#endif
+			GPIO_OUTPUT_SET(OUT_1_GPIO, 1);
+			if ( !GPIO_INPUT_GET(INP_2_PIN) ) {
+#ifdef DEBUG
+		os_printf(" |mScheduler GPIO_OUT_TRIGGER_MODE gpioStatusOut1 = DISABLE| ");
+#endif
+					GPIO_OUTPUT_SET(OUT_1_GPIO, 0);
+					gpioOutDeley1Counter = 0;
+					gpioStatusOut1 = DISABLE;
+			}
+		} else if ( 0 == strcmp( gpioModeOut1, GPIO_OUT_IMPULSE_MODE) ) {
+#ifdef DEBUG
+		os_printf(" |mScheduler gpioModeOut1 = GPIO_OUT_IMPULSE_MODE| ");
+#endif
+			if ( gpioOutDeley1Counter < gpioOutDeley1 ) {
+				gpioOutDeley1Counter += 15;
+				GPIO_OUTPUT_SET(OUT_1_GPIO, 1);
+
+			} else {
+#ifdef DEBUG
+		os_printf(" |mScheduler GPIO_OUT_IMPULSE_MODE gpioStatusOut1 = DISABLE| ");
+#endif
 				GPIO_OUTPUT_SET(OUT_1_GPIO, 0);
 				gpioOutDeley1Counter = 0;
 				gpioStatusOut1 = DISABLE;
@@ -559,7 +595,10 @@ mScheduler(char *datagram, uint16 size) {
 	}
 
 	if ( ENABLE == gpioStatusOut2 ) {
-		if (  0 == strcmp( gpioModeOut2, GPIO_OUT_TRIGGER_MODE ) || 0 == strcmp( gpioModeOut2, DEF_GPIO_OUT_MODE ) ) {
+#ifdef DEBUG
+		os_printf(" |mScheduler gpioStatusOut2 = ENABLE| ");
+#endif
+		if ( 0 == strcmp( gpioModeOut2, GPIO_OUT_COMBINE_MODE) ) {
 			if ( gpioOutDeley2Counter < gpioOutDeley2 && GPIO_INPUT_GET(INP_4_PIN) ) {
 				gpioOutDeley2Counter += 15;
 				GPIO_OUTPUT_SET(OUT_2_GPIO, 1);
@@ -567,6 +606,32 @@ mScheduler(char *datagram, uint16 size) {
 				GPIO_OUTPUT_SET(OUT_2_GPIO, 0);
 				gpioOutDeley2Counter = 0;
 				gpioStatusOut2 = DISABLE;
+			}
+		} else if ( 0 == strcmp( gpioModeOut2, GPIO_OUT_TRIGGER_MODE ) ) {
+			GPIO_OUTPUT_SET(OUT_2_GPIO, 1);
+#ifdef DEBUG
+		os_printf(" |mScheduler gpioModeOut2 = GPIO_OUT_TRIGGER_MODE| ");
+#endif
+			if ( !GPIO_INPUT_GET(INP_4_PIN) ) {
+#ifdef DEBUG
+		os_printf(" |mScheduler GPIO_OUT_TRIGGER_MODE gpioStatusOut2 = DISABLE| ");
+#endif
+				GPIO_OUTPUT_SET(OUT_2_GPIO, 0);
+				gpioOutDeley2Counter = 0;
+				gpioStatusOut2 = DISABLE;
+			}
+
+		} else if ( 0 == strcmp( gpioModeOut2, GPIO_OUT_IMPULSE_MODE) ) {
+#ifdef DEBUG
+		os_printf(" |mScheduler gpioModeOut2 = GPIO_OUT_IMPULSE_MODE| ");
+#endif
+			if ( gpioOutDeley2Counter < gpioOutDeley2 ) {
+					gpioOutDeley2Counter += 15;
+					GPIO_OUTPUT_SET(OUT_2_GPIO, 1);
+			} else {
+					GPIO_OUTPUT_SET(OUT_2_GPIO, 0);
+					gpioOutDeley2Counter = 0;
+					gpioStatusOut2 = DISABLE;
 			}
 		}
 	}
@@ -831,6 +896,7 @@ user_init(void) {
 
 	}*/
 
+
  if ( 0 == GPIO_INPUT_GET(INP_3_PIN) ) {
 	uint16_t c, currentSector;
 	uint32_t i;
@@ -847,7 +913,6 @@ user_init(void) {
 	}
 }
 //-----------------------------------------------------------------------------------------------------------------------------------------------------------------
-
 	initWIFI(); // настройка sta ap
 
 
@@ -865,8 +930,9 @@ user_init(void) {
 		while(1);
 	}
 
-	if ( 0 == strcmp( &tmp[GPIO_OUT_1_MODE_OFSET], DEF_GPIO_OUT_MODE ) || \
-				                                             0 == strcmp( &tmp[GPIO_OUT_1_MODE_OFSET], GPIO_OUT_TRIGGER_MODE ) ) {
+	if ( 0 == strcmp( &tmp[GPIO_OUT_1_MODE_OFSET], GPIO_OUT_IMPULSE_MODE ) || \
+				                                             0 == strcmp( &tmp[GPIO_OUT_1_MODE_OFSET], GPIO_OUT_TRIGGER_MODE ) || \
+															 0 == strcmp( &tmp[GPIO_OUT_1_MODE_OFSET], GPIO_OUT_COMBINE_MODE ) ) {
 
 		gpioOutDeley1 = StringToInt( &tmp[GPIO_OUT_1_DELEY_OFSET] );
 
@@ -879,8 +945,9 @@ user_init(void) {
 
 	}
 
-	if ( 0 == strcmp( &tmp[GPIO_OUT_2_MODE_OFSET], DEF_GPIO_OUT_MODE ) || \
-				                                             0 == strcmp( &tmp[GPIO_OUT_2_MODE_OFSET], GPIO_OUT_TRIGGER_MODE ) ) {
+	if ( 0 == strcmp( &tmp[GPIO_OUT_2_MODE_OFSET], GPIO_OUT_IMPULSE_MODE ) || \
+            												0 == strcmp( &tmp[GPIO_OUT_2_MODE_OFSET], GPIO_OUT_TRIGGER_MODE ) || \
+															0 == strcmp( &tmp[GPIO_OUT_2_MODE_OFSET], GPIO_OUT_COMBINE_MODE ) ) {
 
 		gpioOutDeley2 = StringToInt( &tmp[GPIO_OUT_2_DELEY_OFSET] );
 
@@ -1181,7 +1248,7 @@ initWIFI( ) {
 	if ( wifi_get_ip_info(SOFTAP_IF, &ipinfo ) ) {
 
 		ipinfo.ip.addr = ipaddr_addr( &writeFlashTmp[ DEF_IP_SOFT_AP_OFSET ] );
-		ipinfo.gw.addr = ipinfo.ip.addr;
+//		ipinfo.gw.addr = ipinfo.ip.addr;  //шлюз
 		IP4_ADDR(&ipinfo.netmask, 255, 255, 255, 0);
 
 		wifi_set_ip_info(SOFTAP_IF, &ipinfo);
@@ -1242,8 +1309,8 @@ loadDefParam( void ) {
 	memcpy( &writeFlashTmp[GPIO_OUT_1_HEADER_OFSET], GPIO_OUT_1_HEADER, sizeof(GPIO_OUT_1_HEADER) );
 	writeFlashTmp[ sizeof(GPIO_OUT_1_HEADER) + GPIO_OUT_1_HEADER_OFSET ] = '\n';
 
-	memcpy( &writeFlashTmp[GPIO_OUT_1_MODE_OFSET], DEF_GPIO_OUT_MODE, sizeof(DEF_GPIO_OUT_MODE) );
-	writeFlashTmp[ sizeof(DEF_GPIO_OUT_MODE) + GPIO_OUT_1_MODE_OFSET ] = '\n';
+	memcpy( &writeFlashTmp[GPIO_OUT_1_MODE_OFSET], GPIO_OUT_IMPULSE_MODE, sizeof(GPIO_OUT_IMPULSE_MODE) );
+	writeFlashTmp[ sizeof(GPIO_OUT_IMPULSE_MODE) + GPIO_OUT_1_MODE_OFSET ] = '\n';
 
 	memcpy( &writeFlashTmp[GPIO_OUT_1_DELEY_OFSET], DEF_GPIO_OUT_DELEY, sizeof(DEF_GPIO_OUT_DELEY) );
 	writeFlashTmp[ sizeof(DEF_GPIO_OUT_DELEY) + GPIO_OUT_1_DELEY_OFSET ] = '\n';
@@ -1252,8 +1319,8 @@ loadDefParam( void ) {
 	memcpy( &writeFlashTmp[GPIO_OUT_2_HEADER_OFSET], GPIO_OUT_2_HEADER, sizeof(GPIO_OUT_2_HEADER) );
 	writeFlashTmp[ sizeof(GPIO_OUT_2_HEADER) + GPIO_OUT_2_HEADER_OFSET ] = '\n';
 
-	memcpy( &writeFlashTmp[GPIO_OUT_2_MODE_OFSET], DEF_GPIO_OUT_MODE, sizeof(DEF_GPIO_OUT_MODE) );
-	writeFlashTmp[ sizeof(DEF_GPIO_OUT_MODE) + GPIO_OUT_2_MODE_OFSET ] = '\n';
+	memcpy( &writeFlashTmp[GPIO_OUT_2_MODE_OFSET], GPIO_OUT_IMPULSE_MODE, sizeof(GPIO_OUT_IMPULSE_MODE) );
+	writeFlashTmp[ sizeof(GPIO_OUT_IMPULSE_MODE) + GPIO_OUT_2_MODE_OFSET ] = '\n';
 
 	memcpy( &writeFlashTmp[GPIO_OUT_2_DELEY_OFSET], DEF_GPIO_OUT_DELEY, sizeof(DEF_GPIO_OUT_DELEY) );
 	writeFlashTmp[ sizeof(DEF_GPIO_OUT_DELEY) + GPIO_OUT_2_DELEY_OFSET ] = '\n';
@@ -1452,10 +1519,10 @@ broadcastBuilder( void ) {
 	memcpy( count, GPIO_1, ( sizeof( GPIO_1 ) - 1 ) );
 	count += sizeof( GPIO_1 ) - 1;
 
-	if ( 0 == strcmp( &tmpFLASH[GPIO_OUT_1_MODE_OFSET], DEF_GPIO_OUT_MODE ) ) {
+	if ( 0 == strcmp( &tmpFLASH[GPIO_OUT_1_MODE_OFSET], GPIO_OUT_IMPULSE_MODE ) ) {
 
-		memcpy( count, DEF_GPIO_OUT_MODE, ( sizeof( DEF_GPIO_OUT_MODE ) - 1 ) );
-		count += sizeof( DEF_GPIO_OUT_MODE ) - 1;
+		memcpy( count, GPIO_OUT_IMPULSE_MODE, ( sizeof( GPIO_OUT_IMPULSE_MODE ) - 1 ) );
+		count += sizeof( GPIO_OUT_IMPULSE_MODE ) - 1;
 
 		memcpy( count, DELAY_NAME, ( sizeof( DELAY_NAME ) - 1 ) );
 		count += sizeof( DELAY_NAME ) - 1;
@@ -1479,15 +1546,28 @@ broadcastBuilder( void ) {
 
 		memcpy( count, MS, ( sizeof( MS ) - 1 ) );
 		count += sizeof( MS ) - 1;
+	} else if ( 0 == strcmp( &tmpFLASH[GPIO_OUT_1_MODE_OFSET], GPIO_OUT_COMBINE_MODE ) ) {
+
+		memcpy( count, GPIO_OUT_COMBINE_MODE, ( sizeof( GPIO_OUT_COMBINE_MODE ) - 1 ) );
+		count += sizeof( GPIO_OUT_COMBINE_MODE ) - 1;
+
+		memcpy( count, DELAY_NAME, ( sizeof( DELAY_NAME ) - 1 ) );
+		count += sizeof( DELAY_NAME ) - 1;
+
+		os_sprintf( count, "%s", &tmpFLASH[ GPIO_OUT_1_DELEY_OFSET ] );
+		count += strlen( &tmpFLASH[ GPIO_OUT_1_DELEY_OFSET ] );
+
+		memcpy( count, MS, ( sizeof( MS ) - 1 ) );
+		count += sizeof( MS ) - 1;
 	}
 //================================================================
 	memcpy( count, GPIO_2, ( sizeof( GPIO_2 ) - 1 ) );
 	count += sizeof( GPIO_2 ) - 1;
 
-	if ( 0 == strcmp( &tmpFLASH[GPIO_OUT_2_MODE_OFSET], DEF_GPIO_OUT_MODE ) ) {
+	if ( 0 == strcmp( &tmpFLASH[GPIO_OUT_2_MODE_OFSET], GPIO_OUT_IMPULSE_MODE ) ) {
 
-		memcpy( count, DEF_GPIO_OUT_MODE, ( sizeof( DEF_GPIO_OUT_MODE ) - 1 ) );
-		count += sizeof( DEF_GPIO_OUT_MODE ) - 1;
+		memcpy( count, GPIO_OUT_IMPULSE_MODE, ( sizeof( GPIO_OUT_IMPULSE_MODE ) - 1 ) );
+		count += sizeof( GPIO_OUT_IMPULSE_MODE ) - 1;
 
 		memcpy( count, DELAY_NAME, ( sizeof( DELAY_NAME ) - 1 ) );
 		count += sizeof( DELAY_NAME ) - 1;
@@ -1501,6 +1581,19 @@ broadcastBuilder( void ) {
 
 		memcpy( count, GPIO_OUT_TRIGGER_MODE, ( sizeof( GPIO_OUT_TRIGGER_MODE ) - 1 ) );
 		count += sizeof( GPIO_OUT_TRIGGER_MODE ) - 1;
+
+		memcpy( count, DELAY_NAME, ( sizeof( DELAY_NAME ) - 1 ) );
+		count += sizeof( DELAY_NAME ) - 1;
+
+		os_sprintf( count, "%s", &tmpFLASH[ GPIO_OUT_2_DELEY_OFSET ] );
+		count += strlen( &tmpFLASH[ GPIO_OUT_2_DELEY_OFSET ] );
+
+		memcpy( count, MS, ( sizeof( MS ) - 1 ) );
+		count += sizeof( MS ) - 1;
+	} else if ( 0 == strcmp( &tmpFLASH[GPIO_OUT_2_MODE_OFSET], GPIO_OUT_COMBINE_MODE ) ) {
+
+		memcpy( count, GPIO_OUT_COMBINE_MODE, ( sizeof( GPIO_OUT_COMBINE_MODE ) - 1 ) );
+		count += sizeof( GPIO_OUT_COMBINE_MODE ) - 1;
 
 		memcpy( count, DELAY_NAME, ( sizeof( DELAY_NAME ) - 1 ) );
 		count += sizeof( DELAY_NAME ) - 1;
@@ -1853,15 +1946,15 @@ comandParser( void ) {
 
 	    } else if ( 0 == strcmp( tmp, TCP_GPIO_MODE_1 ) ) {                                                     //+
 
-	    	if ( 0 == strcmp( &tmp[ sizeof(TCP_GPIO_MODE_1) + 1 ], DEF_GPIO_OUT_MODE ) ) {
+	    	if ( 0 == strcmp( &tmp[ sizeof(TCP_GPIO_MODE_1) + 1 ], GPIO_OUT_IMPULSE_MODE ) ) {
 
-	    		writeFlash( GPIO_OUT_1_MODE_OFSET, DEF_GPIO_OUT_MODE );
-	    		memcpy(gpioModeOut1, DEF_GPIO_OUT_MODE, sizeof(DEF_GPIO_OUT_MODE) );
-	    		gpioOutDeley1 = StringToInt( &tmp[ sizeof(TCP_GPIO_MODE_1) + 1 + sizeof(DEF_GPIO_OUT_MODE) + 1 ] );
+	    		writeFlash( GPIO_OUT_1_MODE_OFSET, GPIO_OUT_IMPULSE_MODE );
+	    		memcpy(gpioModeOut1, GPIO_OUT_IMPULSE_MODE, sizeof(GPIO_OUT_IMPULSE_MODE) );
+	    		gpioOutDeley1 = StringToInt( &tmp[ sizeof(TCP_GPIO_MODE_1) + 1 + sizeof(GPIO_OUT_IMPULSE_MODE) + 1 ] );
 #ifdef DEBUG
 	   os_printf("gpioModeOut1 %s, gpioOutDeley1 %d ",gpioModeOut1, gpioOutDeley1);
 #endif
-	    		writeFlash( GPIO_OUT_1_DELEY_OFSET ,&tmp[ sizeof(TCP_GPIO_MODE_1) + 1 + sizeof(DEF_GPIO_OUT_MODE) + 1 ] );
+	    		writeFlash( GPIO_OUT_1_DELEY_OFSET ,&tmp[ sizeof(TCP_GPIO_MODE_1) + 1 + sizeof(GPIO_OUT_IMPULSE_MODE) + 1 ] );
 	    		tcpRespounseBuilder( TCP_OPERATION_OK );
 		    	if ( SPI_FLASH_RESULT_OK != spi_flash_read( USER_SECTOR_IN_FLASH_MEM * SPI_FLASH_SEC_SIZE, \
 		    					                                                  (uint32 *)tmpFLASH, SPI_FLASH_SEC_SIZE ) ) {
@@ -1880,6 +1973,20 @@ comandParser( void ) {
 		    	if ( SPI_FLASH_RESULT_OK != spi_flash_read( USER_SECTOR_IN_FLASH_MEM * SPI_FLASH_SEC_SIZE, \
 		    					                                                  (uint32 *)tmpFLASH, SPI_FLASH_SEC_SIZE ) ) {
 		    	}
+	    	} else if ( 0 == strcmp( &tmp[ sizeof(TCP_GPIO_MODE_1) + 1 ], GPIO_OUT_COMBINE_MODE ) ) {
+
+		    		writeFlash( GPIO_OUT_1_MODE_OFSET, GPIO_OUT_COMBINE_MODE );
+		    		memcpy(gpioModeOut1, GPIO_OUT_COMBINE_MODE, sizeof(GPIO_OUT_COMBINE_MODE) );
+		    		gpioOutDeley1 = StringToInt( &tmp[ sizeof(TCP_GPIO_MODE_1) + 1 + sizeof(GPIO_OUT_COMBINE_MODE) + 1 ] );
+#ifdef DEBUG
+	   os_printf("gpioModeOut1 %s, gpioOutDeley1 %d ",gpioModeOut1, gpioOutDeley1);
+#endif
+		    		writeFlash( GPIO_OUT_1_DELEY_OFSET ,&tmp[ sizeof(TCP_GPIO_MODE_1) + 1 + sizeof(GPIO_OUT_COMBINE_MODE) + 1 ] );
+		    		tcpRespounseBuilder( TCP_OPERATION_OK );
+			    	if ( SPI_FLASH_RESULT_OK != spi_flash_read( USER_SECTOR_IN_FLASH_MEM * SPI_FLASH_SEC_SIZE, \
+			    					                                                  (uint32 *)tmpFLASH, SPI_FLASH_SEC_SIZE ) ) {
+			    	}
+
 
 	    	} else { 																								      // error
 
@@ -1896,15 +2003,15 @@ comandParser( void ) {
 
 	    } else if ( 0 == strcmp( tmp, TCP_GPIO_MODE_2 ) ) {
 
-	    	if ( 0 == strcmp( &tmp[ sizeof(TCP_GPIO_MODE_2) + 1 ], DEF_GPIO_OUT_MODE ) ) {
+	    	if ( 0 == strcmp( &tmp[ sizeof(TCP_GPIO_MODE_2) + 1 ], GPIO_OUT_IMPULSE_MODE ) ) {
 
-	    		writeFlash( GPIO_OUT_2_MODE_OFSET, DEF_GPIO_OUT_MODE );
-	    		memcpy(gpioModeOut2, DEF_GPIO_OUT_MODE, sizeof(DEF_GPIO_OUT_MODE) );
-	    		gpioOutDeley2 = StringToInt( &tmp[ sizeof(TCP_GPIO_MODE_2) + 1 + sizeof(DEF_GPIO_OUT_MODE) + 1 ] );
+	    		writeFlash( GPIO_OUT_2_MODE_OFSET, GPIO_OUT_IMPULSE_MODE );
+	    		memcpy(gpioModeOut2, GPIO_OUT_IMPULSE_MODE, sizeof(GPIO_OUT_IMPULSE_MODE) );
+	    		gpioOutDeley2 = StringToInt( &tmp[ sizeof(TCP_GPIO_MODE_2) + 1 + sizeof(GPIO_OUT_IMPULSE_MODE) + 1 ] );
 #ifdef DEBUG
 	   os_printf("gpioModeOut2 %s, gpioOutDeley2 %d ",gpioModeOut2, gpioOutDeley2);
 #endif
-	    		writeFlash( GPIO_OUT_2_DELEY_OFSET ,&tmp[ sizeof(TCP_GPIO_MODE_2) + 1 + sizeof(DEF_GPIO_OUT_MODE) + 1 ] );
+	    		writeFlash( GPIO_OUT_2_DELEY_OFSET ,&tmp[ sizeof(TCP_GPIO_MODE_2) + 1 + sizeof(GPIO_OUT_IMPULSE_MODE) + 1 ] );
 	    		tcpRespounseBuilder( TCP_OPERATION_OK );
 		    	if ( SPI_FLASH_RESULT_OK != spi_flash_read( USER_SECTOR_IN_FLASH_MEM * SPI_FLASH_SEC_SIZE, \
 		    					                                                  (uint32 *)tmpFLASH, SPI_FLASH_SEC_SIZE ) ) {
@@ -1919,6 +2026,20 @@ comandParser( void ) {
 	    os_printf("gpioModeOut2 %s, gpioOutDeley2 %d ",gpioModeOut2, gpioOutDeley2);
 #endif
 	    		writeFlash( GPIO_OUT_2_DELEY_OFSET ,&tmp[ sizeof(TCP_GPIO_MODE_2) + 1 + sizeof(GPIO_OUT_TRIGGER_MODE) + 1 ] );
+	    		tcpRespounseBuilder( TCP_OPERATION_OK );
+		    	if ( SPI_FLASH_RESULT_OK != spi_flash_read( USER_SECTOR_IN_FLASH_MEM * SPI_FLASH_SEC_SIZE, \
+		    					                                                  (uint32 *)tmpFLASH, SPI_FLASH_SEC_SIZE ) ) {
+		    	}
+
+	    	} else if ( 0 == strcmp( &tmp[ sizeof(TCP_GPIO_MODE_2) + 1 ], GPIO_OUT_COMBINE_MODE ) ) {
+
+	    		writeFlash( GPIO_OUT_2_MODE_OFSET, GPIO_OUT_COMBINE_MODE );
+	    		memcpy(gpioModeOut2, GPIO_OUT_COMBINE_MODE, sizeof(GPIO_OUT_COMBINE_MODE) );
+	    		gpioOutDeley2 = StringToInt( &tmp[ sizeof(TCP_GPIO_MODE_2) + 1 + sizeof(GPIO_OUT_COMBINE_MODE) + 1 ] );
+#ifdef DEBUG
+	    os_printf("gpioModeOut2 %s, gpioOutDeley2 %d ",gpioModeOut2, gpioOutDeley2);
+#endif
+	    		writeFlash( GPIO_OUT_2_DELEY_OFSET ,&tmp[ sizeof(TCP_GPIO_MODE_2) + 1 + sizeof(GPIO_OUT_COMBINE_MODE) + 1 ] );
 	    		tcpRespounseBuilder( TCP_OPERATION_OK );
 		    	if ( SPI_FLASH_RESULT_OK != spi_flash_read( USER_SECTOR_IN_FLASH_MEM * SPI_FLASH_SEC_SIZE, \
 		    					                                                  (uint32 *)tmpFLASH, SPI_FLASH_SEC_SIZE ) ) {

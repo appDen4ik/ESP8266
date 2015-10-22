@@ -115,19 +115,19 @@
 *					broadcastName name OPERATION_OK\r\n
 *					broadcastName name OPERATION_FAIL\r\n
 *
-* - gpioMode_1 Trigger/Impulse delay\r\n
+* - gpioMode_1 Trigger/Impulse/Combine delay\r\n
 * 					«адать режим работы out1 Trigger/Impulse, и установить таймаут delay ms.
 * 					(врем€ приблизительное)
 * 					ќтвет
-* 					gpioMode_1 Trigger/Impulse delay OPERATION_OK\r\n
-* 					gpioMode_1 Trigger/Impulse delay OPERATION_FAIL\r\n
+* 					gpioMode_1 Trigger/Impulse/Combine delay OPERATION_OK\r\n
+* 					gpioMode_1 Trigger/Impulse/Combine delay OPERATION_FAIL\r\n
 *
-* - gpioMode_2 Trigger/Impulse delay\r\n
+* - gpioMode_2 Trigger/Impulse/Combine delay\r\n
 *					«адать режим работы out2 Trigger/Impulse, и установить таймаут delay ms.
 *					(врем€ приблизительное)
 * 					ќтвет
-* 					gpioMode_2 Trigger/Impulse delay OPERATION_OK\r\n
-* 					gpioMode_2 Trigger/Impulse delay OPERATION_FAIL\r\n
+* 					gpioMode_2 Trigger/Impulse/Combine delay OPERATION_OK\r\n
+* 					gpioMode_2 Trigger/Impulse/Combine delay OPERATION_FAIL\r\n
 *
 * - enableGpio_1\r\n
 * 					enableGpio1 OPERATION_OK\r\n
@@ -215,16 +215,16 @@
  *  1000................1012
  * |   GPIO OUT 1:\0   | \n |              header
  *  1013...................1021
- * |   Trigger\Impulse\0  | \n |           режим работы
+ * |   Trigger/Impulse/Combine\0  | \n |           режим работы
  *  1022.............1031
- * |    deley \0    | \n |                 ms, кратное 10
+ * |    deley\0    | \n |                 ms, кратное 10
  *
   *  1200................1212
  * |   GPIO OUT 2:\0   | \n |              header
  *  1213...................1221
- * |   Trigger\Impulse\0  | \n |           режим работы
+ * |   Trigger/Impulse/Combine\0  | \n |           режим работы
  *  1222.............1231
- * |    deley \0    | \n |                 ms, кратное 10
+ * |    deley\0    | \n |                 ms, кратное 10
  *
  *
  *  1400....................1416
@@ -279,8 +279,9 @@
 #define  GPIO_OUT_2_MODE_OFSET		1213
 #define  GPIO_OUT_2_DELEY_OFSET		1222
 
-#define DEF_GPIO_OUT_MODE    	"Impulse"
+#define GPIO_OUT_IMPULSE_MODE    "Impulse"
 #define GPIO_OUT_TRIGGER_MODE	"Trigger"
+#define GPIO_OUT_COMBINE_MODE	"Combine"
 #define DEF_GPIO_OUT_DELEY	 	"1000"
 
 #define BROADCAST_NAME_HEADER			"BROADCAST NAME:"
