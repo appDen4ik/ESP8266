@@ -347,7 +347,6 @@ tcp_sentcb( void *arg ) { // data sent
 
 //**********************************************************************************************************************************
 
-
 res ICACHE_FLASH_ATTR
 writeFlash( uint16_t where, uint8_t *what ) {
 
@@ -725,6 +724,7 @@ mScheduler(char *datagram, uint16 size) {
 		    	os_printf( "routerPWD %s ", routerPWD );
 		    	os_printf( "Broadcast port %s ", &tmpFLASH[DEF_UDP_PORT_OFSET] );
 				os_printf( "%s ", broadcastShift );
+				system_restart();
 				GPIO_OUTPUT_SET(LED_GPIO, ledState);
 				ledState ^=1;
 				break;
@@ -755,6 +755,20 @@ user_init(void) {
 	uint8_t clearStatus[ sizeof(CLEAR_DB_STATUS) ];
 
 	initPeriph();
+
+ 	ets_wdt_disable();
+   	system_soft_wdt_stop();
+
+   	system_phy_set_max_tpw(82);
+
+	os_printf("OS reset status: %d", system_get_rst_info()->reason ); //после падения сервера через soft AP
+	 if ( system_get_rst_info()->reason != REASON_SOFT_RESTART \
+			 && system_get_rst_info()->reason !=  REASON_DEFAULT_RST) {	// необходима еще одна перезагрузка
+		// system_soft_wdt_restart();
+//		 ets_wdt_enable();
+//		 	 system_restart();
+//		 	 while(1);
+	 }
 
 	os_printf( " module version 0.0.1 ");
 
@@ -898,6 +912,7 @@ user_init(void) {
 
 
  if ( 0 == GPIO_INPUT_GET(INP_3_PIN) ) {
+
 	uint16_t c, currentSector;
 	uint32_t i;
 
@@ -1047,9 +1062,12 @@ user_init(void) {
 #endif
 
     	ets_wdt_init();
+    	ets_wdt_disable();
    	    ets_wdt_enable();
+   	    system_soft_wdt_stop();
         system_soft_wdt_restart();
 
+        wifi_station_set_reconnect_policy(true);
 
 	// os_timer_disarm(ETSTimer *ptimer)
 	os_timer_disarm(&task_timer);

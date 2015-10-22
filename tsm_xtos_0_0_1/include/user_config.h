@@ -305,7 +305,7 @@
 //***********************************************************************************************************************************
 // wifi AP parameters
 #define DEF_CHANEL      7
-#define DEF_AUTH		AUTH_WPA_WPA2_PSK
+#define DEF_AUTH		AUTH_WPA2_PSK
 #define MAX_CON			4
 #define NO_HIDDEN 		0
 #define BEACON_INT		100
