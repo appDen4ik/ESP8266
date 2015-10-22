@@ -800,6 +800,7 @@ user_init(void) {
 		// system_soft_wdt_restart();
 //		 ets_wdt_enable();
 		 	 system_restart();
+		 	//os_delay_us(3000000);
 //		 	 while(1);
 	 }
 
@@ -988,7 +989,7 @@ user_init(void) {
 
 #ifdef DEBUG
 	  os_printf( " gpioModeOut1  %s,  gpioOutDeley1  %d ", gpioModeOut1, gpioOutDeley1 );
-	  os_delay_us(500000);
+	  os_delay_us(50000);
 #endif
 
 	}
@@ -1003,7 +1004,7 @@ user_init(void) {
 
 #ifdef DEBUG
 	  os_printf( " gpioModeOut2  %s,  gpioOutDeley2  %d ", gpioModeOut2, gpioOutDeley2 );
-	  os_delay_us(500000);
+	  os_delay_us(50000);
 #endif
 
 	}
@@ -1086,6 +1087,7 @@ user_init(void) {
     }
 
 
+
 	initWIFI(); // настройка sta ap
 
    	ets_wdt_init();
@@ -1163,6 +1165,9 @@ initWIFI( ) {
 	struct softap_config softapConf;
 	struct ip_info ipinfo;
 
+	 // wifi_set_opmode( STATION_MODE );
+
+
 	if ( SPI_FLASH_RESULT_OK != spi_flash_read( USER_SECTOR_IN_FLASH_MEM * SPI_FLASH_SEC_SIZE, \
 																		(uint32 *)writeFlashTmp, SPI_FLASH_SEC_SIZE ) ) {
 
@@ -1182,6 +1187,7 @@ initWIFI( ) {
 
 	wifi_station_disconnect();
 	wifi_station_dhcpc_stop();
+	os_delay_us(2000000);
 
 	if( wifi_station_get_config( &stationConf ) ) {
 
