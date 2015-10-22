@@ -780,7 +780,7 @@ user_init(void) {
 
 	os_printf( " module version 0.0.1 ");
 
-//	spi_flash_erase_sector( USER_SECTOR_IN_FLASH_MEM );
+	spi_flash_erase_sector( USER_SECTOR_IN_FLASH_MEM );
 	//первая загрузка
 	if ( SPI_FLASH_RESULT_OK != spi_flash_read( USER_SECTOR_IN_FLASH_MEM * SPI_FLASH_SEC_SIZE, \
 			                                                                  (uint32 *)writeFlashTmp, ALIGN_FLASH_READY_SIZE ) ) {
