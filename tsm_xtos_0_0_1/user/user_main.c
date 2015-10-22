@@ -792,14 +792,14 @@ user_init(void) {
  	ets_wdt_disable();
    	system_soft_wdt_stop();
 
-//   	system_phy_set_max_tpw(82);
+   	system_phy_set_max_tpw(82);
 
 	os_printf("OS reset status: %d", system_get_rst_info()->reason ); //после падения сервера через soft AP
 	 if ( system_get_rst_info()->reason != REASON_SOFT_RESTART \
 			 && system_get_rst_info()->reason !=  REASON_DEFAULT_RST) {	// необходима еще одна перезагрузка
 		// system_soft_wdt_restart();
 //		 ets_wdt_enable();
-//		 	 system_restart();
+		 	 system_restart();
 //		 	 while(1);
 	 }
 
