@@ -1075,7 +1075,7 @@ user_init(void) {
    	    system_soft_wdt_stop();
         system_soft_wdt_restart();
 
-//        wifi_station_set_reconnect_policy(true);
+        wifi_station_set_reconnect_policy(true);
 
 	// os_timer_disarm(ETSTimer *ptimer)
 	os_timer_disarm(&task_timer);
