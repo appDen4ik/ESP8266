@@ -1131,7 +1131,7 @@ initPeriph( ) {
 	ets_wdt_disable();
 
 	system_soft_wdt_stop();
-	system_soft_wdt_restart();
+//	system_soft_wdt_restart();
 
 	uart_init(BIT_RATE_115200, BIT_RATE_115200);
 
