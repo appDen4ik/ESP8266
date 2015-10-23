@@ -97,7 +97,7 @@ LOCAL struct espconn broadcast;
 LOCAL uint8_t ledState = 0;
 LOCAL uint32_t broadcastTmr;
 LOCAL uint8_t *broadcastShift;
-LOCAL uint8_t brodcastMessage[300] = { 0 };
+LOCAL uint8_t brodcastMessage[500] = { 0 };
 
 //**********************************************************************************************************************************
 
@@ -199,7 +199,7 @@ tcp_recvcb( void *arg, char *pdata, unsigned short len ) { // data received
     		memcpy( tmp, TCP_NOT_ENOUGH_MEMORY, ( sizeof(TCP_NOT_ENOUGH_MEMORY) ) );
     		tmp[ sizeof(TCP_NOT_ENOUGH_MEMORY) ] = '\r';
     		tmp[ sizeof(TCP_NOT_ENOUGH_MEMORY) + 1 ] = '\n';
-    		espconn_sent( pespconn, tmp, ( sizeof( TCP_NOT_ENOUGH_MEMORY ) + 2 ) );
+    		espconn_send( pespconn, tmp, ( sizeof( TCP_NOT_ENOUGH_MEMORY ) + 2 ) );
     	}
 
     } else if ( (uint32)( conn->proto.tcp->remote_ip[0] ) == (uint32)( pespconn->proto.tcp->remote_ip[0]) ) {
@@ -214,14 +214,14 @@ tcp_recvcb( void *arg, char *pdata, unsigned short len ) { // data received
     		memcpy( tmp, TCP_NOT_ENOUGH_MEMORY, ( sizeof(TCP_NOT_ENOUGH_MEMORY) ) );
     		tmp[ sizeof(TCP_NOT_ENOUGH_MEMORY) ] = '\r';
     		tmp[ sizeof(TCP_NOT_ENOUGH_MEMORY) + 1 ] = '\n';
-    		espconn_sent( pespconn, tmp, ( sizeof( TCP_NOT_ENOUGH_MEMORY ) + 2 ) );
+    		espconn_send( pespconn, tmp, ( sizeof( TCP_NOT_ENOUGH_MEMORY ) + 2 ) );
     	}
     }
    }
 }
 
-// espconn_sent(arg, tmp, strlen(tmp));
 
+// espconn_sent(arg, tmp, strlen(tmp));
 LOCAL void ICACHE_FLASH_ATTR
 tcp_connectcb( void *arg ) { // TCP connected successfully
 
@@ -244,7 +244,7 @@ tcp_connectcb( void *arg ) { // TCP connected successfully
 
 		uint8_t erB[] = { 'B', 'U', 'S', 'Y', '\0', '\r', '\n' };
 		marker = mSET;
-		espconn_sent( conn, erB, sizeof(erB) );
+		espconn_send( conn, erB, sizeof(erB) );
 #ifdef DEBUG
 		os_printf( " |tcp_connectcb ip : %d.%d.%d.%d Connect busy...\r\n| ",  IP2STR( ( (struct espconn *) arg)->proto.tcp->remote_ip ) );
 #endif
@@ -252,14 +252,13 @@ tcp_connectcb( void *arg ) { // TCP connected successfully
 
 		uint8_t erB[] = { 'B', 'U', 'S', 'Y', '\0', '\r', '\n' };
 
-		espconn_sent( conn, erB, sizeof(erB) );
+		espconn_send( conn, erB, sizeof(erB) );
 #ifdef DEBUG
 		os_printf( " |tcp_connectcb ip : %d.%d.%d.%d Connect busy...\r\n| ",  IP2STR( ( (struct espconn *) arg)->proto.tcp->remote_ip ) );
 #endif
 	}
 
 }
-
 
 
 LOCAL void ICACHE_FLASH_ATTR
@@ -546,11 +545,11 @@ mScheduler(char *datagram, uint16 size) {
 //************************************************************************************
 	if ( ENABLE == gpioStatusOut1 ) {
 #ifdef DEBUG
-		os_printf(" |mScheduler gpioStatusOut1 = ENABLE| ");
+//		os_printf(" |mScheduler gpioStatusOut1 = ENABLE| ");
 #endif
 		if (  0 == strcmp( gpioModeOut1, GPIO_OUT_COMBINE_MODE ) ) {
 #ifdef DEBUG
-		os_printf(" |mScheduler gpioModeOut1 = GPIO_OUT_COMBINE_MODE, gpioOutDeley1 = %dms, gpioOutDeley1Counter = %dms| " \
+//		os_printf(" |mScheduler gpioModeOut1 = GPIO_OUT_COMBINE_MODE, gpioOutDeley1 = %dms, gpioOutDeley1Counter = %dms| " \
 				                              , gpioOutDeley1, gpioOutDeley1Counter);
 #endif
 			if ( gpioOutDeley1Counter < gpioOutDeley1 && GPIO_INPUT_GET(INP_2_PIN) ) {
@@ -558,7 +557,7 @@ mScheduler(char *datagram, uint16 size) {
 				GPIO_OUTPUT_SET(OUT_1_GPIO, 1);
 			} else {
 #ifdef DEBUG
-		os_printf(" |mScheduler GPIO_OUT_COMBINE_MODE gpioStatusOut1 = DISABLE| ");
+//		os_printf(" |mScheduler GPIO_OUT_COMBINE_MODE gpioStatusOut1 = DISABLE| ");
 #endif
 				GPIO_OUTPUT_SET(OUT_1_GPIO, 0);
 				gpioOutDeley1Counter = 0;
@@ -566,12 +565,12 @@ mScheduler(char *datagram, uint16 size) {
 			}
 		} else if ( 0 == strcmp( gpioModeOut1, GPIO_OUT_TRIGGER_MODE) ) {
 #ifdef DEBUG
-		os_printf(" |mScheduler gpioModeOut1 = GPIO_OUT_TRIGGER_MODE| ");
+//		os_printf(" |mScheduler gpioModeOut1 = GPIO_OUT_TRIGGER_MODE| ");
 #endif
 			GPIO_OUTPUT_SET(OUT_1_GPIO, 1);
 			if ( !GPIO_INPUT_GET(INP_2_PIN) ) {
 #ifdef DEBUG
-		os_printf(" |mScheduler GPIO_OUT_TRIGGER_MODE gpioStatusOut1 = DISABLE| ");
+//		os_printf(" |mScheduler GPIO_OUT_TRIGGER_MODE gpioStatusOut1 = DISABLE| ");
 #endif
 					GPIO_OUTPUT_SET(OUT_1_GPIO, 0);
 					gpioOutDeley1Counter = 0;
@@ -579,7 +578,7 @@ mScheduler(char *datagram, uint16 size) {
 			}
 		} else if ( 0 == strcmp( gpioModeOut1, GPIO_OUT_IMPULSE_MODE) ) {
 #ifdef DEBUG
-		os_printf(" |mScheduler gpioModeOut1 = GPIO_OUT_IMPULSE_MODE, gpioOutDeley1 = %dms, gpioOutDeley1Counter = %dms| "\
+//		os_printf(" |mScheduler gpioModeOut1 = GPIO_OUT_IMPULSE_MODE, gpioOutDeley1 = %dms, gpioOutDeley1Counter = %dms| "\
 				                                                       , gpioOutDeley1, gpioOutDeley1Counter);
 #endif
 			if ( gpioOutDeley1Counter < gpioOutDeley1 ) {
@@ -588,7 +587,7 @@ mScheduler(char *datagram, uint16 size) {
 
 			} else {
 #ifdef DEBUG
-		os_printf(" |mScheduler GPIO_OUT_IMPULSE_MODE gpioStatusOut1 = DISABLE| ");
+//		os_printf(" |mScheduler GPIO_OUT_IMPULSE_MODE gpioStatusOut1 = DISABLE| ");
 #endif
 				GPIO_OUTPUT_SET(OUT_1_GPIO, 0);
 				gpioOutDeley1Counter = 0;
@@ -599,11 +598,11 @@ mScheduler(char *datagram, uint16 size) {
 
 	if ( ENABLE == gpioStatusOut2 ) {
 #ifdef DEBUG
-		os_printf(" |mScheduler gpioStatusOut2 = ENABLE| ");
+//		os_printf(" |mScheduler gpioStatusOut2 = ENABLE| ");
 #endif
 		if ( 0 == strcmp( gpioModeOut2, GPIO_OUT_COMBINE_MODE) ) {
 #ifdef DEBUG
-		os_printf(" |mScheduler gpioModeOut2 = GPIO_OUT_COMBINE_MODE, gpioOutDeley2 = %dms, gpioOutDeley2Counter = %d| " \
+//		os_printf(" |mScheduler gpioModeOut2 = GPIO_OUT_COMBINE_MODE, gpioOutDeley2 = %dms, gpioOutDeley2Counter = %d| " \
 				                                                      , gpioOutDeley2, gpioOutDeley2);
 #endif
 			if ( gpioOutDeley2Counter < gpioOutDeley2 && GPIO_INPUT_GET(INP_4_PIN) ) {
@@ -617,11 +616,11 @@ mScheduler(char *datagram, uint16 size) {
 		} else if ( 0 == strcmp( gpioModeOut2, GPIO_OUT_TRIGGER_MODE ) ) {
 			GPIO_OUTPUT_SET(OUT_2_GPIO, 1);
 #ifdef DEBUG
-		os_printf(" |mScheduler gpioModeOut2 = GPIO_OUT_TRIGGER_MODE| ");
+//		os_printf(" |mScheduler gpioModeOut2 = GPIO_OUT_TRIGGER_MODE| ");
 #endif
 			if ( !GPIO_INPUT_GET(INP_4_PIN) ) {
 #ifdef DEBUG
-		os_printf(" |mScheduler GPIO_OUT_TRIGGER_MODE gpioStatusOut2 = DISABLE| ");
+//		os_printf(" |mScheduler GPIO_OUT_TRIGGER_MODE gpioStatusOut2 = DISABLE| ");
 #endif
 				GPIO_OUTPUT_SET(OUT_2_GPIO, 0);
 				gpioOutDeley2Counter = 0;
@@ -630,7 +629,7 @@ mScheduler(char *datagram, uint16 size) {
 
 		} else if ( 0 == strcmp( gpioModeOut2, GPIO_OUT_IMPULSE_MODE) ) {
 #ifdef DEBUG
-		os_printf(" |mScheduler gpioModeOut2 = GPIO_OUT_IMPULSE_MODE, gpioOutDeley2 = %dms, gpioOutDeley2Counter = %dms| "\
+//		os_printf(" |mScheduler gpioModeOut2 = GPIO_OUT_IMPULSE_MODE, gpioOutDeley2 = %dms, gpioOutDeley2Counter = %dms| "\
 				                                                       , gpioOutDeley2, gpioOutDeley2Counter);
 #endif
 			if ( gpioOutDeley2Counter < gpioOutDeley2 ) {
@@ -646,7 +645,7 @@ mScheduler(char *datagram, uint16 size) {
 
 	if ( broadcastTmr >= BROADCAST_TIMER ) {
 
-//	    struct station_info * station = wifi_softap_get_station_info();
+	    struct station_info * station = wifi_softap_get_station_info();
 
 		broadcastTmr = 0;
 
@@ -655,23 +654,44 @@ mScheduler(char *datagram, uint16 size) {
 		os_timer_disarm(&task_timer);
 
 		// Внутрення сеть
-/*		while ( station ) {
+		while ( station ) {
 
 			IP4_ADDR( (ip_addr_t *)brodcastSSA.proto.udp->remote_ip, (uint8_t)(station->ip.addr), (uint8_t)(station->ip.addr >> 8),\
 															(uint8_t)(station->ip.addr >> 16), (uint8_t)(station->ip.addr >> 24) );
 #ifdef DEBUG
 		os_printf( "bssid : %x:%x:%x:%x:%x:%x ip : %d.%d.%d.%d ", MAC2STR(station->bssid), IP2STR(&station->ip) );
 #endif
-*/
+
+		    brodcastSSA.proto.udp->remote_port = StringToInt( &tmpFLASH[DEF_UDP_PORT_OFSET] );
+/*	    	IP4_ADDR( (ip_addr_t *)brodcastSSA.proto.udp->remote_ip, (uint8_t)( ipaddr_addr( &tmpFLASH[ DEF_IP_SOFT_AP_OFSET ] ) ), \
+	    												(uint8_t)( ipaddr_addr( &tmpFLASH[ DEF_IP_SOFT_AP_OFSET ] ) >> 8 ),\
+														(uint8_t)( ipaddr_addr( &tmpFLASH[ DEF_IP_SOFT_AP_OFSET ] ) >> 16 ), 255 );*/
 			espconn_create(&brodcastSSA);
-			espconn_sent(&brodcastSSA, brodcastMessage, strlen(brodcastMessage));
+			switch ( espconn_send(&brodcastSSA, brodcastMessage, strlen(brodcastMessage)) ) {
+				case ESPCONN_OK:
+					os_printf( " |esp soft AP  broadcast succeed| " );
+					break;
+				case ESPCONN_MEM:
+					os_printf( " |esp soft AP  broadcast out of memory| " );
+					break;
+				case ESPCONN_ARG:
+					os_printf( " |esp soft AP  broadcast illegal argument| " );
+					break;
+				case ESPCONN_IF:
+					os_printf( " |esp soft AP  broadcast send UDP fail| " );
+					break;
+				case ESPCONN_MAXNUM:
+					os_printf( " |esp soft AP  broadcast buffer of sending data is full| " );
+					break;
+
+			}
 			espconn_delete(&brodcastSSA);
 
-/*			station = STAILQ_NEXT(station, next);
+			station = STAILQ_NEXT(station, next);
 		}
 
 		wifi_softap_free_station_info();
-*/
+
 			struct station_config stationConf;
 			 wifi_station_get_config( &stationConf );
 			 os_printf( " stationConf.ssid  %s ", stationConf.ssid, &stationConf.ssid );
@@ -704,8 +724,26 @@ mScheduler(char *datagram, uint16 size) {
 						os_printf( "Broadcast port %s ", &tmpFLASH[DEF_UDP_PORT_OFSET] );
 						os_printf( "%s ", brodcastMessage );
 
+
 						espconn_create(&broadcast);
-						espconn_sent(&broadcast, brodcastMessage, strlen(brodcastMessage));
+						switch ( espconn_send(&broadcast, brodcastMessage, strlen(brodcastMessage)) ) {
+							case ESPCONN_OK:
+								os_printf( " |esp STA  broadcast succeed| " );
+								break;
+							case ESPCONN_MEM:
+								os_printf( " |esp STA  broadcast out of memory| " );
+								break;
+							case ESPCONN_ARG:
+								os_printf( " |esp STA  broadcast illegal argument| " );
+								break;
+							case ESPCONN_IF:
+								os_printf( " |esp STA  broadcast send UDP fail| " );
+								break;
+							case ESPCONN_MAXNUM:
+								os_printf( " |esp STA  broadcast buffer of sending data is full| " );
+								break;
+
+						}
 						espconn_delete(&broadcast);
 					}
 				}
@@ -744,6 +782,7 @@ mScheduler(char *datagram, uint16 size) {
 				break;
 			default:
 				ets_uart_printf("WiFi connecting...\r\n ");
+
 				os_delay_us(1000);
 		    	os_printf( "routerSSID %s ", routerSSID );
 		    	os_printf( "routerPWD %s ", routerPWD );
@@ -774,15 +813,16 @@ config(void) {
    	system_soft_wdt_stop();
     system_soft_wdt_restart();
 
-//    wifi_station_set_reconnect_policy(true);
+
 
 	// os_timer_disarm(ETSTimer *ptimer)
-//	os_timer_disarm(&task_timer);
+	os_timer_disarm(&task_timer);
 	// os_timer_setfn(ETSTimer *ptimer, ETSTimerFunc *pfunction, void *parg)
-//	os_timer_setfn(&task_timer, (os_timer_func_t *)mScheduler, (void *)0);
+		os_timer_setfn(&task_timer, (os_timer_func_t *)mScheduler, (void *)0);
 	// void os_timer_arm(ETSTimer *ptimer,uint32_t milliseconds, bool repeat_flag)
-//	os_timer_arm(&task_timer, DELAY, 0);
+	os_timer_arm(&task_timer, DELAY, 0);
 }
+
 
 void ICACHE_FLASH_ATTR
 user_init(void) {
@@ -794,19 +834,20 @@ user_init(void) {
  	ets_wdt_disable();
    	system_soft_wdt_stop();
 
-   	system_phy_set_max_tpw(2);
+
 
 	os_printf("OS reset status: %d", system_get_rst_info()->reason ); //после падения сервера через soft AP
 	 if ( system_get_rst_info()->reason != REASON_SOFT_RESTART \
 			 && system_get_rst_info()->reason !=  REASON_DEFAULT_RST) {	// необходима еще одна перезагрузка
 		// system_soft_wdt_restart();
 //		 ets_wdt_enable();
-		 	 system_restart();
+		// 	 system_restart();
 		 	//os_delay_us(3000000);
 //		 	 while(1);
 	 }
 
-	os_printf( " module version 0.0.1 ");
+    os_printf( " sdk version: %s \n", system_get_sdk_version() );
+	os_printf( " module version 0.1 ");
 
 //	spi_flash_erase_sector( USER_SECTOR_IN_FLASH_MEM );
 	//первая загрузка
@@ -946,7 +987,6 @@ user_init(void) {
 
 	}*/
 
-
  if ( 0 == GPIO_INPUT_GET(INP_3_PIN) )  {
 
 	uint16_t c, currentSector;
@@ -964,7 +1004,6 @@ user_init(void) {
 	}
 }
 //-----------------------------------------------------------------------------------------------------------------------------------------------------------------
-
 
  //wifi_set_opmode_current (NULL_MODE);
 	// broadcast
@@ -1075,28 +1114,32 @@ user_init(void) {
 
      //udp клиент AP
 
-
     	brodcastSSA.type = ESPCONN_UDP;
     	brodcastSSA.state = ESPCONN_NONE;
     	brodcastSSA.proto.udp = &udpSTA;
     	brodcastSSA.proto.udp->remote_port = StringToInt( &writeFlashTmp[DEF_UDP_PORT_OFSET] );
     	IP4_ADDR( (ip_addr_t *)brodcastSSA.proto.udp->remote_ip, (uint8_t)( ipaddr_addr( &writeFlashTmp[ DEF_IP_SOFT_AP_OFSET ] ) ), \
-    															 (uint8_t)( ipaddr_addr( &writeFlashTmp[ DEF_IP_SOFT_AP_OFSET ] ) >> 8 ),\
-																 (uint8_t)( ipaddr_addr( &writeFlashTmp[ DEF_IP_SOFT_AP_OFSET ] ) >> 16 ), 255 );
+    												(uint8_t)( ipaddr_addr( &writeFlashTmp[ DEF_IP_SOFT_AP_OFSET ] ) >> 8 ),\
+													(uint8_t)( ipaddr_addr( &writeFlashTmp[ DEF_IP_SOFT_AP_OFSET ] ) >> 16 ), 255 );
 #ifdef DEBUG
     	os_printf( "brodcastSSA.proto.udp->remote_ip %d.%d.%d.%d ", IP2STR(brodcastSSA.proto.udp->remote_ip) );
 #endif
     }
 
-
-
-	initWIFI(); // настройка sta ap
+/*	initWIFI();
 
    	ets_wdt_init();
     ets_wdt_disable();
    	system_soft_wdt_stop();
    	ets_wdt_enable();
-    system_soft_wdt_restart();
+    system_soft_wdt_restart();*/
+
+	if(wifi_station_get_auto_connect() == 0) {
+
+			wifi_station_set_auto_connect(1);
+	}
+
+    wifi_station_set_reconnect_policy(true);
 
     memcpy( routerSSID, &writeFlashTmp[SSID_STA_OFSET], strlen(&writeFlashTmp[SSID_STA_OFSET]) + 1 );
     memcpy( routerPWD, &writeFlashTmp[PWD_STA_OFSET], strlen(&writeFlashTmp[PWD_STA_OFSET]) + 1 );
@@ -1110,7 +1153,7 @@ user_init(void) {
 	// os_timer_disarm(ETSTimer *ptimer)
     os_timer_disarm(&task_timer);
 	// os_timer_setfn(ETSTimer *ptimer, ETSTimerFunc *pfunction, void *parg)
-	os_timer_setfn(&task_timer, (os_timer_func_t *)mScheduler, (void *)0);
+	os_timer_setfn(&task_timer, (os_timer_func_t *)config, (void *)0);
 	// void os_timer_arm(ETSTimer *ptimer,uint32_t milliseconds, bool repeat_flag)
 	os_timer_arm(&task_timer, DELAY, 0);
 
@@ -1124,7 +1167,7 @@ initPeriph( ) {
 	ets_wdt_disable();
 
 	system_soft_wdt_stop();
-//	system_soft_wdt_restart();
+	system_soft_wdt_restart();
 
 	uart_init(BIT_RATE_115200, BIT_RATE_115200);
 
@@ -1189,7 +1232,6 @@ initWIFI( ) {
 
 	wifi_station_disconnect();
 	wifi_station_dhcpc_stop();
-	os_delay_us(2000000);
 
 	if( wifi_station_get_config( &stationConf ) ) {
 
@@ -1215,7 +1257,7 @@ initWIFI( ) {
 		  stationConf.bssid_set = 0;
 	  }
 
-	 if ( !wifi_station_set_config( &stationConf ) ) {
+	 if ( !wifi_station_set_config( &stationConf ) || !wifi_station_set_config_current( &stationConf ) ) {
 
 		 ets_uart_printf("Module not set station config!\r\n ");
 	 }
@@ -1227,12 +1269,17 @@ initWIFI( ) {
 
 	wifi_station_connect();
 	wifi_station_dhcpc_start();
-//	wifi_station_set_auto_connect(1);
 
 
 	if ( wifi_softap_get_config( &softapConf ) ) {
 
 		wifi_softap_dhcps_stop();
+/*	    ets_wdt_disable();
+	   	system_soft_wdt_stop();
+		os_delay_us(2000000);
+	   	ets_wdt_init();
+	   	ets_wdt_enable();
+	    system_soft_wdt_restart();*/
 
 		if ( 0 != strcmp( softapConf.ssid, &writeFlashTmp[ SSID_AP_OFSET ] ) ) {
 
@@ -1323,17 +1370,12 @@ initWIFI( ) {
 
 		wifi_softap_dhcps_start();
 
-		if(wifi_station_get_auto_connect() == 0) {
-
-				wifi_station_set_auto_connect(1);
-		}
 		if(wifi_get_phy_mode() != PHY_MODE_11N) {
 
 				wifi_set_phy_mode(PHY_MODE_11N);
 		}
 
 }
-
 
 
 void ICACHE_FLASH_ATTR
@@ -1418,6 +1460,13 @@ loadDefParam( void ) {
 	memcpy( &writeFlashTmp[CLEAR_DB_STATUS_OFSET], CLEAR_DB_STATUS_EMPTY, sizeof(CLEAR_DB_STATUS_EMPTY) );
 	writeFlashTmp[ sizeof(CLEAR_DB_STATUS_EMPTY) + CLEAR_DB_STATUS_OFSET ] = '\n';
 
+
+	memcpy( &writeFlashTmp[MAX_TPW_HEADER_OFSET], MAX_TPW_HEADER, sizeof(MAX_TPW_HEADER) );
+	writeFlashTmp[ sizeof(MAX_TPW_HEADER) + MAX_TPW_HEADER_OFSET ] = '\n';
+
+	memcpy( &writeFlashTmp[MAX_TPW_VALUE_OFSET], MAX_TPW_DEFAULT_VALUE, sizeof(MAX_TPW_DEFAULT_VALUE) );
+		writeFlashTmp[ sizeof(MAX_TPW_DEFAULT_VALUE) + MAX_TPW_VALUE_OFSET ] = '\n';
+
 	if ( SPI_FLASH_RESULT_OK != spi_flash_write( USER_SECTOR_IN_FLASH_MEM * SPI_FLASH_SEC_SIZE, \
 																				(uint32 *)writeFlashTmp, SPI_FLASH_SEC_SIZE ) ) {
 
@@ -1427,7 +1476,6 @@ loadDefParam( void ) {
 
 		system_restore();
 }
-
 
 // Перевод числа в последовательность ASCII
 uint8_t * ICACHE_FLASH_ATTR
@@ -1463,7 +1511,6 @@ StringToInt(uint8_t *data) {
 }
 
 // Перевод шестнадцетиричного числа в последовательность ASCII
-
 uint8_t * ICACHE_FLASH_ATTR
 intToStringHEX(uint8_t data, uint8_t *adressDestenation) {
 	if ( ( data >> 4 ) < 10 ) {
@@ -1479,17 +1526,23 @@ intToStringHEX(uint8_t data, uint8_t *adressDestenation) {
 	return adressDestenation;
 }
 
-
 // broadcast message:
 //          "name:" + " " + nameSTA +
 //          + " " + mac: + " " + wifi_get_macaddr() +
-//          + " " + ip: + " " + wifi_get_ip_info( ) +
+//          + " " + ipSTA: + " " + wifi_get_ip_info( ) +
+//          + " " + ipAP: + " " + wifi_get_ip_info( ) +
 //          + " " + server port: + " " servPort + " " +
 //			+ " " + phy mode: + " " + wifi_get_phy_mode() +
 //          + " " + rssi: + " " + wifi_station_get_rssi() +
+//          + " " + ssidSTA: + " " + name\n +
+//          + " " + pwdSTA: + " " + pwd\n +
+//          + " " + ssidAP: + " " + name\n +
+//          + " " + pwdAP: + " " + pwd\n +
+//          + " " + maxTpw: + " " + value\n +
+//          + " " + broadcastPort + " " + port\n +
 //          + " " + outputs: +
-//			+ " " + gpio_1: + " " + Trigger/Impulse + " " + delay+ms\n +
-//		    + " " + gpio_2: + " " + Trigger/Impulse + " " + delay+ms\n +
+//			+ " " + gpio_1: + " " + Trigger/Impulse/Combine + " " + delay+ms\n +
+//		    + " " + gpio_2: + " " + Trigger/Impulse/Combine + " " + delay+ms\n +
 //          + " " + inputs: +
 //		    + " " + inp_1: + " " + high/low +
 //          + " " + INP_2: + " " + high/low +
@@ -1511,6 +1564,8 @@ broadcastBuilder( void ) {
 
 		inf.ip.addr = 0;
 	}
+
+	broadcast.proto.udp->remote_port = StringToInt( &tmpFLASH[DEF_UDP_PORT_OFSET] );
 
 	count = brodcastMessage;
 
@@ -1555,12 +1610,12 @@ broadcastBuilder( void ) {
     os_sprintf( count, "%s", &tmpFLASH[ DEF_IP_SOFT_AP_OFSET ] );
     count += strlen( &tmpFLASH[ DEF_IP_SOFT_AP_OFSET ] );
 //================================================================
-    memcpy( count, SERVER_PORT, ( sizeof( SERVER_PORT ) - 1 ) );
+ /*   memcpy( count, SERVER_PORT, ( sizeof( SERVER_PORT ) - 1 ) );
     count += sizeof( SERVER_PORT ) - 1;
 
-    count = ShortIntToString( TCP_PORT, count );
+    count = ShortIntToString( TCP_PORT, count ); */
 //================================================================
-    memcpy( count, PHY_MODE, ( sizeof( PHY_MODE ) - 1 ) );
+/*    memcpy( count, PHY_MODE, ( sizeof( PHY_MODE ) - 1 ) );
     count += sizeof( PHY_MODE ) - 1;
     {
     	uint8_t phyMode;
@@ -1574,7 +1629,7 @@ broadcastBuilder( void ) {
     		memcpy( count, PHY_MODE_N, ( sizeof( PHY_MODE_N ) - 1 ) );
     		count += sizeof( PHY_MODE_N ) - 1;
     	}
-    }
+    }*/
 //================================================================
     if ( ( rssi = wifi_station_get_rssi() ) < 0 ) {
 
@@ -1584,6 +1639,44 @@ broadcastBuilder( void ) {
 	    *count++ = '-';
 	    count = ShortIntToString( (rssi * (-1)), count );
     }
+//================================================================
+//================================================================
+	memcpy( count, SSID_STA, ( sizeof( SSID_STA ) - 1 ) );
+	count += sizeof( SSID_STA ) - 1;
+
+	os_sprintf( count, "%s", &tmpFLASH[ SSID_STA_OFSET ] );
+	count += strlen( &tmpFLASH[ SSID_STA_OFSET ] );
+//================================================================
+	memcpy( count, PWD_STA, ( sizeof( PWD_STA ) - 1 ) );
+	count += sizeof( PWD_STA ) - 1;
+
+	os_sprintf( count, "%s", &tmpFLASH[ PWD_STA_OFSET ] );
+	count += strlen( &tmpFLASH[ PWD_STA_OFSET ] );
+//================================================================
+	memcpy( count, SSID_AP, ( sizeof( SSID_AP ) - 1 ) );
+	count += sizeof( SSID_AP ) - 1;
+
+	os_sprintf( count, "%s", &tmpFLASH[ SSID_AP_OFSET ] );
+	count += strlen( &tmpFLASH[ SSID_AP_OFSET ] );
+//================================================================
+	memcpy( count, PWD_AP, ( sizeof( PWD_AP ) - 1 ) );
+	count += sizeof( PWD_AP ) - 1;
+
+	os_sprintf( count, "%s", &tmpFLASH[ PWD_AP_OFSET ] );
+	count += strlen( &tmpFLASH[ PWD_AP_OFSET ] );
+//================================================================
+	memcpy( count, MAX_TPW, ( sizeof( MAX_TPW ) - 1 ) );
+	count += sizeof( MAX_TPW ) - 1;
+
+	os_sprintf( count, "%s", &tmpFLASH[ MAX_TPW_VALUE_OFSET ] );
+	count += strlen( &tmpFLASH[ MAX_TPW_VALUE_OFSET ] );
+//================================================================
+	memcpy( count, BOADCAST_PORT, ( sizeof( BOADCAST_PORT ) - 1 ) );
+	count += sizeof( BOADCAST_PORT ) - 1;
+
+	os_sprintf( count, "%s", &tmpFLASH[ DEF_UDP_PORT_OFSET ] );
+	count += strlen( &tmpFLASH[ DEF_UDP_PORT_OFSET ] );
+//================================================================
 //================================================================
 	memcpy( count, OUTPUTS, ( sizeof( OUTPUTS ) - 1 ) );
 	broadcastShift = count;
@@ -1726,7 +1819,6 @@ broadcastBuilder( void ) {
 		}
 //================================================================
 
-
 		*count++ = '\r';
 		*count++ = '\n';
 		*count = '\0';
@@ -1802,7 +1894,7 @@ comandParser( void ) {
 
 	    	    	if ( NULL != pespconn ) {
 
-	    	    		espconn_sent( pespconn, tmp, ( sizeof(TCP_QUERY) + 1 + sizeof(TCP_OPERATION_FAIL) + 1 + 1 ) );
+	    	    		espconn_send( pespconn, tmp, ( sizeof(TCP_QUERY) + 1 + sizeof(TCP_OPERATION_FAIL) + 1 + 1 ) );
 	    	    	}
 
 	    	    	break;
@@ -1953,6 +2045,9 @@ comandParser( void ) {
 #ifdef DEBUG
 	    os_printf( "routerSSID %s ", routerSSID );
 #endif
+		if ( SPI_FLASH_RESULT_OK != spi_flash_read( USER_SECTOR_IN_FLASH_MEM * SPI_FLASH_SEC_SIZE, \
+					                                                  (uint32 *)tmpFLASH, SPI_FLASH_SEC_SIZE ) ) {
+		}
 	    		tcpRespounseBuilder( TCP_OPERATION_OK );
 	    		//system_restart();
 	    		/*while (1) {
@@ -1975,6 +2070,9 @@ comandParser( void ) {
 #ifdef DEBUG
 	    		os_printf( "routerPWD %s ", routerPWD );
 #endif
+	    		if ( SPI_FLASH_RESULT_OK != spi_flash_read( USER_SECTOR_IN_FLASH_MEM * SPI_FLASH_SEC_SIZE, \
+	    					                                                  (uint32 *)tmpFLASH, SPI_FLASH_SEC_SIZE ) ) {
+	    		}
 	    		tcpRespounseBuilder( TCP_OPERATION_OK );
 	    		//system_restart();
 	    		/*while (1) {
@@ -1992,6 +2090,10 @@ comandParser( void ) {
 	    	if ( LENGHT_OK == compareLenght( &tmp[ sizeof(TCP_SSID_AP) + 1 ],  SSID_MAX_LENGHT ) ) {
 
 	    		writeFlash( SSID_AP_OFSET, &tmp[ sizeof(TCP_SSID_AP) + 1 ] );
+
+	    		if ( SPI_FLASH_RESULT_OK != spi_flash_read( USER_SECTOR_IN_FLASH_MEM * SPI_FLASH_SEC_SIZE, \
+	    					                                                  (uint32 *)tmpFLASH, SPI_FLASH_SEC_SIZE ) ) {
+	    		}
 	    		tcpRespounseBuilder( TCP_OPERATION_OK );
 	    		initWIFI();
 	    	} else {
@@ -2004,6 +2106,10 @@ comandParser( void ) {
 	    	if ( LENGHT_OK == compareLenght( &tmp[ sizeof(TCP_PWD_AP) + 1 ],  PWD_MAX_LENGHT ) ) {
 
 	    		writeFlash( PWD_AP_OFSET, &tmp[ sizeof(TCP_PWD_AP) + 1 ] );
+
+	    		if ( SPI_FLASH_RESULT_OK != spi_flash_read( USER_SECTOR_IN_FLASH_MEM * SPI_FLASH_SEC_SIZE, \
+	    					                                                  (uint32 *)tmpFLASH, SPI_FLASH_SEC_SIZE ) ) {
+	    		}
 	    		tcpRespounseBuilder( TCP_OPERATION_OK );
 	    		initWIFI();
 	    	} else {
@@ -2018,7 +2124,7 @@ comandParser( void ) {
 	    		writeFlash( BROADCAST_NAME_OFSET, &tmp[ sizeof(TCP_BROADCAST_NAME) + 1 ] );
 	    		if ( 0 != strcmp( &tmp[ sizeof(TCP_BROADCAST_NAME) + 1 ],  wifi_station_get_hostname( ) ) ) {
 
-	    			wifi_station_set_hostname( &tmp[ sizeof(TCP_BROADCAST_NAME) + 1 ] );
+	    			//wifi_station_set_hostname( &tmp[ sizeof(TCP_BROADCAST_NAME) + 1 ] );
 	    		}
 
 	    		if ( SPI_FLASH_RESULT_OK != spi_flash_read( USER_SECTOR_IN_FLASH_MEM * SPI_FLASH_SEC_SIZE, \
@@ -2030,6 +2136,29 @@ comandParser( void ) {
 
 	    		tcpRespounseBuilder( TCP_OPERATION_FAIL );
 	    	}
+
+	    } else if ( 0 == strcmp( tmp, TCP_MAX_TPW ) ) { //-------------------------------------------------------------------------
+	    	uint32_t userTpw = StringToInt( &tmp[ sizeof(TCP_MAX_TPW) + 1 ] );
+
+	    	if (userTpw > MAX_TPW_MAX_VALUE) {
+
+	    		userTpw = MAX_TPW_MAX_VALUE;
+	    	} else if (userTpw < MAX_TPW_MIN_VALUE) {
+
+	    		userTpw = MAX_TPW_MIN_VALUE;
+	    	}
+#ifdef DEBUG
+	   os_printf(" userTpw %d ",userTpw);
+#endif
+	    	system_phy_set_max_tpw(userTpw);
+
+	    	writeFlash( MAX_TPW_VALUE_OFSET, &tmp[ sizeof(TCP_MAX_TPW) + 1 ] );
+
+	    	if ( SPI_FLASH_RESULT_OK != spi_flash_read( USER_SECTOR_IN_FLASH_MEM * SPI_FLASH_SEC_SIZE, \
+	    					                                                  (uint32 *)tmpFLASH, SPI_FLASH_SEC_SIZE ) ) {
+	    	}
+
+	    	tcpRespounseBuilder( TCP_OPERATION_OK );
 
 	    } else if ( 0 == strcmp( tmp, TCP_GPIO_MODE_1 ) ) {                                                     //+
 
@@ -2083,7 +2212,7 @@ comandParser( void ) {
 
 		    	if ( NULL != pespconn ) {
 
-		    		espconn_sent( pespconn, tmp, ( sizeof( TCP_ERROR ) + 2 ) );
+		    		espconn_send( pespconn, tmp, ( sizeof( TCP_ERROR ) + 2 ) );
 		    	}
 
 	    	}
@@ -2139,7 +2268,7 @@ comandParser( void ) {
 
 	       	    if ( NULL != pespconn ) {
 
-	    			espconn_sent( pespconn, tmp, ( sizeof( TCP_ERROR ) + 2 ) );
+	    			espconn_send( pespconn, tmp, ( sizeof( TCP_ERROR ) + 2 ) );
 	       	    }
 
 	    	}
@@ -2154,7 +2283,7 @@ comandParser( void ) {
 #endif
 	    	if ( NULL != pespconn ) {
 
-	    		espconn_sent( pespconn, tmp, ( sizeof( TCP_ERROR ) + 2 ) );
+	    		espconn_send( pespconn, tmp, ( sizeof( TCP_ERROR ) + 2 ) );
 	    	}
 
 	 }
@@ -2190,7 +2319,7 @@ tcpRespounseBuilder( uint8_t *responseCode ) {
 
 	if ( NULL != pespconn ) {
 
-		espconn_sent( pespconn, tmp, i );
+		espconn_send( pespconn, tmp, i );
 	}
 }
 
@@ -2265,7 +2394,7 @@ buildQueryResponse( uint8_t *responseStatus ) {
 
 	if ( NULL != pespconn ) {
 
-		espconn_sent( pespconn, tmp, i );
+		espconn_send( pespconn, tmp, i );
 	}
 }
 

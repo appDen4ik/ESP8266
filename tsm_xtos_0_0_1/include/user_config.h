@@ -149,6 +149,8 @@
 * 					setUdpPort port OPERATION_OK\r\n
 * 					setUdpPort port OPERATION_FAIL\r\n
 *
+* - setMaxTpw tpw\r\n
+*					setMaxTpw  tpw OPERATION_OK\r\n
 *************************************************************************************************************************************
 */
 
@@ -244,6 +246,11 @@
  *
  *  1800...1805
  * |  clear\0  |  \n  |
+ *
+ *  2000..........2009
+ * | MAX TPW:\0 | \n  | למשüםמסעü TX, RX
+ *  2010......2013
+ * | value\0 | \n |
  */
 
 
@@ -288,6 +295,13 @@
 #define BROADCAST_NAME_HEADER_OFSET		1400
 #define BROADCAST_NAME					"WIFI MODULE"
 #define BROADCAST_NAME_OFSET			1417
+
+#define MAX_TPW_HEADER                "MAX TPW:"
+#define MAX_TPW_HEADER_OFSET          2000
+#define MAX_TPW_DEFAULT_VALUE         "82"
+#define MAX_TPW_VALUE_OFSET           2010
+#define MAX_TPW_MIN_VALUE             15
+#define MAX_TPW_MAX_VALUE             82
 //***********************************************************************************************************************************
 #define DEF_IP_SOFT_AP_HEADER        	"IP SOFT AP:"
 #define DEF_IP_SOFT_AP_HEADER_OFSET		1600
@@ -296,7 +310,7 @@
 
 #define DEF_UDP_PORT_HEADER				"UDP PORT:"
 #define DEF_UDP_PORT_HEADER_OFSET		1700
-#define DEF_UDP_PORT					"9876"
+#define DEF_UDP_PORT					"19876"
 #define DEF_UDP_PORT_OFSET				1711
 //***********************************************************************************************************************************
 #define CLEAR_DB_STATUS			"clear"
@@ -327,7 +341,7 @@
 #define DELAY 	10 /* milliseconds */
 //***********************************************************************************************************************************
 // broadcast timer
-#define BROADCAST_TIMER		250 //ms
+#define BROADCAST_TIMER		300 //ms
 //***********************************************************************************************************************************
 
 typedef enum {
@@ -362,7 +376,12 @@ typedef enum {
 
 //***********************************************************************************************************************************
 //brodcast constant strings
-
+#define SSID_STA            "\nssidSTA: "
+#define PWD_STA             "\npwdSTA: "
+#define SSID_AP			    "\nssidAP: "
+#define PWD_AP				"\nwdAP: "
+#define MAX_TPW             "\nmaxTpw: "
+#define BOADCAST_PORT       "\nbtoadcastPort: "
 #define NAME 				"\nname: "
 #define MAC 				"\nmacSTA: "
 #define IP 					"\nipSTA: "
@@ -422,6 +441,7 @@ typedef enum {
 #define TCP_SET_UDP_PORT			"setUdpPort"    //+
 #define TCP_CLEAR_DB				"clearDB"		//+
 #define TCP_RESTORE                 "restore"		//+
+#define TCP_MAX_TPW                 "setMaxTpw"
 
 #define TCP_ERROR					"ERROR"
 
