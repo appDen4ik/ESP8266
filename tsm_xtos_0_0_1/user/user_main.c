@@ -32,6 +32,7 @@
 #include "gpio.h"
 #include "user_config.h"
 #include "driver/uart.h"
+#include "driver/gpio16.h"
 
 #include "driver/myDB.h"
 
@@ -84,7 +85,7 @@ LOCAL struct espconn broadcast;
 LOCAL uint8_t ledState = 0;
 LOCAL uint32_t broadcastTmr;
 LOCAL uint8_t *broadcastShift;
-LOCAL uint8_t brodcastMessage[500] = { 0 };
+LOCAL uint8_t brodcastMessage[1000] = { 0 };
 //**********************************************************************************************************************************
 LOCAL uint8_t rssiStr[5];
 LOCAL sint8_t rssi;
@@ -115,8 +116,6 @@ struct espconn espconnServer;
 esp_tcp tcpServer;
 esp_udp udpClient;
 
-
-uint8_t alignString[ALIGN_STRING_SIZE];
 
 void user_rf_pre_init(void)
 {
@@ -360,6 +359,8 @@ writeFlash( uint16_t where, uint8_t *what ) {
 
 void ICACHE_FLASH_ATTR
 mScheduler(char *datagram, uint16 size) {
+
+	os_printf("gpio16 state: %d ", gpio16_input_get() );
 
 //*************************************************************************************
 /*	 if ( 0 == GPIO_INPUT_GET( INP_3_PIN ) ) {
@@ -813,7 +814,7 @@ user_init(void) {
     os_printf( " sdk version: %s \n", system_get_sdk_version() );
 	os_printf( " module version 0.1 ");
 
-//	spi_flash_erase_sector( USER_SECTOR_IN_FLASH_MEM );
+	//spi_flash_erase_sector( USER_SECTOR_IN_FLASH_MEM );
 	//первая загрузка
 	if ( SPI_FLASH_RESULT_OK != spi_flash_read( USER_SECTOR_IN_FLASH_MEM * SPI_FLASH_SEC_SIZE, \
 			                                                                  (uint32 *)writeFlashTmp, ALIGN_FLASH_READY_SIZE ) ) {
@@ -1123,6 +1124,14 @@ user_init(void) {
 
 }
 
+void callbackFunction(uint32 interruptMask, void *arg){
+
+	os_printf( "default options" );
+	GPIO_OUTPUT_SET(OUT_2_GPIO, 1);
+	while (1) {
+
+	}
+}
 
 void ICACHE_FLASH_ATTR
 initPeriph( ) {
@@ -1142,6 +1151,7 @@ initPeriph( ) {
 	if ( SYS_CPU_160MHZ != system_get_cpu_freq() ) {
 		system_update_cpu_freq(SYS_CPU_160MHZ);
 	}
+
 
 	PIN_FUNC_SELECT(OUT_1_MUX, OUT_1_FUNC);
 	GPIO_OUTPUT_SET(OUT_1_GPIO, 0);
@@ -1163,6 +1173,15 @@ initPeriph( ) {
 
 	PIN_FUNC_SELECT(INP_4_MUX, INP_4_FUNC);
 	gpio_output_set(0, 0, 0, INP_4);
+
+	gpio16_input_conf();
+
+	ETS_GPIO_INTR_DISABLE(); // Disable gpio interrupts
+//	gpio_intr_handler_register(callbackFunction, (void* )INP_4_PIN); // GPIO interrupt handler
+	ETS_GPIO_INTR_ATTACH(callbackFunction, NULL);
+	//GPIO_REG_WRITE(GPIO_STATUS_W1TC_ADDRESS, BIT(INP_4_PIN)); // Clear GPIO status
+	gpio_pin_intr_state_set(GPIO_ID_PIN(INP_4_PIN), 3); // Interrupt on any GPIO edge
+	ETS_GPIO_INTR_ENABLE();
 
 }
 
@@ -1785,6 +1804,7 @@ broadcastBuilder( void ) {
 		*count++ = '\r';
 		*count++ = '\n';
 		*count = '\0';
+
  }
 
 
