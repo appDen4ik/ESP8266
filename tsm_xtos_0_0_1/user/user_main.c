@@ -146,12 +146,12 @@ tcp_recvcb( void *arg, char *pdata, unsigned short len ) { // data received
 
     	if ( TMP_SIZE >= counterForTmp + len ) {
 
-    		os_printf(" |tcp_recvcb check point| ");
+ //   		os_printf(" |tcp_recvcb check point| ");
     		memcpy( &tmp[counterForTmp], pdata, len );
 #ifdef DEBUG
     	{
     		int i;
-    		os_printf( " |tcp_recvcb check point 1| ");
+
 			for (i = 0; '\r' != tmp[i]; i++) {
 		  			   uart_tx_one_char(tmp[i]);
 		 	 }
@@ -240,7 +240,7 @@ tcp_disnconcb( void *arg ) { // TCP disconnected successfully
 
 	if ( NULL != pespconn ) {
 #ifdef DEBUG
-	os_printf( " |tcp_disnconcb check point| " );
+//	os_printf( " |tcp_disnconcb check point| " );
 #endif
 		if ( *(uint32 *)( conn->proto.tcp->remote_ip ) == ipAdd && marker == mCLEAR ) {
 			pespconn = NULL;
@@ -269,7 +269,7 @@ tcp_reconcb( void *arg, sint8 err ) { // error, or TCP disconnected
 
 	if ( NULL != pespconn ) {
 #ifdef DEBUG
-	os_printf( " |tcp_reconcb check point| " );
+//	os_printf( " |tcp_reconcb check point| " );
 #endif
 		if ( *(uint32 *)( conn->proto.tcp->remote_ip ) == ipAdd && marker == mCLEAR ) {
 			pespconn = NULL;
@@ -309,7 +309,7 @@ tcp_sentcb( void *arg ) { // data sent
 		}
 	}
 	if ( NULL != conn ) {
-		os_printf( " |tcp_sentcb check point 1| " );
+//		os_printf( " |tcp_sentcb check point 1| " );
 		espconn_disconnect(conn);
 	}
 }
@@ -360,7 +360,6 @@ writeFlash( uint16_t where, uint8_t *what ) {
 void ICACHE_FLASH_ATTR
 mScheduler(char *datagram, uint16 size) {
 
-	os_printf("gpio16 state: %d ", gpio16_input_get() );
 
 //*************************************************************************************
 /*	 if ( 0 == GPIO_INPUT_GET( INP_3_PIN ) ) {
@@ -574,7 +573,7 @@ mScheduler(char *datagram, uint16 size) {
 //		os_printf(" |mScheduler gpioModeOut2 = GPIO_OUT_COMBINE_MODE, gpioOutDeley2 = %dms, gpioOutDeley2Counter = %d| " \
 				                                                      , gpioOutDeley2, gpioOutDeley2);
 #endif
-			if ( gpioOutDeley2Counter < gpioOutDeley2 && GPIO_INPUT_GET(INP_4_PIN) ) {
+			if ( gpioOutDeley2Counter < gpioOutDeley2 && gpio16_input_get()  ) {
 				gpioOutDeley2Counter += 15;
 				GPIO_OUTPUT_SET(OUT_2_GPIO, 1);
 			} else {
@@ -587,7 +586,7 @@ mScheduler(char *datagram, uint16 size) {
 #ifdef DEBUG
 //		os_printf(" |mScheduler gpioModeOut2 = GPIO_OUT_TRIGGER_MODE| ");
 #endif
-			if ( !GPIO_INPUT_GET(INP_4_PIN) ) {
+			if ( !gpio16_input_get() ) {
 #ifdef DEBUG
 //		os_printf(" |mScheduler GPIO_OUT_TRIGGER_MODE gpioStatusOut2 = DISABLE| ");
 #endif
@@ -770,6 +769,24 @@ mScheduler(char *datagram, uint16 size) {
 	os_timer_arm(&task_timer, DELAY, 0);
 }
 
+void callbackFunction(){
+
+	uint32_t gpio_status = GPIO_REG_READ(GPIO_STATUS_ADDRESS);
+	GPIO_REG_WRITE(GPIO_STATUS_W1TC_ADDRESS, gpio_status);
+	if (!GPIO_INPUT_GET(2)) {
+		os_printf( "load default options" );
+//		GPIO_OUTPUT_SET(OUT_2_GPIO, 1);
+		loadDefParam( );
+		system_restart();
+		while (1) {
+
+		}
+	} else {
+
+		os_printf( "some gpio interrupt" );
+	}
+}
+
 
 void ICACHE_FLASH_ATTR
 config(void) {
@@ -782,6 +799,13 @@ config(void) {
    	system_soft_wdt_stop();
     system_soft_wdt_restart();
 
+	ETS_GPIO_INTR_DISABLE(); // Disable gpio interrupts
+//	gpio_intr_handler_register(callbackFunction, (void* )INP_4_PIN); // GPIO interrupt handler
+	ETS_GPIO_INTR_ATTACH(callbackFunction, NULL);
+	//GPIO_REG_WRITE(GPIO_STATUS_W1TC_ADDRESS, BIT(INP_4_PIN)); // Clear GPIO status
+	gpio_pin_intr_state_set(GPIO_ID_PIN(2), 4); // Interrupt on any GPIO edge
+	ETS_GPIO_INTR_ENABLE();
+
 	// os_timer_disarm(ETSTimer *ptimer)
 	os_timer_disarm(&task_timer);
 	// os_timer_setfn(ETSTimer *ptimer, ETSTimerFunc *pfunction, void *parg)
@@ -789,6 +813,7 @@ config(void) {
 	// void os_timer_arm(ETSTimer *ptimer,uint32_t milliseconds, bool repeat_flag)
 	os_timer_arm(&task_timer, DELAY, 0);
 }
+
 
 
 void ICACHE_FLASH_ATTR
@@ -1124,14 +1149,6 @@ user_init(void) {
 
 }
 
-void callbackFunction(uint32 interruptMask, void *arg){
-
-	os_printf( "default options" );
-	GPIO_OUTPUT_SET(OUT_2_GPIO, 1);
-	while (1) {
-
-	}
-}
 
 void ICACHE_FLASH_ATTR
 initPeriph( ) {
@@ -1171,17 +1188,11 @@ initPeriph( ) {
 	PIN_FUNC_SELECT(INP_3_MUX, INP_3_FUNC);
 	gpio_output_set(0, 0, 0, INP_3);
 
-	PIN_FUNC_SELECT(INP_4_MUX, INP_4_FUNC);
-	gpio_output_set(0, 0, 0, INP_4);
+	PIN_FUNC_SELECT(PERIPHS_IO_MUX_GPIO2_U, FUNC_GPIO2);
+	gpio_output_set(0, 0, 0, BIT2);
 
 	gpio16_input_conf();
 
-	ETS_GPIO_INTR_DISABLE(); // Disable gpio interrupts
-//	gpio_intr_handler_register(callbackFunction, (void* )INP_4_PIN); // GPIO interrupt handler
-	ETS_GPIO_INTR_ATTACH(callbackFunction, NULL);
-	//GPIO_REG_WRITE(GPIO_STATUS_W1TC_ADDRESS, BIT(INP_4_PIN)); // Clear GPIO status
-	gpio_pin_intr_state_set(GPIO_ID_PIN(INP_4_PIN), 3); // Interrupt on any GPIO edge
-	ETS_GPIO_INTR_ENABLE();
 
 }
 
@@ -1791,7 +1802,7 @@ broadcastBuilder( void ) {
 //================================================================
 		memcpy( count, INPUT_4, ( sizeof( INPUT_4 ) - 1 ) );
 		count += sizeof( INPUT_4 ) - 1;
-		if ( 0 == GPIO_INPUT_GET(INP_4_PIN ) ) {
+		if ( 0 == gpio16_input_get() ) {
 
 			memcpy( count, STATUS_LOW, ( sizeof( STATUS_LOW ) - 1 ) );
 			count += sizeof( STATUS_LOW ) - 1;
