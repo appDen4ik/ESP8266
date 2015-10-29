@@ -54,6 +54,7 @@ LOCAL res ICACHE_FLASH_ATTR writeFlash( uint16_t where, uint8_t *what );
 extern void ets_wdt_enable (void);
 extern void ets_wdt_disable (void);
 extern void ets_wdt_init(void);
+extern void uart_tx_one_char();
 
 //**********************************************************************************************************************************
 LOCAL uint8_t tmp[TMP_SIZE]; // только для работы с сетью, приема запросов и формирования ответов
@@ -769,6 +770,7 @@ mScheduler(char *datagram, uint16 size) {
 	os_timer_arm(&task_timer, DELAY, 0);
 }
 
+
 void callbackFunction(){
 
 	uint32_t gpio_status = GPIO_REG_READ(GPIO_STATUS_ADDRESS);
@@ -813,7 +815,6 @@ config(void) {
 	// void os_timer_arm(ETSTimer *ptimer,uint32_t milliseconds, bool repeat_flag)
 	os_timer_arm(&task_timer, DELAY, 0);
 }
-
 
 
 void ICACHE_FLASH_ATTR
@@ -1071,7 +1072,7 @@ user_init(void) {
 		espconn_regist_sentcb(&espconnServer, tcp_sentcb);          // data sent
 		espconn_regist_reconcb(&espconnServer, tcp_reconcb);        // error, or TCP disconnected
 
-		espconn_tcp_set_max_con(2);
+	//	espconn_tcp_set_max_con(2);
 
 #ifdef DEBUG
     	os_printf( "espconn_tcp_get_max_con(); %d ", espconn_tcp_get_max_con() );
@@ -1161,8 +1162,6 @@ initPeriph( ) {
 
 	uart_init(BIT_RATE_115200, BIT_RATE_115200);
 
-	uart_tx_one_char('\0');
-
 	os_install_putc1(uart_tx_one_char);
 
 	if ( SYS_CPU_160MHZ != system_get_cpu_freq() ) {
@@ -1246,12 +1245,12 @@ initWIFI( ) {
 #ifdef DEBUG
 	  os_printf( " stationConf.password  %s,  &tmp[ PWD_STA_OFSET ]  %s ", stationConf.password, &writeFlashTmp[ PWD_STA_OFSET ] );
 #endif
-	  if ( 0 !=  stationConf.bssid_set ) {
+/*	  if ( 0 !=  stationConf.bssid_set ) {
 
 		  stationConf.bssid_set = 0;
 	  }
-
-	 if ( !wifi_station_set_config( &stationConf ) || !wifi_station_set_config_current( &stationConf ) ) {
+*/
+	 if ( !wifi_station_set_config( &stationConf ) /*|| !wifi_station_set_config_current( &stationConf )*/ ) {
 
 		 ets_uart_printf("Module not set station config!\r\n ");
 	 }
@@ -1263,7 +1262,7 @@ initWIFI( ) {
 
 	wifi_station_connect();
 	wifi_station_dhcpc_start();
-
+//	wifi_station_set_auto_connect(1);
 
 	if ( wifi_softap_get_config( &softapConf ) ) {
 
@@ -1382,7 +1381,7 @@ loadDefParam( void ) {
 
 	if ( SPI_FLASH_RESULT_OK != spi_flash_erase_sector( USER_SECTOR_IN_FLASH_MEM )  ) {
 
-		ets_uart_printf("Erase USER_SECTOR_IN_FLASH_MEM fail ");
+		ets_uart_printf(" loadDefParam Erase USER_SECTOR_IN_FLASH_MEM fail ");
 		while(1);
 	}
 
