@@ -79,6 +79,7 @@ LOCAL stat gpioStatusOut2 = DISABLE;
 
 //**********************************************************************************************************************************
 LOCAL os_timer_t task_timer;
+LOCAL os_timer_t parser_timer;
 //**********************************************************************************************************************************
 //**********************************************************************************************************************************
 LOCAL struct espconn broadcast;
@@ -101,6 +102,7 @@ uint32_t addressQuery;
 uint16_t lenghtQuery;
 //**********************************************************************************************************************************
 //authorization tcp
+LOCAL tcp_stat comandPars = TCP_FREE;
 LOCAL tcp_stat tcpSt = TCP_FREE;
 LOCAL uint16_t counterForTmp = 0;
 LOCAL struct espconn *pespconn;
@@ -152,21 +154,26 @@ tcp_recvcb( void *arg, char *pdata, unsigned short len ) { // data received
     	{
     		int i;
 
-			for (i = 0; '\r' != tmp[i]; i++) {
+			for (i = 0; i < len; i++) {
 		  			   uart_tx_one_char(tmp[i]);
 		 	 }
 			uart_tx_one_char(tmp[i]);
     	}
 #endif
+    	counterForTmp = 0;
+    	if ( TCP_FREE == comandPars ) {
 
-    		counterForTmp = 0;
+    		comandPars = TCP_BUSY;
     		comandParser();
+    	}
 
     	} else {
 
     		memcpy( tmp, TCP_NOT_ENOUGH_MEMORY, ( sizeof(TCP_NOT_ENOUGH_MEMORY) ) );
     		tmp[ sizeof(TCP_NOT_ENOUGH_MEMORY) ] = '\r';
     		tmp[ sizeof(TCP_NOT_ENOUGH_MEMORY) + 1 ] = '\n';
+    		tcpSt = TCP_FREE;
+    		comandPars = TCP_FREE;
     		espconn_send( pespconn, tmp, ( sizeof( TCP_NOT_ENOUGH_MEMORY ) + 2 ) );
     	}
 
@@ -182,6 +189,8 @@ tcp_recvcb( void *arg, char *pdata, unsigned short len ) { // data received
     		memcpy( tmp, TCP_NOT_ENOUGH_MEMORY, ( sizeof(TCP_NOT_ENOUGH_MEMORY) ) );
     		tmp[ sizeof(TCP_NOT_ENOUGH_MEMORY) ] = '\r';
     		tmp[ sizeof(TCP_NOT_ENOUGH_MEMORY) + 1 ] = '\n';
+    		tcpSt = TCP_FREE;
+    		 comandPars = TCP_FREE;
     		espconn_send( pespconn, tmp, ( sizeof( TCP_NOT_ENOUGH_MEMORY ) + 2 ) );
     	}
     }
@@ -1878,6 +1887,8 @@ comandParser( void ) {
 	    	    	tmp[ sizeof(TCP_QUERY) + 1 + sizeof(TCP_OPERATION_FAIL) ] = '\r';
 	    	    	tmp[ sizeof(TCP_QUERY) + 1 + sizeof(TCP_OPERATION_FAIL) + 1 ] = '\n';
 
+	    	    	comandPars = TCP_FREE;
+	    	    	tcpSt = TCP_FREE;
 	    	    	if ( NULL != pespconn ) {
 
 	    	    		espconn_send( pespconn, tmp, ( sizeof(TCP_QUERY) + 1 + sizeof(TCP_OPERATION_FAIL) + 1 + 1 ) );
@@ -2254,6 +2265,7 @@ comandParser( void ) {
 		    	tmp[ sizeof(TCP_ERROR) + 1 ] = '\n';
 
 		    	tcpSt = TCP_FREE;
+		    	comandPars = TCP_FREE;
 	       	    if ( NULL != pespconn ) {
 
 	    			espconn_send( pespconn, tmp, ( sizeof( TCP_ERROR ) + 2 ) );
@@ -2270,6 +2282,7 @@ comandParser( void ) {
 	    os_printf("error check ");
 #endif
 	    	tcpSt = TCP_FREE;
+	    	comandPars = TCP_FREE;
 	    	if ( NULL != pespconn ) {
 
 	    		espconn_send( pespconn, tmp, ( sizeof( TCP_ERROR ) + 2 ) );
@@ -2305,6 +2318,7 @@ tcpRespounseBuilder( uint8_t *responseCode ) {
 		}
 #endif
 	tcpSt = TCP_FREE;
+	comandPars = TCP_FREE;
 	if ( NULL != pespconn ) {
 
 		espconn_send( pespconn, tmp, i );
@@ -2381,6 +2395,7 @@ buildQueryResponse( uint8_t *responseStatus ) {
 #endif
 
 	tcpSt = TCP_FREE;
+	 comandPars = TCP_FREE;
 	if ( NULL != pespconn ) {
 
 		espconn_send( pespconn, tmp, i );
