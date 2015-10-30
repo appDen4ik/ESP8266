@@ -147,7 +147,6 @@ tcp_recvcb( void *arg, char *pdata, unsigned short len ) { // data received
 
     	if ( TMP_SIZE >= counterForTmp + len ) {
 
- //   		os_printf(" |tcp_recvcb check point| ");
     		memcpy( &tmp[counterForTmp], pdata, len );
 #ifdef DEBUG
     	{
@@ -200,16 +199,12 @@ tcp_connectcb( void *arg ) { // TCP connected successfully
 
 		pespconn = (struct espconn *) arg;
 		ipAdd = *(uint32 *)( pespconn->proto.tcp->remote_ip );
-#ifdef DEBUG
-		os_printf( " |tcp_connectcb ip : %d Connected\r\n| ",  ipAdd );
-#endif
 		tcpSt = TCP_BUSY;
-
 #ifdef DEBUG
 		os_printf( " |tcp_connectcb ip : %d.%d.%d.%d Connected\r\n| ",  IP2STR( pespconn->proto.tcp->remote_ip ) );
 #endif
 
-	} else if ( TCP_BUSY == tcpSt && *(uint32 *)( conn->proto.tcp->remote_ip ) == ipAdd ) {
+	/*} else if ( TCP_BUSY == tcpSt && *(uint32 *)( conn->proto.tcp->remote_ip ) == ipAdd ) {
 
 		uint8_t erB[] = { 'B', 'U', 'S', 'Y', '\0', '\r', '\n' };
 		marker = mSET;
@@ -217,11 +212,11 @@ tcp_connectcb( void *arg ) { // TCP connected successfully
 #ifdef DEBUG
 		os_printf( " |tcp_connectcb ip : %d.%d.%d.%d Connect busy...\r\n| ",  IP2STR( ( (struct espconn *) arg)->proto.tcp->remote_ip ) );
 #endif
-	} else if ( TCP_BUSY == tcpSt && *(uint32 *)( conn->proto.tcp->remote_ip ) != ipAdd ) {
+	*/} else if ( TCP_BUSY == tcpSt /*&& *(uint32 *)( conn->proto.tcp->remote_ip ) != ipAdd*/ ) {
 
-		uint8_t erB[] = { 'B', 'U', 'S', 'Y', '\0', '\r', '\n' };
+//		uint8_t erB[] = { 'B', 'U', 'S', 'Y', '\0', '\r', '\n' };
 
-		espconn_send( conn, erB, sizeof(erB) );
+//		espconn_send( conn, erB, sizeof(erB) );
 #ifdef DEBUG
 		os_printf( " |tcp_connectcb ip : %d.%d.%d.%d Connect busy...\r\n| ",  IP2STR( ( (struct espconn *) arg)->proto.tcp->remote_ip ) );
 #endif
@@ -239,10 +234,8 @@ tcp_disnconcb( void *arg ) { // TCP disconnected successfully
 	os_printf( " |tcp_disnconcb TCP disconnected successfully : %d.%d.%d.%d\r\n| ",  IP2STR( conn->proto.tcp->remote_ip ) );
 #endif
 
-	if ( NULL != pespconn ) {
-#ifdef DEBUG
-//	os_printf( " |tcp_disnconcb check point| " );
-#endif
+/*	if ( NULL != pespconn ) {
+
 		if ( *(uint32 *)( conn->proto.tcp->remote_ip ) == ipAdd && marker == mCLEAR ) {
 			pespconn = NULL;
 			tcpSt = TCP_FREE;
@@ -255,7 +248,7 @@ tcp_disnconcb( void *arg ) { // TCP disconnected successfully
 #endif
 			marker = mCLEAR;
 		}
-	}
+	}*/
 }
 
 
@@ -268,10 +261,8 @@ tcp_reconcb( void *arg, sint8 err ) { // error, or TCP disconnected
 	os_printf( " |tcp_reconcb TCP RECON : %d.%d.%d.%d\r\n| ",  IP2STR( conn->proto.tcp->remote_ip ) );
 #endif
 
-	if ( NULL != pespconn ) {
-#ifdef DEBUG
-//	os_printf( " |tcp_reconcb check point| " );
-#endif
+/*	if ( NULL != pespconn ) {
+
 		if ( *(uint32 *)( conn->proto.tcp->remote_ip ) == ipAdd && marker == mCLEAR ) {
 			pespconn = NULL;
 			tcpSt = TCP_FREE;
@@ -279,23 +270,25 @@ tcp_reconcb( void *arg, sint8 err ) { // error, or TCP disconnected
 	os_printf( " |tcp_reconcb tcp free| " );
 #endif
 		} else if ( *(uint32 *)( conn->proto.tcp->remote_ip ) == ipAdd && marker == mSET ) {
+
 #ifdef DEBUG
 	os_printf( " |tcp_reconcb double connect| " );
 #endif
 			marker = mCLEAR;
 		}
-	}
+	}*/
 }
 
 
 LOCAL void ICACHE_FLASH_ATTR
-tcp_sentcb( void *arg ) { // data sent
+tcp_sentcb( void *arg ) { // data sent callback
+
 	struct espconn *conn = (struct espconn *) arg;
 
 #ifdef DEBUG
 	os_printf( " |tcp_sentcb DATA sent for ip : %d.%d.%d.%d\r\n| ",  IP2STR( conn->proto.tcp->remote_ip ) );
 #endif
-	if ( NULL != pespconn && NULL != conn ) {
+/*	if ( NULL != pespconn && NULL != conn ) {
 		os_printf( " |tcp_sentcb check point| " );
 		if ( (uint32)( conn->proto.tcp->remote_ip[0] ) == (uint32)( pespconn->proto.tcp->remote_ip[0]) && marker == mCLEAR ) {
 			pespconn = NULL;
@@ -308,9 +301,9 @@ tcp_sentcb( void *arg ) { // data sent
 	os_printf( " |tcp_sentcb double connect| " );
 #endif
 		}
-	}
+	}*/
 	if ( NULL != conn ) {
-//		os_printf( " |tcp_sentcb check point 1| " );
+
 		espconn_disconnect(conn);
 	}
 }
@@ -1064,15 +1057,15 @@ user_init(void) {
 		espconnServer.proto.tcp = &tcpServer;
 		espconnServer.proto.tcp->local_port = TCP_PORT;
 
-		espconn_accept(&espconnServer);
-		espconn_regist_time(&espconnServer, TCP_SERVER_TIMEOUT, 0);
+
 		espconn_regist_recvcb(&espconnServer, tcp_recvcb);          // data received
 		espconn_regist_connectcb(&espconnServer, tcp_connectcb);    // TCP connected successfully
 		espconn_regist_disconcb(&espconnServer, tcp_disnconcb);     // TCP disconnected successfully
 		espconn_regist_sentcb(&espconnServer, tcp_sentcb);          // data sent
 		espconn_regist_reconcb(&espconnServer, tcp_reconcb);        // error, or TCP disconnected
-
-	//	espconn_tcp_set_max_con(2);
+		espconn_accept(&espconnServer);
+		espconn_regist_time(&espconnServer, TCP_SERVER_TIMEOUT, 0);
+//		espconn_tcp_set_max_con(255);
 
 #ifdef DEBUG
     	os_printf( "espconn_tcp_get_max_con(); %d ", espconn_tcp_get_max_con() );
@@ -2203,6 +2196,7 @@ comandParser( void ) {
 		    	tmp[ sizeof(TCP_ERROR) ] = '\r';
 		    	tmp[ sizeof(TCP_ERROR) + 1 ] = '\n';
 
+		    	tcpSt = TCP_FREE;
 		    	if ( NULL != pespconn ) {
 
 		    		espconn_send( pespconn, tmp, ( sizeof( TCP_ERROR ) + 2 ) );
@@ -2259,6 +2253,7 @@ comandParser( void ) {
 		    	tmp[ sizeof(TCP_ERROR) ] = '\r';
 		    	tmp[ sizeof(TCP_ERROR) + 1 ] = '\n';
 
+		    	tcpSt = TCP_FREE;
 	       	    if ( NULL != pespconn ) {
 
 	    			espconn_send( pespconn, tmp, ( sizeof( TCP_ERROR ) + 2 ) );
@@ -2274,6 +2269,7 @@ comandParser( void ) {
 #ifdef DEBUG
 	    os_printf("error check ");
 #endif
+	    	tcpSt = TCP_FREE;
 	    	if ( NULL != pespconn ) {
 
 	    		espconn_send( pespconn, tmp, ( sizeof( TCP_ERROR ) + 2 ) );
@@ -2308,7 +2304,7 @@ tcpRespounseBuilder( uint8_t *responseCode ) {
 			}
 		}
 #endif
-
+	tcpSt = TCP_FREE;
 	if ( NULL != pespconn ) {
 
 		espconn_send( pespconn, tmp, i );
@@ -2384,6 +2380,7 @@ buildQueryResponse( uint8_t *responseStatus ) {
 	}
 #endif
 
+	tcpSt = TCP_FREE;
 	if ( NULL != pespconn ) {
 
 		espconn_send( pespconn, tmp, i );

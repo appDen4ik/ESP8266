@@ -317,7 +317,7 @@
 // wifi AP parameters
 #define DEF_CHANEL      7
 #define DEF_AUTH		AUTH_WPA_WPA2_PSK
-#define MAX_CON			255
+#define MAX_CON			4
 #define NO_HIDDEN 		0
 #define BEACON_INT		100
 //***********************************************************************************************************************************
@@ -326,8 +326,8 @@
 
 #define TMP_SIZE		    10000
 
-#define TCP_SERVER_TIMEOUT	25  // SEC
-#define TCP_PORT			5555
+#define TCP_SERVER_TIMEOUT	20  // SEC
+#define TCP_PORT			6766
 
 //STA
 //#define SSID_STA /*"TSM_Guest" */"DIR-320"
