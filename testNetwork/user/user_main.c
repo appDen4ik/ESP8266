@@ -17,7 +17,20 @@ extern void uart_tx_one_char();
 static void wifi_check_ip(void *arg);
 
 
+void tcp_disnconcb( void *arg ) {
 
+	ets_uart_printf (" |tcp_disnconcb| ");
+}
+
+void tcp_sentcb( void *arg ) {
+
+	 ets_uart_printf (" |tcp_sentcb| ");
+}
+
+void tcp_reconcb( void *arg, sint8 err ) {
+
+	 ets_uart_printf (" |tcp_reconcb| ");
+}
 
  void ICACHE_FLASH_ATTR
 tcp_recvcb( void *arg, char *pdata, unsigned short len ) { // data received
@@ -29,10 +42,12 @@ tcp_recvcb( void *arg, char *pdata, unsigned short len ) { // data received
     }
 }
 
- void ICACHE_FLASH_ATTR tcp_connectcb(void *arg)
-{
-	 ets_uart_printf ("tcp_connectcb");
+ void ICACHE_FLASH_ATTR tcp_connectcb(void *arg) {
+
+	 ets_uart_printf (" |tcp_connectcb| ");
 }
+
+
 
 static void ICACHE_FLASH_ATTR wifi_check_ip(void *arg)
 {
@@ -144,17 +159,17 @@ void ICACHE_FLASH_ATTR user_init()
 	espconnServer.type = ESPCONN_TCP;
 	espconnServer.state = ESPCONN_NONE;
 	espconnServer.proto.tcp = &tcpServer;
-	espconnServer.proto.tcp->local_port = 5555;
+	espconnServer.proto.tcp->local_port = 6766;
 
 
 	//espconn_regist_time(&espconnServer, 60, 0);
 	espconn_regist_recvcb(&espconnServer, tcp_recvcb);          // data received
 	espconn_regist_connectcb(&espconnServer, tcp_connectcb);    // TCP connected successfully
+	espconn_regist_disconcb(&espconnServer, tcp_disnconcb);     // TCP disconnected successfully
+	espconn_regist_sentcb(&espconnServer, tcp_sentcb);          // data sent
+	espconn_regist_reconcb(&espconnServer, tcp_reconcb);        // error, or TCP disconnected
 	espconn_accept(&espconnServer);
-//	espconn_regist_disconcb(&espconnServer, tcp_disnconcb);     // TCP disconnected successfully
-//	espconn_regist_sentcb(&espconnServer, tcp_sentcb);          // data sent
-//	espconn_regist_reconcb(&espconnServer, tcp_reconcb);        // error, or TCP disconnected
-
+	espconn_regist_time(&espconnServer, 20, 0);
 	// Wait for Wi-Fi connection and start TCP connection
 
 	os_timer_disarm(&WiFiLinker);
