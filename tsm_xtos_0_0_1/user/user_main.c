@@ -1590,24 +1590,34 @@ comandParser( void ) {
 
 	if ( 0 == strcmp( tmp, TCP_REQUEST ) ) { 																	//+
 
-	    switch ( requestString( &tmp[ sizeof(TCP_REQUEST) + 1 ] ) ) {
-	    	case WRONG_LENGHT:
-	    		tcpRespounseBuilder( TCP_WRONG_LENGHT );
-	    		break;
-	    	case NOTHING_FOUND:
-	    		tcpRespounseBuilder( TCP_NOTHING_FOUND );
-	    		break;
-	    	case OPERATION_OK:
-	    		gpioStatusOut1 = ENABLE;
-	    		tcpRespounseBuilder( TCP_OPERATION_OK );
-	    		break;
-	    	case OPERATION_FAIL:
-	    		tcpRespounseBuilder( TCP_OPERATION_FAIL );
-	    		break;
-	    	default:
+		if ( 0 == strcmp( tmp, "system request" ) ) {
 
-	    		break;
-	    }
+			gpioStatusOut1 = ENABLE;
+			tcpRespounseBuilder( TCP_OPERATION_OK );
+		} else {
+
+			switch ( requestString( &tmp[ sizeof(TCP_REQUEST) + 1 ] ) ) {
+
+				  case WRONG_LENGHT:
+					  tcpRespounseBuilder( TCP_WRONG_LENGHT );
+					  break;
+
+				  case NOTHING_FOUND:
+					  tcpRespounseBuilder( TCP_NOTHING_FOUND );
+					  break;
+				  case OPERATION_OK:
+				    gpioStatusOut1 = ENABLE;
+				    tcpRespounseBuilder( TCP_OPERATION_OK );
+				    break;
+
+				   case OPERATION_FAIL:
+					   tcpRespounseBuilder( TCP_OPERATION_FAIL );
+					   break;
+				   default:
+
+					   break;
+			}
+		}
 
 	} else if ( 0 == strcmp( tmp, TCP_ENABLE_GPIO_1 ) ) {  														//+
 
