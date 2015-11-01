@@ -2548,5 +2548,134 @@ delete OK.
 update OK.
 
 
+//-----------------------------------------------------------------------------------------------------------------------------------------------------------------
+	{
+	uint16_t c, currentSector;
+	uint32_t i;
+	os_printf(" before ");
+	for ( currentSector = START_SECTOR; currentSector <= END_SECTOR; currentSector++ ) {
+		os_printf("currentSector: %d ", currentSector);
+		spi_flash_read( SPI_FLASH_SEC_SIZE * currentSector, (uint32 *)tmp, SPI_FLASH_SEC_SIZE );
+		for ( i = 0; SPI_FLASH_SEC_SIZE > i; i++ ) {
+			uart_tx_one_char(tmp[ i ]);
+
+		}
+
+		system_soft_wdt_stop();
+	}
+	os_delay_us(2000000);
+	}
+
+
+	{
+		uint8_t fsdlf[50];
+		uint8_t ascii[10];
+		static uint8_t string[] = "HELLO";
+		static uint8_t string1[] = "Тестирование";
+
+
+		uint16_t lenght;
+		uint32_t adress;
+
+			uint8_t *p;
+
+			uint16_t c, currentSector;
+			uint32_t a, i;
+
+			result res;
+
+
+
+			for ( i = STRING_SIZE; i < ALIGN_STRING_SIZE; i++ ) {
+				alignString[i] = 0xff;
+			}
+
+
+
+			os_delay_us(500000);
+			ets_uart_printf(" Проверка query. Тест 1 ");
+			os_delay_us(500000);
+
+
+			ets_uart_printf(" П.1 Заполняем базу значениями (ASCII) выровняными по ALIGN_STRING_SIZE символов  ");
+
+			for ( i = 1; i <=  ( SPI_FLASH_SEC_SIZE / ALIGN_STRING_SIZE ) * (END_SECTOR - START_SECTOR + 1) - 1; i++ ) {
+
+				for ( a = 0; a < STRING_SIZE - 1; a++ ) {
+						alignString[a] = '0';
+				}
+
+				p = ShortIntToString( i, ascii );
+
+				memcpy( &alignString[ STRING_SIZE - 39 ], string, strlen(string) );
+
+				alignString[ STRING_SIZE - 40 ] = START_OF_FIELD;
+				alignString[ STRING_SIZE - 20 ]  = END_OF_FIELD;
+
+
+				memcpy( &alignString[ STRING_SIZE - 1 - (p - ascii) - 1 - 40], ascii, (p - ascii) );
+
+				alignString[ STRING_SIZE - 15 - 40 ] = START_OF_FIELD;
+				alignString[ STRING_SIZE - 2 - 40 ]  = END_OF_FIELD;
+				alignString[ STRING_SIZE - 1 ]  = END_OF_STRING;
+
+
+				memcpy( &alignString[ STRING_SIZE - 40 - 15 - 20 ], string1, strlen( string1 ) );
+
+				alignString[ STRING_SIZE - 40 - 20 - 15 - 1 ] = START_OF_FIELD;
+				alignString[ STRING_SIZE - 41 - 15 ]  = END_OF_FIELD;
+
+				os_printf( " \n %s \n String lenght %d", alignString, ( strlen( alignString ) + 1 ) );
+
+				switch ( res = insert( alignString ) ) {
+					case OPERATION_OK:
+						ets_uart_printf("OPERATION_OK");
+						system_soft_wdt_stop();
+						break;
+					case WRONG_LENGHT:
+						ets_uart_printf("WRONG_LENGHT");
+						break;
+					case OPERATION_FAIL:
+						ets_uart_printf("OPERATION_FAIL");
+						break;
+					case LINE_ALREADY_EXIST:
+						ets_uart_printf("LINE_ALREADY_EXIST");
+						break;
+					case NOT_ENOUGH_MEMORY:
+						ets_uart_printf("NOT_ENOUGH_MEMORY");
+						break;
+
+				}
+			}
+
+			for ( currentSector = END_SECTOR; currentSector <= END_SECTOR; currentSector++ ) {
+				spi_flash_read( SPI_FLASH_SEC_SIZE * currentSector, (uint32 *)tmp, SPI_FLASH_SEC_SIZE );
+				for ( i = 0; SPI_FLASH_SEC_SIZE > i; i++ ) {
+					uart_tx_one_char(tmp[ i ]);
+
+				}
+
+	        }
+
+	}
+
+// if ( 0 == GPIO_INPUT_GET(INP_3_PIN) )  {
+	{
+	uint16_t c, currentSector;
+	uint32_t i;
+
+	for ( currentSector = START_SECTOR; currentSector <= END_SECTOR; currentSector++ ) {
+		os_printf("currentSector: %d ", currentSector);
+		spi_flash_read( SPI_FLASH_SEC_SIZE * currentSector, (uint32 *)tmp, SPI_FLASH_SEC_SIZE );
+		for ( i = 0; SPI_FLASH_SEC_SIZE > i; i++ ) {
+			uart_tx_one_char(tmp[ i ]);
+
+		}
+
+		system_soft_wdt_stop();
+	}
+	}
+//}
+//-----------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 
