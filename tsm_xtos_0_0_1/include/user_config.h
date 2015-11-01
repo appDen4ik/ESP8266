@@ -261,7 +261,7 @@
 
 #define DEF_SSID_AP          	"Access Control System"
 #define SSID_AP_OFSET			505
-#define DEF_PWD_AP		        "default"
+#define DEF_PWD_AP		        "defaultt"
 #define PWD_AP_OFSET			539
 #define HEADER_AP				"AP:"
 #define HEADER_AP_OFSET			500
