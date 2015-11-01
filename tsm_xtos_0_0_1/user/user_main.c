@@ -40,10 +40,10 @@
 //**********************************************************************************************************************************
 LOCAL inline void ICACHE_FLASH_ATTR comandParser( void )  __attribute__((always_inline));
 LOCAL inline void ICACHE_FLASH_ATTR initPeriph( void )  __attribute__((always_inline));
-LOCAL inline void ICACHE_FLASH_ATTR initWIFI( void ) __attribute__((always_inline));
+LOCAL void ICACHE_FLASH_ATTR initWIFI( void );
 LOCAL inline void ICACHE_FLASH_ATTR loadDefParam( void ) __attribute__((always_inline));
 LOCAL inline void ICACHE_FLASH_ATTR broadcastBuilder( void ) __attribute__((always_inline));
-LOCAL void ICACHE_FLASH_ATTR buildQueryResponse( uint8_t *responseStatus );
+LOCAL inline void ICACHE_FLASH_ATTR buildQueryResponse( uint8_t *responseStatus ) __attribute__((always_inline));
 LOCAL void ICACHE_FLASH_ATTR tcpRespounseBuilder( uint8_t *responseStatus );
 LOCAL compStr ICACHE_FLASH_ATTR compareLenght( uint8_t *string, uint16_t maxLenght );
 LOCAL uint32_t ICACHE_FLASH_ATTR StringToInt(uint8_t *data);
@@ -57,7 +57,6 @@ extern void ets_wdt_init(void);
 extern void uart_tx_one_char();
 //**********************************************************************************************************************************
 //gpio
-
 LOCAL uint32_t gpioOutDeley1;
 LOCAL uint32_t gpioOutDeley2;
 
@@ -69,7 +68,6 @@ LOCAL uint8_t gpioModeOut2[ sizeof(GPIO_OUT_IMPULSE_MODE) ];
 
 LOCAL stat gpioStatusOut1 = DISABLE;
 LOCAL stat gpioStatusOut2 = DISABLE;
-
 //**********************************************************************************************************************************
 LOCAL os_timer_t task_timer;
 //**********************************************************************************************************************************
@@ -132,7 +130,6 @@ void user_rf_pre_init(void) {
 LOCAL void ICACHE_FLASH_ATTR
 discon(os_event_t *e) {
 
-	os_printf("++++++some check point discon++++++");
 	if ( NULL != ( struct espconn * )( e->par ) ) {
 
 		espconn_disconnect( ( struct espconn * )( e->par ) );
@@ -162,6 +159,25 @@ cmdPars(os_event_t *e) {
 }
 
 //**********************************************************Callbacks***************************************************************
+
+LOCAL void ICACHE_FLASH_ATTR
+gpioCallback(){
+
+	uint32_t gpio_status = GPIO_REG_READ(GPIO_STATUS_ADDRESS);
+	GPIO_REG_WRITE(GPIO_STATUS_W1TC_ADDRESS, gpio_status);
+	if (!GPIO_INPUT_GET(2)) {
+		os_printf( "load default options" );
+		loadDefParam( );
+		system_restart();
+		while (1) {
+
+		}
+	} else {
+
+		os_printf( "some not supporting gpio interrupt" );
+	}
+}
+
 LOCAL void ICACHE_FLASH_ATTR
 tcp_recvcb( void *arg, char *pdata, unsigned short len ) { // data received
 
@@ -465,7 +481,7 @@ mScheduler(char *datagram, uint16 size) {
 //		os_printf(" |mScheduler gpioModeOut2 = GPIO_OUT_COMBINE_MODE, gpioOutDeley2 = %dms, gpioOutDeley2Counter = %d| " \
 				                                                      , gpioOutDeley2, gpioOutDeley2);
 #endif
-			if ( gpioOutDeley2Counter < gpioOutDeley2 && gpio16_input_get()  ) {
+			if ( gpioOutDeley2Counter < gpioOutDeley2 && gpio16_input_get() ) {
 				gpioOutDeley2Counter += 15;
 				GPIO_OUTPUT_SET(OUT_2_GPIO, 1);
 			} else {
@@ -505,7 +521,7 @@ mScheduler(char *datagram, uint16 size) {
 
 	if ( broadcastTmr >= BROADCAST_TIMER ) {
 
-	    struct station_info * station = wifi_softap_get_station_info();
+	    struct station_info *station = wifi_softap_get_station_info();
 
 		broadcastTmr = 0;
 
@@ -521,11 +537,7 @@ mScheduler(char *datagram, uint16 size) {
 #ifdef DEBUG
 		os_printf( "bssid : %x:%x:%x:%x:%x:%x ip : %d.%d.%d.%d ", MAC2STR(station->bssid), IP2STR(&station->ip) );
 #endif
-
 		    espconnBroadcastSTA.proto.udp->remote_port = StringToInt( &broadcastTmp[DEF_UDP_PORT_OFSET] );
-/*	    	IP4_ADDR( (ip_addr_t *)brodcastSSA.proto.udp->remote_ip, (uint8_t)( ipaddr_addr( &tmpFLASH[ DEF_IP_SOFT_AP_OFSET ] ) ), \
-	    												(uint8_t)( ipaddr_addr( &tmpFLASH[ DEF_IP_SOFT_AP_OFSET ] ) >> 8 ),\
-														(uint8_t)( ipaddr_addr( &tmpFLASH[ DEF_IP_SOFT_AP_OFSET ] ) >> 16 ), 255 );*/
 			espconn_create(&espconnBroadcastSTA);
 			switch ( espconn_send(&espconnBroadcastSTA, brodcastMessage, strlen(brodcastMessage)) ) {
 				case ESPCONN_OK:
@@ -551,38 +563,62 @@ mScheduler(char *datagram, uint16 size) {
 		}
 
 		wifi_softap_free_station_info();
-
+/*		{
 			struct station_config stationConf;
-			 wifi_station_get_config( &stationConf );
-			 os_printf( " stationConf.ssid  %s ", stationConf.ssid, &stationConf.ssid );
-			 os_printf( " stationConf.password  %s ", stationConf.password, &stationConf.password );
+			wifi_station_get_config( &stationConf );
+			os_printf( " stationConf.ssid  %s ", stationConf.ssid, &stationConf.ssid );
+			os_printf( " stationConf.password  %s ", stationConf.password, &stationConf.password );
+	    	IP4_ADDR( (ip_addr_t *)brodcastSTA.proto.udp->remote_ip, (uint8_t)( ipaddr_addr( &broadcastTmp[ DEF_IP_SOFT_AP_OFSET ] ) ), \
+				    								(uint8_t)( ipaddr_addr( &broadcastTmp[ DEF_IP_SOFT_AP_OFSET ] ) >> 8 ),\
+													(uint8_t)( ipaddr_addr( &broadcastTmp[ DEF_IP_SOFT_AP_OFSET ] ) >> 16 ), 255 );
+			espconnBroadcastSTA.proto.udp->remote_port = StringToInt( &broadcastTmp[DEF_UDP_PORT_OFSET] );
+			espconn_create(&espconnBroadcastSTA);
+			switch ( espconn_send(&espconnBroadcastSTA, brodcastMessage, strlen(brodcastMessage)) ) {
+				case ESPCONN_OK:
+					os_printf( " |esp soft AP  broadcast succeed| " );
+					break;
+				case ESPCONN_MEM:
+					os_printf( " |esp soft AP  broadcast out of memory| " );
+					break;
+				case ESPCONN_ARG:
+					os_printf( " |esp soft AP  broadcast illegal argument| " );
+					break;
+				case ESPCONN_IF:
+					os_printf( " |esp soft AP  broadcast send UDP fail| " );
+					break;
+				case ESPCONN_MAXNUM:
+					os_printf( " |esp soft AP  broadcast buffer of sending data is full| " );
+					break;
+
+			}
+			espconn_delete(&espconnBroadcastSTA);
+		}*/
 
 		// ¬нешн€€ сеть
 		switch( wifi_station_get_connect_status() ) {
 			case STATION_GOT_IP:
-				if ( ( rssi = wifi_station_get_rssi() ) < -90 ){
-					os_printf( "Bad signal, rssi = %d ", rssi);
+				if ( ( rssi = wifi_station_get_rssi() ) < -90 ) {
+					os_printf( "Bad signal, rssi = %d ", rssi );
 					os_delay_us(1000);
 					os_printf( "Broadcast port %s ", broadcastTmp[DEF_UDP_PORT_OFSET] );
 					os_printf( "%s ", broadcastShift );
-					GPIO_OUTPUT_SET(LED_GPIO, ledState);
-					ledState ^=1;
+					GPIO_OUTPUT_SET( LED_GPIO, ledState );
+					ledState ^= 1;
 				} else {
 
-					GPIO_OUTPUT_SET(LED_GPIO, 1);
+					GPIO_OUTPUT_SET( LED_GPIO, 1 );
 
-					wifi_get_ip_info(STATION_IF, &inf);
+					wifi_get_ip_info( STATION_IF, &inf );
 
 					if ( 0 != inf.ip.addr ) {
 
-						ets_uart_printf("WiFi connected\r\n ");
-						os_delay_us(1000);
+						ets_uart_printf( "WiFi connected\r\n " );
+						os_delay_us( 1000 );
 						os_printf( "Broadcast port %s ", &broadcastTmp[DEF_UDP_PORT_OFSET] );
 						os_printf( "%s ", brodcastMessage );
 
-
-						espconn_create(&espconnBroadcastAP);
-						switch ( espconn_send(&espconnBroadcastAP, brodcastMessage, strlen(brodcastMessage)) ) {
+						espconn_create( &espconnBroadcastAP );
+						switch ( espconn_send( &espconnBroadcastAP, brodcastMessage, strlen( brodcastMessage ) ) ) {
 							case ESPCONN_OK:
 								os_printf( " |esp STA  broadcast succeed| " );
 								break;
@@ -600,50 +636,50 @@ mScheduler(char *datagram, uint16 size) {
 								break;
 
 						}
-						espconn_delete(&espconnBroadcastAP);
+
+						espconn_delete( &espconnBroadcastAP );
 					}
 				}
 				break;
 			case STATION_WRONG_PASSWORD:
-				ets_uart_printf("WiFi connecting error, wrong password\r\n ");
+				ets_uart_printf( "WiFi connecting error, wrong password\r\n" );
 				os_delay_us(1000);
-		    	os_printf( "routerSSID %s ", routerSSID );
-		    	os_printf( "routerPWD %s ", routerPWD );
-		    	os_printf( "Broadcast port %s ", &broadcastTmp[DEF_UDP_PORT_OFSET] );
-				os_printf( "%s ", broadcastShift );
-				GPIO_OUTPUT_SET(LED_GPIO, ledState);
+		    	os_printf( "routerSSID %s\r\n", routerSSID );
+		    	os_printf( "routerPWD %s\r\n", routerPWD );
+		    	os_printf( "Broadcast port %s\r\n", &broadcastTmp[DEF_UDP_PORT_OFSET] );
+				os_printf( "%s\r\n", broadcastShift );
+				GPIO_OUTPUT_SET( LED_GPIO, ledState );
 				ledState ^=1;
 				break;
 			case STATION_NO_AP_FOUND:
 				ets_uart_printf("WiFi connecting error, ap not found\r\n" );
 				os_delay_us(1000);
-		    	os_printf( "routerSSID %s ", routerSSID );
-		    	os_printf( "routerPWD %s ", routerPWD );
-		    	os_printf( "Broadcast port %s ", &broadcastTmp[DEF_UDP_PORT_OFSET] );
-				os_printf( "%s ", broadcastShift );
-				GPIO_OUTPUT_SET(LED_GPIO, ledState);
+		    	os_printf( "routerSSID %s\r\n", routerSSID );
+		    	os_printf( "routerPWD %s\r\n", routerPWD );
+		    	os_printf( "Broadcast port %s\r\n", &broadcastTmp[DEF_UDP_PORT_OFSET] );
+				os_printf( "%s\r\n", broadcastShift );
+				GPIO_OUTPUT_SET( LED_GPIO, ledState );
 				ledState ^=1;
 				break;
 			case STATION_CONNECT_FAIL:
-				ets_uart_printf("WiFi connecting fail\r\n ");
+				ets_uart_printf( "WiFi connecting fail\r\n" );
 				os_delay_us(1000);
-		    	os_printf( "routerSSID %s ", routerSSID );
-		    	os_printf( "routerPWD %s ", routerPWD );
-		    	os_printf( "Broadcast port %s ", &broadcastTmp[DEF_UDP_PORT_OFSET] );
-				os_printf( "%s ", broadcastShift );
-				system_restart();
-				os_delay_us(100000);
-				GPIO_OUTPUT_SET(LED_GPIO, ledState);
+		    	os_printf( "routerSSID %s\r\n", routerSSID );
+		    	os_printf( "routerPWD %s\r\n", routerPWD );
+		    	os_printf( "Broadcast port %s\r\n", &broadcastTmp[DEF_UDP_PORT_OFSET] );
+				os_printf( "%s\r\n", broadcastShift );
+//				system_restart();
+				GPIO_OUTPUT_SET( LED_GPIO, ledState );
 				ledState ^=1;
 				break;
 			default:
-				ets_uart_printf("WiFi connecting...\r\n ");
+				ets_uart_printf( "WiFi connecting...\r\n " );
 				os_delay_us(1000);
-		    	os_printf( "routerSSID %s ", routerSSID );
-		    	os_printf( "routerPWD %s ", routerPWD );
-		    	os_printf( "Broadcast port %s ", &broadcastTmp[DEF_UDP_PORT_OFSET] );
-				os_printf( "%s ", broadcastShift );
-				GPIO_OUTPUT_SET(LED_GPIO, ledState);
+		    	os_printf( "routerSSID %s\r\n", routerSSID );
+		    	os_printf( "routerPWD %s\r\n", routerPWD );
+		    	os_printf( "Broadcast port %s\r\n", &broadcastTmp[DEF_UDP_PORT_OFSET] );
+				os_printf( "%s\r\n", broadcastShift );
+				GPIO_OUTPUT_SET( LED_GPIO, ledState );
 				ledState ^=1;
 				break;
 		}
@@ -652,30 +688,12 @@ mScheduler(char *datagram, uint16 size) {
 		broadcastTmr += 10;
 	}
 
-	os_timer_setfn(&task_timer, (os_timer_func_t *)mScheduler, (void *)0);
-	os_timer_arm(&task_timer, DELAY, 0);
+	os_timer_setfn( &task_timer, (os_timer_func_t *)mScheduler, (void *)0 );
+	os_timer_arm( &task_timer, DELAY, 0 );
 }
 
 
-void callbackFunction(){
-
-	uint32_t gpio_status = GPIO_REG_READ(GPIO_STATUS_ADDRESS);
-	GPIO_REG_WRITE(GPIO_STATUS_W1TC_ADDRESS, gpio_status);
-	if (!GPIO_INPUT_GET(2)) {
-		os_printf( "load default options" );
-		loadDefParam( );
-		system_restart();
-		while (1) {
-
-		}
-	} else {
-
-		os_printf( "some not supporting gpio interrupt" );
-	}
-}
-
-
-void ICACHE_FLASH_ATTR
+LOCAL void ICACHE_FLASH_ATTR
 config(void) {
 
 	initWIFI(); // настройка sta ap
@@ -687,37 +705,38 @@ config(void) {
     system_soft_wdt_restart();
 
 	ETS_GPIO_INTR_DISABLE(); // Disable gpio interrupts
-//	gpio_intr_handler_register(callbackFunction, (void* )INP_4_PIN); // GPIO interrupt handler
-	ETS_GPIO_INTR_ATTACH(callbackFunction, NULL);
+	//gpio_intr_handler_register(callbackFunction, (void* )INP_4_PIN); // GPIO interrupt handler
+	ETS_GPIO_INTR_ATTACH( gpioCallback, NULL );
 	//GPIO_REG_WRITE(GPIO_STATUS_W1TC_ADDRESS, BIT(INP_4_PIN)); // Clear GPIO status
-	gpio_pin_intr_state_set(GPIO_ID_PIN(2), 4); // Interrupt on any GPIO edge
+	gpio_pin_intr_state_set( GPIO_ID_PIN( 2 ), 4 ); // Interrupt on any GPIO edge
 	ETS_GPIO_INTR_ENABLE();
 
 	// os_timer_disarm(ETSTimer *ptimer)
-	os_timer_disarm(&task_timer);
+	os_timer_disarm( &task_timer );
 	// os_timer_setfn(ETSTimer *ptimer, ETSTimerFunc *pfunction, void *parg)
-	os_timer_setfn(&task_timer, (os_timer_func_t *)mScheduler, (void *)0);
+	os_timer_setfn( &task_timer, (os_timer_func_t *)mScheduler, (void *)0 );
 	// void os_timer_arm(ETSTimer *ptimer,uint32_t milliseconds, bool repeat_flag)
-	os_timer_arm(&task_timer, DELAY, 0);
+	os_timer_arm( &task_timer, DELAY, 0 );
 }
 
 
 void ICACHE_FLASH_ATTR
 user_init(void) {
 
-	initPeriph();
-
- 	ets_wdt_disable();
+	ets_wdt_disable();
    	system_soft_wdt_stop();
 
-	os_printf("OS reset status: %d", system_get_rst_info()->reason ); //после падени€ сервера через soft AP
-	if ( system_get_rst_info()->reason != REASON_SOFT_RESTART \
-			 && system_get_rst_info()->reason !=  REASON_DEFAULT_RST) {	// необходима еще одна перезагрузка
+	initPeriph();
 
+	os_printf( " OS reset status: %d\r\n", system_get_rst_info()->reason );
+	if ( system_get_rst_info()->reason != REASON_SOFT_RESTART \
+			 && system_get_rst_info()->reason != REASON_DEFAULT_RST ) {
+
+//		system_restart();
 	}
 
-    os_printf( " sdk version: %s \n", system_get_sdk_version() );
-	os_printf( " module version 0.8 ");
+    os_printf( " sdk version: %s \r\n", system_get_sdk_version() );
+	os_printf( " module version 0.8\r\n" );
 
 	//spi_flash_erase_sector( USER_SECTOR_IN_FLASH_MEM );
 
@@ -725,7 +744,8 @@ user_init(void) {
 	if ( SPI_FLASH_RESULT_OK != spi_flash_read( USER_SECTOR_IN_FLASH_MEM * SPI_FLASH_SEC_SIZE, \
 			                                                                  (uint32 *)tmp, ALIGN_FLASH_READY_SIZE ) ) {
 
-		ets_uart_printf("Read fail ");
+		ets_uart_printf( " | user_init: Read USER_SECTOR_IN_FLASH_MEM fail! |\r\n" );
+		system_restart();
 		while(1);
 	}
 
@@ -733,70 +753,65 @@ user_init(void) {
 
 		if ( OPERATION_OK != clearSectorsDB() ) {
 
-			ets_uart_printf("clearSectorsDB() fail ");
+			ets_uart_printf( " | user_init: clearSectorsDB() fail! |\r\n" );
+			system_restart();
 			while(1);
 		}
 
 		loadDefParam();
 	}
 
- if ( 0 == GPIO_INPUT_GET(INP_3_PIN) )  {
+	if ( 0 == GPIO_INPUT_GET( INP_3_PIN ) )  {
 
-	uint16_t c, currentSector;
-	uint32_t i;
+		uint16_t c, currentSector;
+		uint32_t i;
 
-	for ( currentSector = START_SECTOR; currentSector <= END_SECTOR; currentSector++ ) {
-		os_printf("currentSector: %d ", currentSector);
-		spi_flash_read( SPI_FLASH_SEC_SIZE * currentSector, (uint32 *)tmp, SPI_FLASH_SEC_SIZE );
-		for ( i = 0; SPI_FLASH_SEC_SIZE > i; i++ ) {
-			uart_tx_one_char(tmp[ i ]);
+		for ( currentSector = START_SECTOR; currentSector <= END_SECTOR; currentSector++ ) {
+			os_printf( "currentSector: %d\r\n", currentSector );
+			spi_flash_read( SPI_FLASH_SEC_SIZE * currentSector, (uint32 *)tmp, SPI_FLASH_SEC_SIZE );
+			for ( i = 0; SPI_FLASH_SEC_SIZE > i; i++ ) {
 
+				uart_tx_one_char( tmp[ i ] );
+			}
+
+			system_soft_wdt_stop();
 		}
-
-		system_soft_wdt_stop();
 	}
-}
 
- //wifi_set_opmode_current (NULL_MODE);
 	// broadcast
 	if ( SPI_FLASH_RESULT_OK != spi_flash_read( USER_SECTOR_IN_FLASH_MEM * SPI_FLASH_SEC_SIZE, \
 			                                                                          (uint32 *)broadcastTmp, SPI_FLASH_SEC_SIZE ) ) {
 
-		ets_uart_printf("Read fail");
+		ets_uart_printf(" | user_init: read Broadcast fail! |\r\n");
+		system_restart();
 		while(1);
 	}
 
-	if ( SPI_FLASH_RESULT_OK != spi_flash_read( USER_SECTOR_IN_FLASH_MEM * SPI_FLASH_SEC_SIZE, \
-			                                                                          (uint32 *)tmp, SPI_FLASH_SEC_SIZE ) ) {
-		ets_uart_printf("Read for gpioMode fail!!");
-		while(1);
-	}
+	if ( 0 == strcmp( &broadcastTmp[GPIO_OUT_1_MODE_OFSET], GPIO_OUT_IMPULSE_MODE ) || \
+				                                             0 == strcmp( &broadcastTmp[GPIO_OUT_1_MODE_OFSET], GPIO_OUT_TRIGGER_MODE ) || \
+															 0 == strcmp( &broadcastTmp[GPIO_OUT_1_MODE_OFSET], GPIO_OUT_COMBINE_MODE ) ) {
 
-	if ( 0 == strcmp( &tmp[GPIO_OUT_1_MODE_OFSET], GPIO_OUT_IMPULSE_MODE ) || \
-				                                             0 == strcmp( &tmp[GPIO_OUT_1_MODE_OFSET], GPIO_OUT_TRIGGER_MODE ) || \
-															 0 == strcmp( &tmp[GPIO_OUT_1_MODE_OFSET], GPIO_OUT_COMBINE_MODE ) ) {
+		gpioOutDeley1 = StringToInt( &broadcastTmp[GPIO_OUT_1_DELEY_OFSET] );
 
-		gpioOutDeley1 = StringToInt( &tmp[GPIO_OUT_1_DELEY_OFSET] );
-
-		os_sprintf( gpioModeOut1, "%s", &tmp[ GPIO_OUT_1_MODE_OFSET ] );
+		os_sprintf( gpioModeOut1, "%s", &broadcastTmp[ GPIO_OUT_1_MODE_OFSET ] );
 
 #ifdef DEBUG
-	  os_printf( " gpioModeOut1  %s,  gpioOutDeley1  %d ", gpioModeOut1, gpioOutDeley1 );
+	  os_printf( " gpioModeOut1  %s,  gpioOutDeley1  %d\r\n", gpioModeOut1, gpioOutDeley1 );
 	  os_delay_us(50000);
 #endif
 
 	}
 
-	if ( 0 == strcmp( &tmp[GPIO_OUT_2_MODE_OFSET], GPIO_OUT_IMPULSE_MODE ) || \
-            												0 == strcmp( &tmp[GPIO_OUT_2_MODE_OFSET], GPIO_OUT_TRIGGER_MODE ) || \
-															0 == strcmp( &tmp[GPIO_OUT_2_MODE_OFSET], GPIO_OUT_COMBINE_MODE ) ) {
+	if ( 0 == strcmp( &broadcastTmp[GPIO_OUT_2_MODE_OFSET], GPIO_OUT_IMPULSE_MODE ) || \
+            												0 == strcmp( &broadcastTmp[GPIO_OUT_2_MODE_OFSET], GPIO_OUT_TRIGGER_MODE ) || \
+															0 == strcmp( &broadcastTmp[GPIO_OUT_2_MODE_OFSET], GPIO_OUT_COMBINE_MODE ) ) {
 
-		gpioOutDeley2 = StringToInt( &tmp[GPIO_OUT_2_DELEY_OFSET] );
+		gpioOutDeley2 = StringToInt( &broadcastTmp[GPIO_OUT_2_DELEY_OFSET] );
 
-		os_sprintf( gpioModeOut2, "%s", &tmp[ GPIO_OUT_2_MODE_OFSET ] );
+		os_sprintf( gpioModeOut2, "%s", &broadcastTmp[ GPIO_OUT_2_MODE_OFSET ] );
 
 #ifdef DEBUG
-	  os_printf( " gpioModeOut2  %s,  gpioOutDeley2  %d ", gpioModeOut2, gpioOutDeley2 );
+	  os_printf( " gpioModeOut2  %s,  gpioOutDeley2  %d\r\n", gpioModeOut2, gpioOutDeley2 );
 	  os_delay_us(50000);
 #endif
 
@@ -808,11 +823,13 @@ user_init(void) {
 	uint16_t c, currentSector;
 
 	for ( currentSector = USER_SECTOR_IN_FLASH_MEM; currentSector <= USER_SECTOR_IN_FLASH_MEM; currentSector++ ) {
-			os_printf( " currentSector   %d ", currentSector);
+			os_printf( " currentSector %d\r\n", currentSector);
 			spi_flash_read( SPI_FLASH_SEC_SIZE * currentSector, (uint32 *)tmp, SPI_FLASH_SEC_SIZE );
 			for ( c = 0; SPI_FLASH_SEC_SIZE > c; c++ ) {
+
 				uart_tx_one_char(tmp[c]);
 			}
+
 			system_soft_wdt_stop();
 		}
 	}
@@ -836,9 +853,13 @@ user_init(void) {
 //		espconn_tcp_set_max_con(255);
 
 #ifdef DEBUG
-    	os_printf( "espconn_tcp_get_max_con(); %d ", espconn_tcp_get_max_con() );
+    	os_printf( " espconn_tcp_get_max_con() %d\r\n", espconn_tcp_get_max_con() );
 #endif
 
+    	if ( 5 != espconn_tcp_get_max_con() ) {
+
+    		espconn_tcp_set_max_con(5);
+    	}
   /*  	if ( 0 == espconn_tcp_set_max_con_allow( &espconnServer, 2 ) ) {
 
     		os_printf( "espconn_tcp_set_max_con_allow( espconnServer, 2 ) fail " );
@@ -861,7 +882,7 @@ user_init(void) {
     	espconnBroadcastAP.proto.udp = &espudpBroadcastAP;
     	espconnBroadcastAP.proto.udp->remote_port = StringToInt( &tmp[DEF_UDP_PORT_OFSET] );
 #ifdef DEBUG
-    	os_printf( "broadcast.proto.udp->remote_port %d ", espconnBroadcastAP.proto.udp->remote_port );
+    	os_printf( " broadcast.proto.udp->remote_port %d\r\n", espconnBroadcastAP.proto.udp->remote_port );
 #endif
 
      //udp клиент AP
@@ -874,17 +895,9 @@ user_init(void) {
     												(uint8_t)( ipaddr_addr( &tmp[ DEF_IP_SOFT_AP_OFSET ] ) >> 8 ),\
 													(uint8_t)( ipaddr_addr( &tmp[ DEF_IP_SOFT_AP_OFSET ] ) >> 16 ), 255 );
 #ifdef DEBUG
-    	os_printf( "brodcastSSA.proto.udp->remote_ip %d.%d.%d.%d ", IP2STR(espconnBroadcastSTA.proto.udp->remote_ip) );
+    	os_printf( " brodcastSTA.proto.udp->remote_ip %d.%d.%d.%d\r\n", IP2STR(espconnBroadcastSTA.proto.udp->remote_ip) );
 #endif
     }
-
-/*	initWIFI();
-
-   	ets_wdt_init();
-    ets_wdt_disable();
-   	system_soft_wdt_stop();
-   	ets_wdt_enable();
-    system_soft_wdt_restart();*/
 
 	if(wifi_station_get_auto_connect() == 0) {
 
@@ -897,8 +910,8 @@ user_init(void) {
     memcpy( routerPWD, &tmp[PWD_STA_OFSET], strlen(&tmp[PWD_STA_OFSET]) + 1 );
 
 #ifdef DEBUG
-    	os_printf( "routerSSID %s", routerSSID );
-    	os_printf( "routerPWD %s", routerPWD );
+    	os_printf( " routerSSID %s\r\n", routerSSID );
+    	os_printf( " routerPWD %s\r\n", routerPWD );
 #endif
 
     disconQueue = (os_event_t *)os_malloc( sizeof(os_event_t)*DISCON_QUEUE_LENGHT );
@@ -916,64 +929,57 @@ user_init(void) {
 }
 
 
-void ICACHE_FLASH_ATTR
+LOCAL void ICACHE_FLASH_ATTR
 initPeriph( ) {
-
-//	ets_wdt_enable();
-	ets_wdt_disable();
-
-	system_soft_wdt_stop();
-//	system_soft_wdt_restart();
 
 	uart_init(BIT_RATE_115200, BIT_RATE_115200);
 
-	os_install_putc1(uart_tx_one_char);
+	os_install_putc1( uart_tx_one_char );
 
 	if ( SYS_CPU_160MHZ != system_get_cpu_freq() ) {
-		system_update_cpu_freq(SYS_CPU_160MHZ);
+
+		system_update_cpu_freq( SYS_CPU_160MHZ );
 	}
 
-	PIN_FUNC_SELECT(OUT_1_MUX, OUT_1_FUNC);
-	GPIO_OUTPUT_SET(OUT_1_GPIO, 0);
+	PIN_FUNC_SELECT( OUT_1_MUX, OUT_1_FUNC );
+	GPIO_OUTPUT_SET( OUT_1_GPIO, 0 );
 
-	PIN_FUNC_SELECT(OUT_2_MUX, OUT_2_FUNC);
-	GPIO_OUTPUT_SET(OUT_2_GPIO, 0);
+	PIN_FUNC_SELECT( OUT_2_MUX, OUT_2_FUNC );
+	GPIO_OUTPUT_SET( OUT_2_GPIO, 0 );
 
-	PIN_FUNC_SELECT(LED_MUX, LED_FUNC);
-	GPIO_OUTPUT_SET(LED_GPIO, 0);
+	PIN_FUNC_SELECT( LED_MUX, LED_FUNC );
+	GPIO_OUTPUT_SET( LED_GPIO, 0 );
 
-	PIN_FUNC_SELECT(INP_1_MUX, INP_1_FUNC);
-	gpio_output_set(0, 0, 0, INP_1);
+	PIN_FUNC_SELECT( INP_1_MUX, INP_1_FUNC );
+	gpio_output_set( 0, 0, 0, INP_1 );
 
-	PIN_FUNC_SELECT(INP_2_MUX, INP_2_FUNC);
-	gpio_output_set(0, 0, 0, INP_2);
+	PIN_FUNC_SELECT( INP_2_MUX, INP_2_FUNC );
+	gpio_output_set( 0, 0, 0, INP_2 );
 
-	PIN_FUNC_SELECT(INP_3_MUX, INP_3_FUNC);
-	gpio_output_set(0, 0, 0, INP_3);
+	PIN_FUNC_SELECT( INP_3_MUX, INP_3_FUNC );
+	gpio_output_set( 0, 0, 0, INP_3 );
 
-	PIN_FUNC_SELECT(PERIPHS_IO_MUX_GPIO2_U, FUNC_GPIO2);
-	gpio_output_set(0, 0, 0, BIT2);
+	PIN_FUNC_SELECT( PERIPHS_IO_MUX_GPIO2_U, FUNC_GPIO2 );
+	gpio_output_set( 0, 0, 0, BIT2 );
 
 	gpio16_input_conf();
-
 
 }
 
 
-void ICACHE_FLASH_ATTR
+LOCAL void ICACHE_FLASH_ATTR
 initWIFI( ) {
 
 	struct station_config stationConf;
 	struct softap_config softapConf;
 	struct ip_info ipinfo;
 
-	 // wifi_set_opmode( STATION_MODE );
-
 
 	if ( SPI_FLASH_RESULT_OK != spi_flash_read( USER_SECTOR_IN_FLASH_MEM * SPI_FLASH_SEC_SIZE, \
 																		(uint32 *)writeFlashTmp, SPI_FLASH_SEC_SIZE ) ) {
 
-		ets_uart_printf("initWIFI Read fail ");
+		ets_uart_printf( " | initWIFI Read fail! |\r\n" );
+		system_restart();
 		while(1);
 	}
 
@@ -999,7 +1005,7 @@ initWIFI( ) {
 		  os_sprintf( stationConf.ssid, "%s", &writeFlashTmp[ SSID_STA_OFSET ] );
 	  }
 #ifdef DEBUG
-	  os_printf( " stationConf.ssid  %s,  &tmp[ SSID_STA_OFSET ]  %s ", stationConf.ssid, &writeFlashTmp[ SSID_STA_OFSET ] );
+	  os_printf( " stationConf.ssid  %s,  &tmp[ SSID_STA_OFSET ]  %s\r\n", stationConf.ssid, &writeFlashTmp[ SSID_STA_OFSET ] );
 #endif
 	  if ( 0 != strcmp( stationConf.password, &writeFlashTmp[ PWD_STA_OFSET ] ) ) {
 
@@ -1007,7 +1013,7 @@ initWIFI( ) {
 		  os_sprintf( stationConf.password, "%s", &writeFlashTmp[ PWD_STA_OFSET ] );
 	  }
 #ifdef DEBUG
-	  os_printf( " stationConf.password  %s,  &tmp[ PWD_STA_OFSET ]  %s ", stationConf.password, &writeFlashTmp[ PWD_STA_OFSET ] );
+	  os_printf( " stationConf.password  %s,  &tmp[ PWD_STA_OFSET ]  %s\r\n", stationConf.password, &writeFlashTmp[ PWD_STA_OFSET ] );
 #endif
 /*	  if ( 0 !=  stationConf.bssid_set ) {
 
@@ -1016,12 +1022,12 @@ initWIFI( ) {
 */
 	 if ( !wifi_station_set_config( &stationConf ) /*|| !wifi_station_set_config_current( &stationConf )*/ ) {
 
-		 ets_uart_printf("Module not set station config!\r\n ");
+		 ets_uart_printf(" | initWIFI: module not set station config! |\r\n");
 	 }
 
 	} else {
 
-		ets_uart_printf("read station config fail\r\n ");
+		ets_uart_printf(" | initWIFI: read station config fail! |\r\n");
 	}
 
 	wifi_station_connect();
@@ -1044,7 +1050,7 @@ initWIFI( ) {
 			softapConf.ssid_len = os_sprintf( softapConf.ssid, "%s", &writeFlashTmp[ SSID_AP_OFSET ] );
 		}
 #ifdef DEBUG
-		os_printf( " softapConf.ssid  %s,  &tmp[ SSID_AP_OFSET ]  %s, softapConf.ssid_len  %d", \
+		os_printf( " softapConf.ssid  %s,  &tmp[ SSID_AP_OFSET ]  %s, softapConf.ssid_len  %d\r\n", \
 														softapConf.ssid, &writeFlashTmp[ SSID_AP_OFSET ], softapConf.ssid_len );
 #endif
 
@@ -1054,7 +1060,7 @@ initWIFI( ) {
 			os_sprintf( softapConf.password, "%s", &writeFlashTmp[ PWD_AP_OFSET ] );
 		}
 #ifdef DEBUG
-		os_printf( " softapConf.password  %s,  &tmp[ PWD_AP_OFSET ]  %s", softapConf.password, &writeFlashTmp[ PWD_AP_OFSET ] );
+		os_printf( " softapConf.password  %s,  &tmp[ PWD_AP_OFSET ]  %s\r\n", softapConf.password, &writeFlashTmp[ PWD_AP_OFSET ] );
 #endif
 
 		if ( softapConf.channel != DEF_CHANEL ) {
@@ -1062,7 +1068,7 @@ initWIFI( ) {
 			softapConf.channel = DEF_CHANEL;
 		}
 #ifdef DEBUG
-		os_printf( " softapConf.channel  %d ", softapConf.channel );
+		os_printf( " softapConf.channel  %d\r\n", softapConf.channel );
 #endif
 
 		if ( softapConf.authmode != DEF_AUTH ) {
@@ -1070,7 +1076,7 @@ initWIFI( ) {
 			softapConf.authmode = DEF_AUTH;
 		}
 #ifdef DEBUG
-		os_printf( " softapConf.authmode  %d ", softapConf.authmode );
+		os_printf( " softapConf.authmode  %d\r\n", softapConf.authmode );
 #endif
 
 		if ( softapConf.max_connection != MAX_CON ) {
@@ -1078,7 +1084,7 @@ initWIFI( ) {
 		    softapConf.max_connection = MAX_CON;
 		}
 #ifdef DEBUG
-		os_printf( " softapConf.max_connection  %d ", softapConf.max_connection );
+		os_printf( " softapConf.max_connection  %d\r\n", softapConf.max_connection );
 #endif
 
 		if ( softapConf.ssid_hidden != NO_HIDDEN ) {
@@ -1086,7 +1092,7 @@ initWIFI( ) {
 			softapConf.ssid_hidden = NO_HIDDEN;
 		}
 #ifdef DEBUG
-		os_printf( " softapConf.ssid_hidden  %d ", softapConf.ssid_hidden );
+		os_printf( " softapConf.ssid_hidden  %d\r\n", softapConf.ssid_hidden );
 #endif
 
 		if ( softapConf.beacon_interval != BEACON_INT ) {
@@ -1094,18 +1100,18 @@ initWIFI( ) {
 			softapConf.beacon_interval = BEACON_INT;
 		}
 #ifdef DEBUG
-		os_printf( " softapConf.beacon_interval  %d ", softapConf.beacon_interval );
+		os_printf( " softapConf.beacon_interval  %d\r\n", softapConf.beacon_interval );
 #endif
 
 		if( !wifi_softap_set_config( &softapConf ) ) {
 			#ifdef DEBUG
-					ets_uart_printf("Module not set AP config!\r\n ");
+					ets_uart_printf(" | initWIFI: module not set AP config! |\r\n");
 			#endif
 		}
 
 	} else {
 
-		ets_uart_printf("read soft ap config fail\r\n ");
+		ets_uart_printf(" | initWIFI: read soft ap config fail! |\r\n");
 	}
 
 
@@ -1113,28 +1119,28 @@ initWIFI( ) {
 
 		ipinfo.ip.addr = ipaddr_addr( &writeFlashTmp[ DEF_IP_SOFT_AP_OFSET ] );
 		//ipinfo.gw.addr = ipinfo.ip.addr;  //шлюз
-		IP4_ADDR(&ipinfo.netmask, 255, 255, 255, 0);
+		IP4_ADDR( &ipinfo.netmask, 255, 255, 255, 0 );
 
-		wifi_set_ip_info(SOFTAP_IF, &ipinfo);
+		wifi_set_ip_info( SOFTAP_IF, &ipinfo );
 
 	} else {
 
-		ets_uart_printf("read ip ap fail\r\n ");
+		ets_uart_printf( " | initWIFI: read ip ap fail! |\r\n" );
 	}
 #ifdef DEBUG
 		os_printf( " ipinfo.ip.addr  %d ", ipinfo.ip.addr );
 #endif
 
-		wifi_softap_dhcps_start();
+	wifi_softap_dhcps_start();
 
-		if(wifi_get_phy_mode() != PHY_MODE_11N) {
+	if( wifi_get_phy_mode() != PHY_MODE_11N ) {
 
-				wifi_set_phy_mode(PHY_MODE_11N);
-		}
+		wifi_set_phy_mode( PHY_MODE_11N );
+	}
 }
 
 
-void ICACHE_FLASH_ATTR
+LOCAL void ICACHE_FLASH_ATTR
 loadDefParam( void ) {
 
 	uint16_t i;
@@ -1145,7 +1151,7 @@ loadDefParam( void ) {
 
 	if ( SPI_FLASH_RESULT_OK != spi_flash_erase_sector( USER_SECTOR_IN_FLASH_MEM )  ) {
 
-		ets_uart_printf(" loadDefParam Erase USER_SECTOR_IN_FLASH_MEM fail ");
+		ets_uart_printf(" | loadDefParam: Erase USER_SECTOR_IN_FLASH_MEM fail! |\r\n");
 		while(1);
 	}
 
@@ -1223,7 +1229,7 @@ loadDefParam( void ) {
 	if ( SPI_FLASH_RESULT_OK != spi_flash_write( USER_SECTOR_IN_FLASH_MEM * SPI_FLASH_SEC_SIZE, \
 																				(uint32 *)writeFlashTmp, SPI_FLASH_SEC_SIZE ) ) {
 
-		ets_uart_printf("write default param fail ");
+		ets_uart_printf(" | loadDefParam: write default param fail! |\r\n");
 		while(1);
 	}
 
@@ -1232,8 +1238,9 @@ loadDefParam( void ) {
 
 
 // ѕеревод числа в последовательность ASCII
-uint8_t * ICACHE_FLASH_ATTR
+LOCAL uint8_t * ICACHE_FLASH_ATTR
 ShortIntToString(uint32_t data, uint8_t *adressDestenation) {
+
 	uint8_t *startAdressDestenation = adressDestenation;
 	uint8_t *endAdressDestenation;
 	uint8_t buff;
@@ -1250,25 +1257,30 @@ ShortIntToString(uint32_t data, uint8_t *adressDestenation) {
 		*startAdressDestenation = *adressDestenation;
 		*adressDestenation = buff;
 	}
+
 	return endAdressDestenation;
 }
 
 
 // ѕеревод последовательности ASCII в число
-uint32_t ICACHE_FLASH_ATTR
+LOCAL uint32_t ICACHE_FLASH_ATTR
 StringToInt(uint8_t *data) {
+
 	uint32_t returnedValue = 0;
+
 	for (;*data >= '0' && *data <= '9'; data++) {
 
 		returnedValue = 10 * returnedValue + (*data - '0');
 	}
+
 	return returnedValue;
 }
 
 
 // ѕеревод шестнадцетиричного числа в последовательность ASCII
-uint8_t * ICACHE_FLASH_ATTR
+LOCAL uint8_t * ICACHE_FLASH_ATTR
 intToStringHEX(uint8_t data, uint8_t *adressDestenation) {
+
 	if ( ( data >> 4 ) < 10 ) {
 		*adressDestenation++ = ( data >> 4 ) + '0';
 	} else {
@@ -1279,6 +1291,7 @@ intToStringHEX(uint8_t data, uint8_t *adressDestenation) {
 	} else {
 		*adressDestenation++ = ( data & 0x0f ) % 10 + 'A';
 	}
+
 	return adressDestenation;
 }
 
@@ -1305,7 +1318,7 @@ intToStringHEX(uint8_t data, uint8_t *adressDestenation) {
 //          + " " + INP_2: + " " + high/low +
 //          + " " + INP_3: + " " + high/low +
 //			+ " " + INP_4: + " " + high/low + "\r\n" + "\0"
-void ICACHE_FLASH_ATTR
+LOCAL void ICACHE_FLASH_ATTR
 broadcastBuilder( void ) {
 
 	uint8_t *count;
@@ -1333,7 +1346,7 @@ broadcastBuilder( void ) {
 	os_sprintf( count, "%s", &broadcastTmp[ BROADCAST_NAME_OFSET ] );
 	count += strlen( &broadcastTmp[ BROADCAST_NAME_OFSET ] );
 
-//================================================================
+//=================================================================================================
 	memcpy( count, MAC, ( sizeof( MAC ) - 1 ) );
 	count += sizeof( MAC ) - 1;
 
@@ -1350,7 +1363,7 @@ broadcastBuilder( void ) {
     count = intToStringHEX( macadr[4], count );
 	   *count++ = ':';
     count = intToStringHEX( macadr[5], count );
-//================================================================
+//=================================================================================================
     memcpy( count, IP, ( sizeof( IP ) - 1 ) );
     count += sizeof( IP ) - 1;
 
@@ -1361,18 +1374,18 @@ broadcastBuilder( void ) {
     count = ShortIntToString( (uint8_t)(inf.ip.addr >> 16) , count );
     	*count++ = '.';
     count = ShortIntToString( (uint8_t)(inf.ip.addr  >> 24), count);
-//================================================================
+//=================================================================================================
     memcpy( count, IP_AP, ( sizeof( IP_AP ) - 1 ) );
     count += sizeof( IP_AP ) - 1;
 
     os_sprintf( count, "%s", &broadcastTmp[ DEF_IP_SOFT_AP_OFSET ] );
     count += strlen( &broadcastTmp[ DEF_IP_SOFT_AP_OFSET ] );
-//================================================================
+//=================================================================================================
  /*   memcpy( count, SERVER_PORT, ( sizeof( SERVER_PORT ) - 1 ) );
     count += sizeof( SERVER_PORT ) - 1;
 
     count = ShortIntToString( TCP_PORT, count ); */
-//================================================================
+//=================================================================================================
 /*    memcpy( count, PHY_MODE, ( sizeof( PHY_MODE ) - 1 ) );
     count += sizeof( PHY_MODE ) - 1;
     {
@@ -1388,7 +1401,7 @@ broadcastBuilder( void ) {
     		count += sizeof( PHY_MODE_N ) - 1;
     	}
     }*/
-//================================================================
+//=================================================================================================
     if ( ( rssi = wifi_station_get_rssi() ) < 0 ) {
 
     	memcpy( count, RSSI, ( sizeof( RSSI ) - 1 ) );
@@ -1397,49 +1410,47 @@ broadcastBuilder( void ) {
 	    *count++ = '-';
 	    count = ShortIntToString( (rssi * (-1)), count );
     }
-//================================================================
-//================================================================
+//=================================================================================================
 	memcpy( count, SSID_STA, ( sizeof( SSID_STA ) - 1 ) );
 	count += sizeof( SSID_STA ) - 1;
 
 	os_sprintf( count, "%s", &broadcastTmp[ SSID_STA_OFSET ] );
 	count += strlen( &broadcastTmp[ SSID_STA_OFSET ] );
-//================================================================
+//=================================================================================================
 	memcpy( count, PWD_STA, ( sizeof( PWD_STA ) - 1 ) );
 	count += sizeof( PWD_STA ) - 1;
 
 	os_sprintf( count, "%s", &broadcastTmp[ PWD_STA_OFSET ] );
 	count += strlen( &broadcastTmp[ PWD_STA_OFSET ] );
-//================================================================
+//=================================================================================================
 	memcpy( count, SSID_AP, ( sizeof( SSID_AP ) - 1 ) );
 	count += sizeof( SSID_AP ) - 1;
 
 	os_sprintf( count, "%s", &broadcastTmp[ SSID_AP_OFSET ] );
 	count += strlen( &broadcastTmp[ SSID_AP_OFSET ] );
-//================================================================
+//=================================================================================================
 	memcpy( count, PWD_AP, ( sizeof( PWD_AP ) - 1 ) );
 	count += sizeof( PWD_AP ) - 1;
 
 	os_sprintf( count, "%s", &broadcastTmp[ PWD_AP_OFSET ] );
 	count += strlen( &broadcastTmp[ PWD_AP_OFSET ] );
-//================================================================
+//=================================================================================================
 	memcpy( count, MAX_TPW, ( sizeof( MAX_TPW ) - 1 ) );
 	count += sizeof( MAX_TPW ) - 1;
 
 	os_sprintf( count, "%s", &broadcastTmp[ MAX_TPW_VALUE_OFSET ] );
 	count += strlen( &broadcastTmp[ MAX_TPW_VALUE_OFSET ] );
-//================================================================
+//=================================================================================================
 	memcpy( count, BOADCAST_PORT, ( sizeof( BOADCAST_PORT ) - 1 ) );
 	count += sizeof( BOADCAST_PORT ) - 1;
 
 	os_sprintf( count, "%s", &broadcastTmp[ DEF_UDP_PORT_OFSET ] );
 	count += strlen( &broadcastTmp[ DEF_UDP_PORT_OFSET ] );
-//================================================================
-//================================================================
+//=================================================================================================
 	memcpy( count, OUTPUTS, ( sizeof( OUTPUTS ) - 1 ) );
 	broadcastShift = count;
 	count += sizeof( OUTPUTS ) - 1;
-//================================================================
+//=================================================================================================
 	memcpy( count, GPIO_1, ( sizeof( GPIO_1 ) - 1 ) );
 	count += sizeof( GPIO_1 ) - 1;
 
@@ -1484,7 +1495,7 @@ broadcastBuilder( void ) {
 		memcpy( count, MS, ( sizeof( MS ) - 1 ) );
 		count += sizeof( MS ) - 1;
 	}
-//================================================================
+//=================================================================================================
 	memcpy( count, GPIO_2, ( sizeof( GPIO_2 ) - 1 ) );
 	count += sizeof( GPIO_2 ) - 1;
 
@@ -1528,10 +1539,10 @@ broadcastBuilder( void ) {
 		memcpy( count, MS, ( sizeof( MS ) - 1 ) );
 		count += sizeof( MS ) - 1;
 	}
-//================================================================
+//=================================================================================================
 		memcpy( count, INPUTS, ( sizeof( INPUTS ) - 1 ) );
 		count += sizeof( INPUTS ) - 1;
-//================================================================
+//=================================================================================================
 		memcpy( count, INPUT_1, ( sizeof( INPUT_1 ) - 1 ) );
 		count += sizeof( INPUT_1 ) - 1;
 		if ( 0 == GPIO_INPUT_GET(INP_1_PIN ) ) {
@@ -1542,7 +1553,7 @@ broadcastBuilder( void ) {
 			memcpy( count, STATUS_HIGH, ( sizeof( STATUS_HIGH ) - 1 ) );
 			count += sizeof( STATUS_HIGH ) - 1;
 		}
-//================================================================
+//=================================================================================================
 		memcpy( count, INPUT_2, ( sizeof( INPUT_2 ) - 1 ) );
 		count += sizeof( INPUT_2 ) - 1;
 		if ( 0 == GPIO_INPUT_GET(INP_2_PIN ) ) {
@@ -1553,7 +1564,7 @@ broadcastBuilder( void ) {
 			memcpy( count, STATUS_HIGH, ( sizeof( STATUS_HIGH ) - 1 ) );
 			count += sizeof( STATUS_HIGH ) - 1;
 		}
-//================================================================
+//=================================================================================================
 		memcpy( count, INPUT_3, ( sizeof( INPUT_3 ) - 1 ) );
 		count += sizeof( INPUT_3 ) - 1;
 		if ( 0 == GPIO_INPUT_GET(INP_3_PIN ) ) {
@@ -1564,7 +1575,7 @@ broadcastBuilder( void ) {
 			memcpy( count, STATUS_HIGH, ( sizeof( STATUS_HIGH ) - 1 ) );
 			count += sizeof( STATUS_HIGH ) - 1;
 		}
-//================================================================
+//=================================================================================================
 		memcpy( count, INPUT_4, ( sizeof( INPUT_4 ) - 1 ) );
 		count += sizeof( INPUT_4 ) - 1;
 		if ( 0 == gpio16_input_get() ) {
@@ -1575,7 +1586,7 @@ broadcastBuilder( void ) {
 			memcpy( count, STATUS_HIGH, ( sizeof( STATUS_HIGH ) - 1 ) );
 			count += sizeof( STATUS_HIGH ) - 1;
 		}
-//================================================================
+//=================================================================================================
 
 		*count++ = '\r';
 		*count++ = '\n';
@@ -1583,7 +1594,7 @@ broadcastBuilder( void ) {
  }
 
 
-void ICACHE_FLASH_ATTR
+LOCAL void ICACHE_FLASH_ATTR
 comandParser( void ) {
 
 	int i = 0;
@@ -2052,7 +2063,7 @@ comandParser( void ) {
 }
 
 
-void ICACHE_FLASH_ATTR
+LOCAL void ICACHE_FLASH_ATTR
 tcpRespounseBuilder( uint8_t *responseCode ) {
 
 	uint16_t i, lenght;
@@ -2071,7 +2082,7 @@ tcpRespounseBuilder( uint8_t *responseCode ) {
 #ifdef DEBUG
 	{
 			uint16_t a;
-			os_printf("tcp answer ");
+			os_printf(" tcp answer ");
 			for ( a = 0; a < i; a++) {
 				uart_tx_one_char(tmp[a]);
 			}
@@ -2096,7 +2107,7 @@ tcpRespounseBuilder( uint8_t *responseCode ) {
  * @Description
  * 		длина string сравниваетс€ с maxLenght без учета нуль символа
  */
-compStr ICACHE_FLASH_ATTR
+LOCAL compStr ICACHE_FLASH_ATTR
 compareLenght( uint8_t *string, uint16_t maxLenght ) {
 
 	uint16_t i;
@@ -2119,7 +2130,7 @@ compareLenght( uint8_t *string, uint16_t maxLenght ) {
 }
 
 
-void ICACHE_FLASH_ATTR
+LOCAL void ICACHE_FLASH_ATTR
 buildQueryResponse( uint8_t *responseStatus ) {
 
 	uint16_t i;

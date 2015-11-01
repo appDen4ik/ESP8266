@@ -252,16 +252,16 @@
 #define FLASH_READY_OFSET		 0
 #define ALIGN_FLASH_READY_SIZE   ( 4 - (  sizeof(FLASH_READY) % 4 ) +  sizeof(FLASH_READY) )
 
-#define DEF_SSID_STA         	"Default STA"
+#define DEF_SSID_STA         	"Default router"
 #define SSID_STA_OFSET			106
-#define DEF_PWD_STA         	"Default STA"
+#define DEF_PWD_STA         	"Default router"
 #define PWD_STA_OFSET       	140
 #define HEADER_STA		 	    "STA:"
 #define HEADER_STA_OFSET	    100
 
-#define DEF_SSID_AP          	"Default AP"
+#define DEF_SSID_AP          	"Access Control System"
 #define SSID_AP_OFSET			505
-#define DEF_PWD_AP		        "Default AP"
+#define DEF_PWD_AP		        "default"
 #define PWD_AP_OFSET			539
 #define HEADER_AP				"AP:"
 #define HEADER_AP_OFSET			500
