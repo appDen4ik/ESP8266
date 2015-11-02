@@ -1124,7 +1124,7 @@ initWIFI( ) {
 	if ( wifi_get_ip_info(SOFTAP_IF, &ipinfo ) ) {
 
 		ipinfo.ip.addr = ipaddr_addr( &writeFlashTmp[ DEF_IP_SOFT_AP_OFSET ] );
-	//	ipinfo.gw.addr = ipinfo.ip.addr;  //шлюз
+		ipinfo.gw.addr = ipinfo.ip.addr;  //шлюз
 		IP4_ADDR( &ipinfo.netmask, 255, 255, 255, 0 );
 
 		wifi_set_ip_info( SOFTAP_IF, &ipinfo );
