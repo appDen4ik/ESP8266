@@ -18,7 +18,7 @@ SDK_BASE	?= c:/Espressif/ESP8266_SDK
 # esptool path and port
 SDK_TOOLS	?= c:/Espressif/utils
 ESPTOOL		?= $(SDK_TOOLS)/esptool.exe
-ESPPORT		?= COM2
+ESPPORT		?= COM3
 ESPBAUD		?= 115200
 
 # BOOT = none
@@ -32,9 +32,9 @@ APP?=0
 # SPI_SPEED = 20MHz, 26.7MHz, 40MHz, 80MHz
 SPI_SPEED?=40
 # SPI_MODE: QIO, QOUT, DIO, DOUT
-SPI_MODE?=DOUT
+SPI_MODE?=QIO
 # SPI_SIZE: 256KB, 512KB, 1024KB, 2048KB, 4096KB
-SPI_SIZE?=4096
+SPI_SIZE?=512
 
 ifeq ($(BOOT), new)
     boot = new

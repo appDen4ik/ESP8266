@@ -45,7 +45,7 @@ LOCAL inline void ICACHE_FLASH_ATTR loadDefParam( void ) __attribute__((always_i
 LOCAL inline void ICACHE_FLASH_ATTR broadcastBuilder( void ) __attribute__((always_inline));
 LOCAL inline void ICACHE_FLASH_ATTR buildQueryResponse( uint8_t *responseStatus ) __attribute__((always_inline));
 LOCAL void ICACHE_FLASH_ATTR tcpRespounseBuilder( uint8_t *responseStatus );
-LOCAL compStr ICACHE_FLASH_ATTR compareLenght( uint8_t *string, uint16_t maxLenght );
+LOCAL compStr ICACHE_FLASH_ATTR compareLenght( uint8_t *string, uint16_t maxLenght, uint16_t minLenght );
 LOCAL uint32_t ICACHE_FLASH_ATTR StringToInt(uint8_t *data);
 LOCAL uint8_t* ICACHE_FLASH_ATTR  ShortIntToString(uint32_t data, uint8_t *adressDestenation);
 LOCAL uint8_t * ICACHE_FLASH_ATTR intToStringHEX(uint8_t data, uint8_t *adressDestenation);
@@ -324,6 +324,7 @@ tcp_reconcb( void *arg, sint8 err ) { // error, or TCP disconnected
 	os_printf( " |tcp_reconcb TCP RECON : %d.%d.%d.%d\r\n| ",  IP2STR( conn->proto.tcp->remote_ip ) );
 #endif
 
+	system_os_post( DISCON_QUEUE_PRIO, DISCON_ETS_SIGNAL_TOKEN, (ETSParam)conn );
 /*	if ( NULL != pespconn ) {
 
 		if ( *(uint32 *)( conn->proto.tcp->remote_ip ) == ipAdd && marker == mCLEAR ) {
@@ -696,7 +697,7 @@ mScheduler(char *datagram, uint16 size) {
 LOCAL void ICACHE_FLASH_ATTR
 config(void) {
 
-	initWIFI(); // настройка sta ap
+
 
    	ets_wdt_init();
     ets_wdt_disable();
@@ -853,13 +854,13 @@ user_init(void) {
 //		espconn_tcp_set_max_con(255);
 
 #ifdef DEBUG
-    	os_printf( " espconn_tcp_get_max_con() %d\r\n", espconn_tcp_get_max_con() );
+ //   	os_printf( " espconn_tcp_get_max_con() %d\r\n", espconn_tcp_get_max_con() );
 #endif
 
-    	if ( 5 != espconn_tcp_get_max_con() ) {
+/*    	if ( 5 != espconn_tcp_get_max_con() ) {
 
     		espconn_tcp_set_max_con(5);
-    	}
+    	} */
   /*  	if ( 0 == espconn_tcp_set_max_con_allow( &espconnServer, 2 ) ) {
 
     		os_printf( "espconn_tcp_set_max_con_allow( espconnServer, 2 ) fail " );
@@ -905,6 +906,8 @@ user_init(void) {
 	}
 
     wifi_station_set_reconnect_policy(true);
+
+    initWIFI(); // настройка sta ap
 
     memcpy( routerSSID, &tmp[SSID_STA_OFSET], strlen(&tmp[SSID_STA_OFSET]) + 1 );
     memcpy( routerPWD, &tmp[PWD_STA_OFSET], strlen(&tmp[PWD_STA_OFSET]) + 1 );
@@ -1807,7 +1810,7 @@ comandParser( void ) {
 
 	    } else if ( 0 == strcmp( tmp, TCP_SSID_STA ) ) { 														//+
 
-	    	if ( LENGHT_OK == compareLenght( &tmp[ sizeof(TCP_SSID_STA) + 1 ],  SSID_MAX_LENGHT ) ) {
+	    	if ( LENGHT_OK == compareLenght( &tmp[ sizeof(TCP_SSID_STA) + 1 ],  SSID_MAX_LENGHT, SSID_MIN_LENGHT ) ) {
 
 	    		writeFlash( SSID_STA_OFSET, &tmp[ sizeof(TCP_SSID_STA) + 1 ] );
 
@@ -1832,7 +1835,7 @@ comandParser( void ) {
 
 	    } else if ( 0 == strcmp( tmp, TCP_PWD_STA ) ) {															//+
 
-	    	if ( LENGHT_OK == compareLenght( &tmp[ sizeof(TCP_PWD_STA) + 1 ],  PWD_MAX_LENGHT ) ) {
+	    	if ( LENGHT_OK == compareLenght( &tmp[ sizeof(TCP_PWD_STA) + 1 ],  PWD_MAX_LENGHT, PWD_MIN_LENGHT ) ) {
 
 	    		writeFlash( PWD_STA_OFSET, &tmp[ sizeof(TCP_PWD_STA) + 1 ] );
 
@@ -1857,7 +1860,7 @@ comandParser( void ) {
 
 	    } else if ( 0 == strcmp( tmp, TCP_SSID_AP ) ) {												   			//+
 
-	    	if ( LENGHT_OK == compareLenght( &tmp[ sizeof(TCP_SSID_AP) + 1 ],  SSID_MAX_LENGHT ) ) {
+	    	if ( LENGHT_OK == compareLenght( &tmp[ sizeof(TCP_SSID_AP) + 1 ],  SSID_MAX_LENGHT, SSID_MIN_LENGHT ) ) {
 
 	    		writeFlash( SSID_AP_OFSET, &tmp[ sizeof(TCP_SSID_AP) + 1 ] );
 
@@ -1873,7 +1876,7 @@ comandParser( void ) {
 
 	    } else if ( 0 == strcmp( tmp, TCP_PWD_AP ) ) {															//+
 
-	    	if ( LENGHT_OK == compareLenght( &tmp[ sizeof(TCP_PWD_AP) + 1 ],  PWD_MAX_LENGHT ) ) {
+	    	if ( LENGHT_OK == compareLenght( &tmp[ sizeof(TCP_PWD_AP) + 1 ],  PWD_MAX_LENGHT, PWD_MIN_LENGHT ) ) {
 
 	    		writeFlash( PWD_AP_OFSET, &tmp[ sizeof(TCP_PWD_AP) + 1 ] );
 
@@ -1889,7 +1892,8 @@ comandParser( void ) {
 
 	    } else if ( 0 == strcmp( tmp, TCP_BROADCAST_NAME ) ) {													//+
 
-	    	if ( LENGHT_OK == compareLenght( &tmp[ sizeof(TCP_BROADCAST_NAME) + 1 ],  BROADCAST_NAME_MAX_LENGHT ) ) {
+	    	if ( LENGHT_OK == compareLenght( &tmp[ sizeof(TCP_BROADCAST_NAME) + 1 ],  BROADCAST_NAME_MAX_LENGHT, \
+	    			                                                              BROADCAST_NAME_MIN_LENGHT ) ) {
 
 	    		writeFlash( BROADCAST_NAME_OFSET, &tmp[ sizeof(TCP_BROADCAST_NAME) + 1 ] );
 	    		if ( 0 != strcmp( &tmp[ sizeof(TCP_BROADCAST_NAME) + 1 ],  wifi_station_get_hostname( ) ) ) {
@@ -2108,7 +2112,7 @@ tcpRespounseBuilder( uint8_t *responseCode ) {
  * 		длина string сравнивается с maxLenght без учета нуль символа
  */
 LOCAL compStr ICACHE_FLASH_ATTR
-compareLenght( uint8_t *string, uint16_t maxLenght ) {
+compareLenght( uint8_t *string, uint16_t maxLenght, uint16_t minLenght ) {
 
 	uint16_t i;
 
@@ -2120,7 +2124,7 @@ compareLenght( uint8_t *string, uint16_t maxLenght ) {
 		}
 	}
 
-	if ( i > maxLenght || i == 0  ) {
+	if ( i > maxLenght || i < minLenght  ) {
 
 		return LENGHT_ERROR;
 	} else  {

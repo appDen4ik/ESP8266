@@ -334,6 +334,10 @@
 #define BROADCAST_TIMER		300 //ms
 //***********************************************************************************************************************************
 
+#define BROADCAST_NAME_MIN_LENGHT   1
+#define PWD_MIN_LENGHT				8
+#define SSID_MIN_LENGHT				1
+
 typedef enum {
 	ENABLE = 0,
 	DISABLE
