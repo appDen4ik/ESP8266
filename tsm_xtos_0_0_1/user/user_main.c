@@ -275,6 +275,10 @@ tcp_connectcb( void *arg ) { // TCP connected successfully
 #endif
 	} else*/ if ( TCP_BUSY == tcpSt && *(uint32 *)( conn->proto.tcp->remote_ip ) != ipAdd && 0 != ipAdd ) {
 
+#ifdef DEBUG
+		os_printf( " |tcp_connectcb ip: busy..\r\n| " );
+#endif
+
 		system_os_post( DISCON_QUEUE_PRIO, DISCON_ETS_SIGNAL_TOKEN, (ETSParam)conn );
 
 //		uint8_t erB[] = { 'B', 'U', 'S', 'Y', '\0', '\r', '\n' };
@@ -297,6 +301,7 @@ tcp_disnconcb( void *arg ) { // TCP disconnected successfully
 	os_printf( " |tcp_disnconcb TCP disconnected successfully : %d.%d.%d.%d\r\n| ",  IP2STR( conn->proto.tcp->remote_ip ) );
 #endif
 
+	system_os_post( DISCON_QUEUE_PRIO, DISCON_ETS_SIGNAL_TOKEN, (ETSParam)conn );
 /*	if ( NULL != pespconn ) {
 
 		if ( *(uint32 *)( conn->proto.tcp->remote_ip ) == ipAdd && marker == mCLEAR ) {
@@ -324,7 +329,7 @@ tcp_reconcb( void *arg, sint8 err ) { // error, or TCP disconnected
 	os_printf( " |tcp_reconcb TCP RECON : %d.%d.%d.%d\r\n| ",  IP2STR( conn->proto.tcp->remote_ip ) );
 #endif
 
-	system_os_post( DISCON_QUEUE_PRIO, DISCON_ETS_SIGNAL_TOKEN, (ETSParam)conn );
+
 /*	if ( NULL != pespconn ) {
 
 		if ( *(uint32 *)( conn->proto.tcp->remote_ip ) == ipAdd && marker == mCLEAR ) {
@@ -669,7 +674,7 @@ mScheduler(char *datagram, uint16 size) {
 		    	os_printf( "routerPWD %s\r\n", routerPWD );
 		    	os_printf( "Broadcast port %s\r\n", &broadcastTmp[DEF_UDP_PORT_OFSET] );
 				os_printf( "%s\r\n", broadcastShift );
-//				system_restart();
+				system_restart();
 				GPIO_OUTPUT_SET( LED_GPIO, ledState );
 				ledState ^=1;
 				break;
@@ -696,8 +701,6 @@ mScheduler(char *datagram, uint16 size) {
 
 LOCAL void ICACHE_FLASH_ATTR
 config(void) {
-
-
 
    	ets_wdt_init();
     ets_wdt_disable();
@@ -854,13 +857,13 @@ user_init(void) {
 //		espconn_tcp_set_max_con(255);
 
 #ifdef DEBUG
- //   	os_printf( " espconn_tcp_get_max_con() %d\r\n", espconn_tcp_get_max_con() );
+    	os_printf( " espconn_tcp_get_max_con() %d\r\n", espconn_tcp_get_max_con() );
 #endif
 
-/*    	if ( 5 != espconn_tcp_get_max_con() ) {
+   	if ( 5 != espconn_tcp_get_max_con() ) {
 
     		espconn_tcp_set_max_con(5);
-    	} */
+    	}
   /*  	if ( 0 == espconn_tcp_set_max_con_allow( &espconnServer, 2 ) ) {
 
     		os_printf( "espconn_tcp_set_max_con_allow( espconnServer, 2 ) fail " );
@@ -1121,7 +1124,7 @@ initWIFI( ) {
 	if ( wifi_get_ip_info(SOFTAP_IF, &ipinfo ) ) {
 
 		ipinfo.ip.addr = ipaddr_addr( &writeFlashTmp[ DEF_IP_SOFT_AP_OFSET ] );
-		//ipinfo.gw.addr = ipinfo.ip.addr;  //шлюз
+		ipinfo.gw.addr = ipinfo.ip.addr;  //шлюз
 		IP4_ADDR( &ipinfo.netmask, 255, 255, 255, 0 );
 
 		wifi_set_ip_info( SOFTAP_IF, &ipinfo );
