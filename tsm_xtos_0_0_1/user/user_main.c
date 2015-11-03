@@ -599,14 +599,13 @@ mScheduler(char *datagram, uint16 size) {
 			}
 			espconn_delete(&espconnBroadcastSTA);
 		}*/
-
 		// ¬нешн€€ сеть
 		switch( wifi_station_get_connect_status() ) {
 			case STATION_GOT_IP:
 				if ( ( rssi = wifi_station_get_rssi() ) < -90 ) {
 					os_printf( "Bad signal, rssi = %d ", rssi );
 					os_delay_us(1000);
-					os_printf( "Broadcast port %s ", broadcastTmp[DEF_UDP_PORT_OFSET] );
+					os_printf( "Broadcast port %s ", &broadcastTmp[DEF_UDP_PORT_OFSET] );
 					os_printf( "%s ", broadcastShift );
 					GPIO_OUTPUT_SET( LED_GPIO, ledState );
 					ledState ^= 1;
