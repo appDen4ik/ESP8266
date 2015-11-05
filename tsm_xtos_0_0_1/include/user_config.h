@@ -189,7 +189,7 @@
 //***********************************************************************************************************************************
 // user data/parameters
 
-#define USER_SECTOR_IN_FLASH_MEM		( END_SECTOR + 1 ) 	            // согласовать с END_SECTOR в myDB.h
+#define USER_SECTOR_IN_FLASH_MEM		( START_SECTOR - 1 ) 	            // согласовать с в myDB.h
 
 /*  spi_flash layout
  *

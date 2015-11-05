@@ -130,6 +130,10 @@ void user_rf_pre_init(void) {
 LOCAL void ICACHE_FLASH_ATTR
 discon(os_event_t *e) {
 
+#ifdef DEBUG
+		os_printf( " |tcp discon cb\r\n| ");
+#endif
+
 	if ( NULL != ( struct espconn * )( e->par ) ) {
 
 		espconn_disconnect( ( struct espconn * )( e->par ) );
@@ -168,6 +172,7 @@ gpioCallback(){
 	if (!GPIO_INPUT_GET(2)) {
 		os_printf( "load default options" );
 		loadDefParam( );
+		spi_flash_erase_sector( 59 ); // УБРАТЬ!!!!
 		system_restart();
 		while (1) {
 
@@ -301,7 +306,6 @@ tcp_disnconcb( void *arg ) { // TCP disconnected successfully
 	os_printf( " |tcp_disnconcb TCP disconnected successfully : %d.%d.%d.%d\r\n| ",  IP2STR( conn->proto.tcp->remote_ip ) );
 #endif
 
-	system_os_post( DISCON_QUEUE_PRIO, DISCON_ETS_SIGNAL_TOKEN, (ETSParam)conn );
 /*	if ( NULL != pespconn ) {
 
 		if ( *(uint32 *)( conn->proto.tcp->remote_ip ) == ipAdd && marker == mCLEAR ) {
@@ -536,7 +540,7 @@ mScheduler(char *datagram, uint16 size) {
 		os_timer_disarm(&task_timer);
 
 		// Внутрення сеть
-		while ( station ) {
+/*		while ( station ) {
 
 			IP4_ADDR( (ip_addr_t *)espconnBroadcastSTA.proto.udp->remote_ip, (uint8_t)(station->ip.addr), (uint8_t)(station->ip.addr >> 8),\
 															(uint8_t)(station->ip.addr >> 16), (uint8_t)(station->ip.addr >> 24) );
@@ -568,7 +572,7 @@ mScheduler(char *datagram, uint16 size) {
 			station = STAILQ_NEXT(station, next);
 		}
 
-		wifi_softap_free_station_info();
+		wifi_softap_free_station_info();*/
 /*		{
 			struct station_config stationConf;
 			wifi_station_get_config( &stationConf );
@@ -706,6 +710,8 @@ config(void) {
    	ets_wdt_enable();
    	system_soft_wdt_stop();
     system_soft_wdt_restart();
+
+    initWIFI(); // настройка sta ap
 
 	ETS_GPIO_INTR_DISABLE(); // Disable gpio interrupts
 	//gpio_intr_handler_register(callbackFunction, (void* )INP_4_PIN); // GPIO interrupt handler
@@ -909,7 +915,7 @@ user_init(void) {
 
     wifi_station_set_reconnect_policy(true);
 
-    initWIFI(); // настройка sta ap
+
 
     memcpy( routerSSID, &tmp[SSID_STA_OFSET], strlen(&tmp[SSID_STA_OFSET]) + 1 );
     memcpy( routerPWD, &tmp[PWD_STA_OFSET], strlen(&tmp[PWD_STA_OFSET]) + 1 );
@@ -993,9 +999,9 @@ initWIFI( ) {
 		wifi_station_set_hostname( &tmp[BROADCAST_NAME_OFSET] );
 	}
 */
-	if ( STATIONAP_MODE != wifi_get_opmode() ) {
+	if ( STATION_MODE != wifi_get_opmode() ) {
 
-		wifi_set_opmode( STATIONAP_MODE );
+		wifi_set_opmode( STATION_MODE );
 	}
 
 	wifi_station_disconnect();
@@ -1039,9 +1045,9 @@ initWIFI( ) {
 	wifi_station_dhcpc_start();
 //	wifi_station_set_auto_connect(1);
 
-	if ( wifi_softap_get_config( &softapConf ) ) {
+/*	if ( wifi_softap_get_config( &softapConf ) ) {
 
-		wifi_softap_dhcps_stop();
+		wifi_softap_dhcps_stop();*/
 /*	    ets_wdt_disable();
 	   	system_soft_wdt_stop();
 		os_delay_us(2000000);
@@ -1049,7 +1055,7 @@ initWIFI( ) {
 	   	ets_wdt_enable();
 	    system_soft_wdt_restart();*/
 
-		if ( 0 != strcmp( softapConf.ssid, &writeFlashTmp[ SSID_AP_OFSET ] ) ) {
+/*		if ( 0 != strcmp( softapConf.ssid, &writeFlashTmp[ SSID_AP_OFSET ] ) ) {
 
 			os_memset( softapConf.ssid, 0, sizeof(&softapConf.ssid) );
 			softapConf.ssid_len = os_sprintf( softapConf.ssid, "%s", &writeFlashTmp[ SSID_AP_OFSET ] );
@@ -1136,7 +1142,7 @@ initWIFI( ) {
 		os_printf( " ipinfo.ip.addr  %d ", ipinfo.ip.addr );
 #endif
 
-	wifi_softap_dhcps_start();
+	wifi_softap_dhcps_start();*/
 
 	if( wifi_get_phy_mode() != PHY_MODE_11N ) {
 
@@ -1829,7 +1835,7 @@ comandParser( void ) {
 	   		    ets_wdt_disable();
 	    		   	system_soft_wdt_stop();
 	    		}*/
-	    		initWIFI();
+	//    		initWIFI();
 	    	} else {
 
 	    		tcpRespounseBuilder( TCP_OPERATION_FAIL );
@@ -1854,7 +1860,7 @@ comandParser( void ) {
 	    		    ets_wdt_disable();
 	    		   	system_soft_wdt_stop();
 	    		}*/
-	    		initWIFI();
+	 //   		initWIFI();
 	    	} else {
 
 	    		tcpRespounseBuilder( TCP_OPERATION_FAIL );
@@ -1870,7 +1876,7 @@ comandParser( void ) {
 	    					                                                  (uint32 *)broadcastTmp, SPI_FLASH_SEC_SIZE ) ) {
 	    		}
 	    		tcpRespounseBuilder( TCP_OPERATION_OK );
-	    		initWIFI();
+	   // 		initWIFI();
 	    	} else {
 
 	    		tcpRespounseBuilder( TCP_OPERATION_FAIL );
@@ -1886,7 +1892,7 @@ comandParser( void ) {
 	    					                                                  (uint32 *)broadcastTmp, SPI_FLASH_SEC_SIZE ) ) {
 	    		}
 	    		tcpRespounseBuilder( TCP_OPERATION_OK );
-	    		initWIFI();
+	//    		initWIFI();
 	    	} else {
 
 	    		tcpRespounseBuilder( TCP_OPERATION_FAIL );
