@@ -45,6 +45,7 @@ LOCAL inline void ICACHE_FLASH_ATTR loadDefParam( void ) __attribute__((always_i
 LOCAL inline void ICACHE_FLASH_ATTR broadcastBuilder( void ) __attribute__((always_inline));
 LOCAL inline void ICACHE_FLASH_ATTR buildQueryResponse( uint8_t *responseStatus ) __attribute__((always_inline));
 LOCAL void ICACHE_FLASH_ATTR tcpRespounseBuilder( uint8_t *responseStatus );
+LOCAL void ICACHE_FLASH_ATTR mScheduler(void);
 LOCAL compStr ICACHE_FLASH_ATTR compareLenght( uint8_t *string, uint16_t maxLenght, uint16_t minLenght );
 LOCAL uint32_t ICACHE_FLASH_ATTR StringToInt(uint8_t *data);
 LOCAL uint8_t* ICACHE_FLASH_ATTR  ShortIntToString(uint32_t data, uint8_t *adressDestenation);
@@ -122,11 +123,13 @@ LOCAL os_event_t *cmdPrsQueue;
 
 
 //**********************************************************************************************************************************
-void user_rf_pre_init(void) {
+LOCAL void ICACHE_FLASH_ATTR
+user_rf_pre_init(void) {
 
 }
 
 //*****************************************************************TASKS************************************************************
+
 LOCAL void ICACHE_FLASH_ATTR
 discon(os_event_t *e) {
 
@@ -140,6 +143,7 @@ discon(os_event_t *e) {
 	}
 
 }
+
 
 LOCAL void ICACHE_FLASH_ATTR
 cmdPars(os_event_t *e) {
@@ -172,7 +176,9 @@ gpioCallback(){
 	if (!GPIO_INPUT_GET(2)) {
 		os_printf( "load default options" );
 		loadDefParam( );
-		spi_flash_erase_sector( 59 ); // ÓÁÐÀÒÜ!!!!
+//		spi_flash_erase_sector( 59 ); // ÓÁÐÀÒÜ!!!!
+		ets_wdt_disable();
+	   	system_soft_wdt_stop();
 		system_restart();
 		while (1) {
 
@@ -182,6 +188,7 @@ gpioCallback(){
 		os_printf( "some not supporting gpio interrupt" );
 	}
 }
+
 
 LOCAL void ICACHE_FLASH_ATTR
 tcp_recvcb( void *arg, char *pdata, unsigned short len ) { // data received
@@ -384,7 +391,7 @@ tcp_sentcb( void *arg ) { // data sent callback
 
 //**********************************************************************************************************************************
 
-res ICACHE_FLASH_ATTR
+LOCAL res ICACHE_FLASH_ATTR
 writeFlash( uint16_t where, uint8_t *what ) {
 
 	uint16_t i;
@@ -425,9 +432,8 @@ writeFlash( uint16_t where, uint8_t *what ) {
 }
 
 
-
-void ICACHE_FLASH_ATTR
-mScheduler(char *datagram, uint16 size) {
+LOCAL void ICACHE_FLASH_ATTR
+mScheduler(void) {
 
 	if ( ENABLE == gpioStatusOut1 ) {
 #ifdef DEBUG
@@ -578,7 +584,7 @@ mScheduler(char *datagram, uint16 size) {
 			wifi_station_get_config( &stationConf );
 			os_printf( " stationConf.ssid  %s ", stationConf.ssid, &stationConf.ssid );
 			os_printf( " stationConf.password  %s ", stationConf.password, &stationConf.password );
-	    	IP4_ADDR( (ip_addr_t *)brodcastSTA.proto.udp->remote_ip, (uint8_t)( ipaddr_addr( &broadcastTmp[ DEF_IP_SOFT_AP_OFSET ] ) ), \
+	    	IP4_ADDR( (ip_addr_t *)espconnBroadcastSTA.proto.udp->remote_ip, (uint8_t)( ipaddr_addr( &broadcastTmp[ DEF_IP_SOFT_AP_OFSET ] ) ), \
 				    								(uint8_t)( ipaddr_addr( &broadcastTmp[ DEF_IP_SOFT_AP_OFSET ] ) >> 8 ),\
 													(uint8_t)( ipaddr_addr( &broadcastTmp[ DEF_IP_SOFT_AP_OFSET ] ) >> 16 ), 255 );
 			espconnBroadcastSTA.proto.udp->remote_port = StringToInt( &broadcastTmp[DEF_UDP_PORT_OFSET] );
@@ -703,7 +709,7 @@ mScheduler(char *datagram, uint16 size) {
 
 
 LOCAL void ICACHE_FLASH_ATTR
-config(void) {
+init_done(void) {
 
    	ets_wdt_init();
     ets_wdt_disable();
@@ -908,12 +914,12 @@ user_init(void) {
 #endif
     }
 
-	if(wifi_station_get_auto_connect() == 0) {
+	if( wifi_station_get_auto_connect() == 0 ) {
 
 			wifi_station_set_auto_connect(1);
 	}
 
-    wifi_station_set_reconnect_policy(true);
+//    wifi_station_set_reconnect_policy(true);
 
 
 
@@ -931,12 +937,14 @@ user_init(void) {
     system_os_task( discon, DISCON_QUEUE_PRIO, disconQueue, DISCON_QUEUE_LENGHT );
     system_os_task( cmdPars, CMD_PRS_QUEUE_PRIO, cmdPrsQueue, CMD_PRS_QUEUE_PRIO );
 
+    system_init_done_cb(init_done);
+
 	// os_timer_disarm(ETSTimer *ptimer)
-    os_timer_disarm(&task_timer);
+//    os_timer_disarm(&task_timer);
 	// os_timer_setfn(ETSTimer *ptimer, ETSTimerFunc *pfunction, void *parg)
-	os_timer_setfn(&task_timer, (os_timer_func_t *)config, (void *)0);
+	//os_timer_setfn(&task_timer, (os_timer_func_t *)config, (void *)0);
 	// void os_timer_arm(ETSTimer *ptimer,uint32_t milliseconds, bool repeat_flag)
-	os_timer_arm(&task_timer, DELAY, 0);
+	//os_timer_arm(&task_timer, DELAY, 0);
 }
 
 
@@ -1009,20 +1017,20 @@ initWIFI( ) {
 
 	if( wifi_station_get_config( &stationConf ) ) {
 
-	  if ( 0 != strcmp( stationConf.ssid, &writeFlashTmp[ SSID_STA_OFSET ] ) ) {
+		if ( 0 != strcmp( stationConf.ssid, &writeFlashTmp[ SSID_STA_OFSET ] ) ) {
 
-		  os_memset( stationConf.ssid, 0, sizeof(&stationConf.ssid) );
+		  	  os_memset( stationConf.ssid, 0, sizeof(&stationConf.ssid) );
 
-		  os_sprintf( stationConf.ssid, "%s", &writeFlashTmp[ SSID_STA_OFSET ] );
-	  }
+		  	  os_sprintf( stationConf.ssid, "%s", &writeFlashTmp[ SSID_STA_OFSET ] );
+	  	  }
 #ifdef DEBUG
 	  os_printf( " stationConf.ssid  %s,  &tmp[ SSID_STA_OFSET ]  %s\r\n", stationConf.ssid, &writeFlashTmp[ SSID_STA_OFSET ] );
 #endif
-	  if ( 0 != strcmp( stationConf.password, &writeFlashTmp[ PWD_STA_OFSET ] ) ) {
+	  	  if ( 0 != strcmp( stationConf.password, &writeFlashTmp[ PWD_STA_OFSET ] ) ) {
 
-		  os_memset( stationConf.password, 0, sizeof(&stationConf.password) );
-		  os_sprintf( stationConf.password, "%s", &writeFlashTmp[ PWD_STA_OFSET ] );
-	  }
+		  	  os_memset( stationConf.password, 0, sizeof(&stationConf.password) );
+		  	  os_sprintf( stationConf.password, "%s", &writeFlashTmp[ PWD_STA_OFSET ] );
+	  	  }
 #ifdef DEBUG
 	  os_printf( " stationConf.password  %s,  &tmp[ PWD_STA_OFSET ]  %s\r\n", stationConf.password, &writeFlashTmp[ PWD_STA_OFSET ] );
 #endif
@@ -1031,10 +1039,10 @@ initWIFI( ) {
 		  stationConf.bssid_set = 0;
 	  }
 */
-	 if ( !wifi_station_set_config( &stationConf ) /*|| !wifi_station_set_config_current( &stationConf )*/ ) {
+	  	 if ( !wifi_station_set_config( &stationConf ) /*|| !wifi_station_set_config_current( &stationConf )*/ ) {
 
-		 ets_uart_printf(" | initWIFI: module not set station config! |\r\n");
-	 }
+	  		  ets_uart_printf(" | initWIFI: module not set station config! |\r\n");
+	 	 }
 
 	} else {
 
@@ -1047,7 +1055,7 @@ initWIFI( ) {
 
 /*	if ( wifi_softap_get_config( &softapConf ) ) {
 
-		wifi_softap_dhcps_stop();*/
+		wifi_softap_dhcps_stop();
 /*	    ets_wdt_disable();
 	   	system_soft_wdt_stop();
 		os_delay_us(2000000);
@@ -1142,8 +1150,8 @@ initWIFI( ) {
 		os_printf( " ipinfo.ip.addr  %d ", ipinfo.ip.addr );
 #endif
 
-	wifi_softap_dhcps_start();*/
-
+	wifi_softap_dhcps_start();
+*/
 	if( wifi_get_phy_mode() != PHY_MODE_11N ) {
 
 		wifi_set_phy_mode( PHY_MODE_11N );
