@@ -280,7 +280,7 @@
 #define  GPIO_OUT_2_MODE_OFSET		1213
 #define  GPIO_OUT_2_DELEY_OFSET		1222
 
-#define GPIO_OUT_IMPULSE_MODE    "Impulse"
+#define GPIO_OUT_IMPULSE_MODE   "Impulse"
 #define GPIO_OUT_TRIGGER_MODE	"Trigger"
 #define GPIO_OUT_COMBINE_MODE	"Combine"
 #define DEF_GPIO_OUT_DELEY	 	"1000"
@@ -326,7 +326,7 @@
 //#define SSID_STA /*"TSM_Guest" */"DIR-320"
 //#define PWD_STA "tsmguest"
 //***********************************************************************************************************************************
-#define DHCP_TIMEOUT 600
+#define DHCP_TIMEOUT 200  // DHCP_TIMEOUT * BROADCAST_TIMER ms
 //***********************************************************************************************************************************
 //Scheduler timeout
 #define DELAY 	10 /* milliseconds */

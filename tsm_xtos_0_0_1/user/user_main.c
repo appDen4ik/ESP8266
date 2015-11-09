@@ -567,10 +567,16 @@ mScheduler(void) {
 
 		broadcastBuilder();
 
-		if ( DHCP_TIMEOUT <= resetDHCP ) {
+		if ( TCP_BUSY == tcpSt) {
 
 			resetDHCP = 0;
+		} else if ( DHCP_TIMEOUT <= resetDHCP && TCP_FREE == tcpSt ) {
+
+			resetDHCP = 0;
+			wifi_station_dhcpc_stop();
 			os_printf("wifi_station_dhcpc_start() %d", wifi_station_dhcpc_start());
+			os_printf( " wifi_station_dhcpc_set_maxtry() %s ", wifi_station_dhcpc_set_maxtry(0xff) ? "true": "false" );
+			wifi_softap_reset_dhcps_lease_time();
 		} else {
 
 			resetDHCP++;
@@ -804,7 +810,7 @@ init_done(void) {
 	// os_timer_setfn(ETSTimer *ptimer, ETSTimerFunc *pfunction, void *parg)
 	os_timer_setfn( &task_timer, (os_timer_func_t *)mScheduler, (void *)0 );
 	 //void os_timer_arm(ETSTimer *ptimer,uint32_t milliseconds, bool repeat_flag)
-	os_timer_arm( &task_timer, DELAY, 0 );
+	os_timer_arm( &task_timer, 200, 0 );
 }
 
 
@@ -988,6 +994,16 @@ user_init(void) {
 			wifi_station_set_auto_connect(1);
 	}
 
+	os_printf( " wifi_station_dhcpc_set_maxtry() %s ", wifi_station_dhcpc_set_maxtry(0xff) ? "true": "false" );
+	os_printf( " wifi_station_set_hostname() %s ",( wifi_station_set_hostname(&broadcastTmp[BROADCAST_NAME_OFSET]) ? "true" : "false" ));
+	os_printf( " wifi_station_get_hostname() %s ", wifi_station_get_hostname() );
+
+	//wifi_softap_get_station_num;
+
+	 wifi_set_sleep_type(0);
+	// wifi_rfid_locp_recv_close();
+	 //wifi_set_event_handler_cb();
+
 	if ( STATIONAP_MODE == wifi_get_opmode() ) {
 
 		wifi_station_set_reconnect_policy(true);
@@ -1007,7 +1023,26 @@ user_init(void) {
     system_os_task( discon, DISCON_QUEUE_PRIO, disconQueue, DISCON_QUEUE_LENGHT );
     system_os_task( cmdPars, CMD_PRS_QUEUE_PRIO, cmdPrsQueue, CMD_PRS_QUEUE_PRIO );
 
+    {
+    	uint8_t a, b;
+    	wifi_get_user_fixed_rate( &a, &b);
+    	os_printf("wifi_get_user_fixed_rate(), enable_mask %d, rate %d ", a, b);
+    }
+
+    sntp_stop();
+    espconn_mdns_disable();
+ //  wifi_wps_disable();
+ //  os_printf( " espconn_secure_ca_disable(3) %s ", espconn_secure_ca_disable(3) ? "true": "false" );
     system_init_done_cb(init_done);
+
+	//system_phy_set_max_tpw(82); ///////////////////////////////////////////////////////////////////////////////////
+
+	if( wifi_get_phy_mode() != PHY_MODE_11N ) {
+
+		wifi_set_phy_mode( PHY_MODE_11N );
+	}
+
+	system_phy_set_powerup_option(3);
 
 	// os_timer_disarm(ETSTimer *ptimer)
     //os_timer_disarm(&task_timer);
@@ -1172,14 +1207,8 @@ initWIFI( ) {
 		os_printf( " ipinfo.ip.addr  %d ", ipinfo.ip.addr );
 #endif
 
-		wifi_softap_dhcps_start();
+	wifi_softap_dhcps_start();
 
-
-
-	if( wifi_get_phy_mode() != PHY_MODE_11N ) {
-
-		wifi_set_phy_mode( PHY_MODE_11N );
-	}
 }
 
 
