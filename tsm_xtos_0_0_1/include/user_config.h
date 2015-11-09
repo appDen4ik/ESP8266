@@ -326,7 +326,7 @@
 //#define SSID_STA /*"TSM_Guest" */"DIR-320"
 //#define PWD_STA "tsmguest"
 //***********************************************************************************************************************************
-#define DHCP_TIMEOUT 200  // DHCP_TIMEOUT * BROADCAST_TIMER ms
+#define DHCP_TIMEOUT 10  // DHCP_TIMEOUT * BROADCAST_TIMER ms
 //***********************************************************************************************************************************
 //Scheduler timeout
 #define DELAY 	10 /* milliseconds */

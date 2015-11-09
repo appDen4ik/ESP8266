@@ -567,16 +567,16 @@ mScheduler(void) {
 
 		broadcastBuilder();
 
-		if ( TCP_BUSY == tcpSt) {
+		/*if ( TCP_BUSY == tcpSt) {
 
 			resetDHCP = 0;
-		} else if ( DHCP_TIMEOUT <= resetDHCP && TCP_FREE == tcpSt ) {
+		} else*/ if ( DHCP_TIMEOUT <= resetDHCP/* && TCP_FREE == tcpSt*/ ) {
 
 			resetDHCP = 0;
-			wifi_station_dhcpc_stop();
-			os_printf("wifi_station_dhcpc_start() %d", wifi_station_dhcpc_start());
-			os_printf( " wifi_station_dhcpc_set_maxtry() %s ", wifi_station_dhcpc_set_maxtry(0xff) ? "true": "false" );
-			wifi_softap_reset_dhcps_lease_time();
+			//os_printf("wifi_station_dhcpc_start() %d", wifi_station_dhcpc_start());
+			//os_printf( " wifi_station_dhcpc_set_maxtry() %s ", wifi_station_dhcpc_set_maxtry(0xff) ? "true": "false" );
+			os_printf( " wifi_station_dhcpc_stop() %s ", wifi_station_dhcpc_stop() ? "true": "false" );
+			//wifi_softap_reset_dhcps_lease_time();
 		} else {
 
 			resetDHCP++;
