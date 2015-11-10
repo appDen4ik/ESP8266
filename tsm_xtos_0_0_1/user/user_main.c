@@ -1479,7 +1479,7 @@ broadcastBuilder( void ) {
 
     count = ShortIntToString( TCP_PORT, count ); */
 //=================================================================================================
-/*    memcpy( count, PHY_MODE, ( sizeof( PHY_MODE ) - 1 ) );
+    memcpy( count, PHY_MODE, ( sizeof( PHY_MODE ) - 1 ) );
     count += sizeof( PHY_MODE ) - 1;
     {
     	uint8_t phyMode;
@@ -1493,7 +1493,7 @@ broadcastBuilder( void ) {
     		memcpy( count, PHY_MODE_N, ( sizeof( PHY_MODE_N ) - 1 ) );
     		count += sizeof( PHY_MODE_N ) - 1;
     	}
-    }*/
+    }
 //=================================================================================================
     if ( ( rssi = wifi_station_get_rssi() ) < 0 ) {
 
