@@ -14,8 +14,13 @@ struct espconn espconnServer;
 esp_tcp tcpServer;
 extern void uart_tx_one_char();
 
-static void wifi_check_ip(void *arg);
 
+LOCAL struct espconn espconnClientTCP;
+LOCAL esp_tcp clientEsp_TCP;
+
+
+static void wifi_check_ip(void *arg);
+LOCAL os_timer_t task_timer;
 
 void tcp_disnconcb( void *arg ) {
 
@@ -48,47 +53,104 @@ tcp_recvcb( void *arg, char *pdata, unsigned short len ) { // data received
 }
 
 
+ static void ICACHE_FLASH_ATTR tcpclient_recon_cb(void *arg, sint8 err)
+ {
+ 	ets_uart_printf("tcpclient_recon_cb\r\n");
+ 	 uart_tx_one_char(err);
+ }
 
-static void ICACHE_FLASH_ATTR wifi_check_ip(void *arg)
-{
-	struct ip_info ipConfig;
-	os_timer_disarm(&WiFiLinker);
-	switch(wifi_station_get_connect_status())
-	{
-		case STATION_GOT_IP:
-			wifi_get_ip_info(STATION_IF, &ipConfig);
-			if(ipConfig.ip.addr != 0) {
-				ets_uart_printf("WiFi connected\r\n");
-				console_printf( "ip : %d.%d.%d.%d ", IP2STR(&ipConfig.ip) );
-			}
-			break;
-		case STATION_WRONG_PASSWORD:
+ void ICACHE_FLASH_ATTR tcpclient_connect_cb(void *arg){
+ 	ets_uart_printf("tcpclient_connect_cb\r\n");
+ 	espconn_disconnect((struct espconn *)arg);
+ }
 
-			#ifdef PLATFORM_DEBUG
-			ets_uart_printf("WiFi connecting error, wrong password\r\n");
-			#endif
-			break;
-		case STATION_NO_AP_FOUND:
+ static void ICACHE_FLASH_ATTR tcpclient_discon_cb(void *arg)
+ {
+ 	ets_uart_printf("tcpclient_discon_cb\r\n");
+ }
 
-			#ifdef PLATFORM_DEBUG
-			ets_uart_printf("WiFi connecting error, ap not found\r\n");
-			#endif
-			break;
-		case STATION_CONNECT_FAIL:
+ static void ICACHE_FLASH_ATTR senddata( void )
+ {
+ 	char info[150];
+ 	char tcpserverip[15];
+ 	espconnClientTCP.proto.tcp = &clientEsp_TCP;
+ 	espconnClientTCP.type = ESPCONN_TCP;
+ 	espconnClientTCP.state = ESPCONN_NONE;
+ 	os_sprintf(tcpserverip, "%s", "212.42.83.53");
+ 	uint32_t ip = ipaddr_addr(tcpserverip);
+ 	os_memcpy(espconnClientTCP.proto.tcp->remote_ip, &ip, 4);
+ 	espconnClientTCP.proto.tcp->local_port = espconn_port();
+ 	espconnClientTCP.proto.tcp->remote_port = 80;
+ 	espconn_regist_connectcb(&espconnClientTCP, tcpclient_connect_cb);
+ 	espconn_regist_reconcb(&espconnClientTCP, tcpclient_recon_cb);
+ 	espconn_regist_disconcb(&espconnClientTCP, tcpclient_discon_cb);
+ /*	#ifdef PLATFORM_DEBUG
+ 	console_printf("Start espconn_connect to " IPSTR ":%d\r\n", IP2STR(espconnClientTCP.proto.tcp->remote_ip), espconnClientTCP.proto.tcp->remote_port);
+ 	#endif
+ 	#ifdef LWIP_DEBUG
+ 	console_printf("LWIP_DEBUG: Start espconn_connect local port %u\r\n", Conn.proto.tcp->local_port);
+ 	#endif*/
+ 	sint8 espcon_status = espconn_connect(&espconnClientTCP);
+ /*	#ifdef PLATFORM_DEBUG
+ 	switch(espcon_status)
+ 	{
+ 		case ESPCONN_OK:
+ 			console_printf("TCP created.\r\n");
+ 			break;
+ 		case ESPCONN_RTE:
+ 			console_printf("Error connection, routing problem.\r\n");
+ 			break;
+ 		case ESPCONN_TIMEOUT:
+ 			console_printf("Error connection, timeout.\r\n");
+ 			break;
+ 		default:
+ 			console_printf("Connection error: %d\r\n", espcon_status);
+ 	}
+ 	#endif*/
 
-			#ifdef PLATFORM_DEBUG
-			ets_uart_printf("WiFi connecting fail\r\n");
-			#endif
-			break;
-		default:
+ }
 
-			#ifdef PLATFORM_DEBUG
-			ets_uart_printf("WiFi connecting...\r\n");
-			#endif
-	}
-	os_timer_setfn(&WiFiLinker, (os_timer_func_t *)wifi_check_ip, NULL);
-	os_timer_arm(&WiFiLinker, 1000, 0);
-}
+
+ LOCAL void ICACHE_FLASH_ATTR
+ mScheduler(void) {
+
+ 	os_timer_disarm(&task_timer);
+
+ 	//wifi_station_dhcpc_stop();
+ 	//wifi_station_dhcpc_start();
+
+ 		switch( wifi_station_get_connect_status() ) {
+ 			case STATION_GOT_IP:
+ 				ets_uart_printf( "WiFi connected\r\n " );
+ 				espconn_delete(&espconnServer);
+ 				espconn_regist_recvcb(&espconnServer, tcp_recvcb);          // data received
+ 				espconn_regist_connectcb(&espconnServer, tcp_connectcb);    // TCP connected successfully
+ 				espconn_regist_disconcb(&espconnServer, tcp_disnconcb);     // TCP disconnected successfully
+ 				espconn_regist_sentcb(&espconnServer, tcp_sentcb);          // data sent
+ 				espconn_regist_reconcb(&espconnServer, tcp_reconcb);        // error, or TCP disconnected
+ 				espconn_accept(&espconnServer);
+ 				espconn_regist_time(&espconnServer, 20, 0);
+ 				//senddata();
+ 				break;
+ 			case STATION_WRONG_PASSWORD:
+ 				ets_uart_printf( "WiFi connecting error, wrong password\r\n" );
+ 				break;
+ 			case STATION_NO_AP_FOUND:
+ 				ets_uart_printf("WiFi connecting error, ap not found\r\n" );
+ 				break;
+ 			case STATION_CONNECT_FAIL:
+
+ 				ets_uart_printf( "WiFi connecting fail\r\n" );
+ 				break;
+ 			default:
+ 				ets_uart_printf( "WiFi connecting...\r\n " );
+ 				break;
+ 		}
+
+
+ 	os_timer_setfn( &task_timer, (os_timer_func_t *)mScheduler, (void *)0 );
+ 	os_timer_arm( &task_timer, 300, 0 );
+ }
 
 
 
@@ -105,6 +167,8 @@ void ICACHE_FLASH_ATTR user_init()
 	struct station_config stconfig;
 
 	struct station_config stationConfig;
+
+	system_restore();
 
 	wifi_set_opmode(STATIONAP_MODE);
 
@@ -152,6 +216,13 @@ void ICACHE_FLASH_ATTR user_init()
 	apConfig.channel = 7;
 	apConfig.max_connection = 4;
 	apConfig.ssid_hidden = 0;
+
+	wifi_get_ip_info(SOFTAP_IF, &ipinfo );
+	ipinfo.ip.addr = ipaddr_addr("172.18.4.1");
+	//ipinfo.gw.addr = ipinfo.ip.addr;  //шлюз
+	IP4_ADDR( &ipinfo.netmask, 255, 255, 255, 0 );
+	wifi_set_ip_info( SOFTAP_IF, &ipinfo );
+
 	wifi_softap_set_config(&apConfig);
 
 	wifi_softap_dhcps_start();
@@ -160,7 +231,6 @@ void ICACHE_FLASH_ATTR user_init()
 	espconnServer.state = ESPCONN_NONE;
 	espconnServer.proto.tcp = &tcpServer;
 	espconnServer.proto.tcp->local_port = 6766;
-
 
 	//espconn_regist_time(&espconnServer, 60, 0);
 	espconn_regist_recvcb(&espconnServer, tcp_recvcb);          // data received
@@ -172,9 +242,13 @@ void ICACHE_FLASH_ATTR user_init()
 	espconn_regist_time(&espconnServer, 20, 0);
 	// Wait for Wi-Fi connection and start TCP connection
 
-	os_timer_disarm(&WiFiLinker);
-	os_timer_setfn(&WiFiLinker, (os_timer_func_t *)wifi_check_ip, NULL);
-	os_timer_arm(&WiFiLinker, 1000, 0);
+
+	// os_timer_disarm(ETSTimer *ptimer)
+	os_timer_disarm(&task_timer);
+	// os_timer_setfn(ETSTimer *ptimer, ETSTimerFunc *pfunction, void *parg)
+	os_timer_setfn(&task_timer, (os_timer_func_t *)mScheduler, (void *)0);
+	 //void os_timer_arm(ETSTimer *ptimer,uint32_t milliseconds, bool repeat_flag)
+	os_timer_arm(&task_timer, 200, 0);
 
 }
 
