@@ -446,7 +446,7 @@ mScheduler(void) {
 	}*/
 
 
-/*	if ( DHCP_STOPPED == wifi_station_dhcpc_status() ) {
+	/*if ( DHCP_STOPPED == wifi_station_dhcpc_status() ) {
 
 		if ( true == wifi_station_dhcpc_start() ) {
 
@@ -568,7 +568,7 @@ mScheduler(void) {
 
 
 		// Внутрення сеть
-		while ( station ) {
+/*		while ( station ) {
 
 #ifdef DEBUG
 		os_printf( "bssid : %x:%x:%x:%x:%x:%x ip : %d.%d.%d.%d ", MAC2STR( station->bssid ), IP2STR( &station->ip ) );
@@ -674,8 +674,11 @@ mScheduler(void) {
 					tempInf.netmask = inf.netmask;
 					wifi_station_dhcpc_stop();
 				} else {
-
+				//	wifi_softap_dhcps_stop();
+				//	wifi_station_dhcpc_stop();
 					wifi_set_ip_info( STATION_IF ,&tempInf );
+				//	wifi_station_dhcpc_start();
+				//	wifi_softap_dhcps_start();
 				}
 				if ( ( rssi = wifi_station_get_rssi() ) < -90 ) {
 
