@@ -121,8 +121,7 @@ LOCAL os_event_t *cmdPrsQueue;
 #define CMD_PRS_QUEUE_ETS_SIGNAL_TOKEN		0XF
 #define CMD_PRS_QUEUE_ETS_PARAM_TOKEN		0XF
 //**********************************************************************************************************************************
-
-
+LOCAL struct ip_info tempInf;
 
 //**********************************************************************************************************************************
 LOCAL void ICACHE_FLASH_ATTR
@@ -447,7 +446,7 @@ mScheduler(void) {
 	}*/
 
 
-	if ( DHCP_STOPPED == wifi_station_dhcpc_status() ) {
+/*	if ( DHCP_STOPPED == wifi_station_dhcpc_status() ) {
 
 		if ( true == wifi_station_dhcpc_start() ) {
 
@@ -457,7 +456,7 @@ mScheduler(void) {
 
 			os_printf("dhcp client not reseted");
 		}
-	}
+	}*/
 
 	if ( ENABLE == gpioStatusOut1 ) {
 #ifdef DEBUG
@@ -567,20 +566,6 @@ mScheduler(void) {
 
 		broadcastBuilder();
 
-		/*if ( TCP_BUSY == tcpSt) {
-
-			resetDHCP = 0;
-		} else*/ if ( DHCP_TIMEOUT <= resetDHCP/* && TCP_FREE == tcpSt*/ ) {
-
-			resetDHCP = 0;
-			//os_printf("wifi_station_dhcpc_start() %d", wifi_station_dhcpc_start());
-			//os_printf( " wifi_station_dhcpc_set_maxtry() %s ", wifi_station_dhcpc_set_maxtry(0xff) ? "true": "false" );
-			os_printf( " wifi_station_dhcpc_stop() %s ", wifi_station_dhcpc_stop() ? "true": "false" );
-			//wifi_softap_reset_dhcps_lease_time();
-		} else {
-
-			resetDHCP++;
-		}
 
 		// ¬нутренн€ сеть
 		while ( station ) {
@@ -668,6 +653,30 @@ mScheduler(void) {
 		// ¬нешн€€ сеть
 		switch( wifi_station_get_connect_status() ) {
 			case STATION_GOT_IP:
+				/*if ( TCP_BUSY == tcpSt) {
+
+						resetDHCP = 0;
+					} else*/// if ( DHCP_TIMEOUT <= resetDHCP/* && TCP_FREE == tcpSt*/ ) {
+
+						//resetDHCP = 0;
+						//os_printf("wifi_station_dhcpc_start() %d", wifi_station_dhcpc_start());
+						//os_printf( " wifi_station_dhcpc_set_maxtry() %s ", wifi_station_dhcpc_set_maxtry(0xff) ? "true": "false" );
+						//os_printf( " wifi_station_dhcpc_stop() %s ", wifi_station_dhcpc_stop() ? "true": "false" );
+						//wifi_softap_reset_dhcps_lease_time();
+					//} else {
+
+					//	resetDHCP++;
+				//	}
+				if ( DHCP_STARTED == wifi_station_dhcpc_status() ) {
+					wifi_get_ip_info( STATION_IF, &inf );
+					tempInf.gw = inf.gw;
+					tempInf.ip = inf.ip;
+					tempInf.netmask = inf.netmask;
+					wifi_station_dhcpc_stop();
+				} else {
+
+					wifi_set_ip_info( STATION_IF ,&tempInf );
+				}
 				if ( ( rssi = wifi_station_get_rssi() ) < -90 ) {
 
 					os_printf( "Bad signal, rssi = %d ", rssi );
@@ -735,6 +744,10 @@ mScheduler(void) {
 				}
 				break;
 			case STATION_WRONG_PASSWORD:
+				if ( DHCP_STOPPED == wifi_station_dhcpc_status() ) {
+
+					wifi_station_dhcpc_start();
+				}
 				ets_uart_printf( "WiFi connecting error, wrong password\r\n" );
 				os_delay_us(1000);
 		    	os_printf( "routerSSID %s\r\n", routerSSID );
@@ -745,6 +758,10 @@ mScheduler(void) {
 				ledState ^=1;
 				break;
 			case STATION_NO_AP_FOUND:
+				if ( DHCP_STOPPED == wifi_station_dhcpc_status() ) {
+
+					wifi_station_dhcpc_start();
+				}
 				ets_uart_printf("WiFi connecting error, ap not found\r\n" );
 				os_delay_us(1000);
 		    	os_printf( "routerSSID %s\r\n", routerSSID );
@@ -755,6 +772,10 @@ mScheduler(void) {
 				ledState ^=1;
 				break;
 			case STATION_CONNECT_FAIL:
+				if ( DHCP_STOPPED == wifi_station_dhcpc_status() ) {
+
+					wifi_station_dhcpc_start();
+				}
 				ets_uart_printf( "WiFi connecting fail\r\n" );
 				os_delay_us(1000);
 		    	os_printf( "routerSSID %s\r\n", routerSSID );
@@ -766,6 +787,10 @@ mScheduler(void) {
 				ledState ^=1;
 				break;
 			default:
+				if ( DHCP_STOPPED == wifi_station_dhcpc_status() ) {
+
+					wifi_station_dhcpc_start();
+				}
 				ets_uart_printf( "WiFi connecting...\r\n " );
 				os_delay_us(1000);
 		    	os_printf( "routerSSID %s\r\n", routerSSID );
