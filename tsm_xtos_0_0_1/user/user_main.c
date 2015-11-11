@@ -562,10 +562,23 @@ mScheduler(void) {
 
 	    struct station_info *station = wifi_softap_get_station_info();
 
+		espconnServer.type = ESPCONN_TCP;
+		espconnServer.state = ESPCONN_LISTEN;
+		espconnServer.proto.tcp = &tcpServer;
+		espconnServer.proto.tcp->local_port = TCP_PORT;
+
+		espconn_delete(&espconnServer);
+		espconn_regist_recvcb(&espconnServer, tcp_recvcb);          // data received
+		espconn_regist_connectcb(&espconnServer, tcp_connectcb);    // TCP connected successfully
+		espconn_regist_disconcb(&espconnServer, tcp_disnconcb);     // TCP disconnected successfully
+		espconn_regist_sentcb(&espconnServer, tcp_sentcb);          // data sent
+		espconn_regist_reconcb(&espconnServer, tcp_reconcb);        // error, or TCP disconnected
+		espconn_accept(&espconnServer);
+		espconn_regist_time(&espconnServer, TCP_SERVER_TIMEOUT, 0);
+
 		broadcastTmr = 0;
 
 		broadcastBuilder();
-
 
 		// Внутрення сеть
 /*		while ( station ) {
@@ -617,7 +630,7 @@ mScheduler(void) {
 			espconn_delete(&espconnBroadcastAP);
 
 			station = STAILQ_NEXT(station, next);
-		}
+		}*/
 
 		wifi_softap_free_station_info();
 /*		{
@@ -667,7 +680,7 @@ mScheduler(void) {
 
 					//	resetDHCP++;
 				//	}
-				if ( DHCP_STARTED == wifi_station_dhcpc_status() ) {
+/*				if ( DHCP_STARTED == wifi_station_dhcpc_status() ) {
 					wifi_get_ip_info( STATION_IF, &inf );
 					tempInf.gw = inf.gw;
 					tempInf.ip = inf.ip;
@@ -679,7 +692,7 @@ mScheduler(void) {
 					wifi_set_ip_info( STATION_IF ,&tempInf );
 				//	wifi_station_dhcpc_start();
 				//	wifi_softap_dhcps_start();
-				}
+				}*/
 				if ( ( rssi = wifi_station_get_rssi() ) < -90 ) {
 
 					os_printf( "Bad signal, rssi = %d ", rssi );
@@ -959,7 +972,7 @@ user_init(void) {
 #endif
 	{ //tcp сервер
 
-		espconnServer.type = ESPCONN_TCP;
+/*		espconnServer.type = ESPCONN_TCP;
 		espconnServer.state = ESPCONN_NONE;
 		espconnServer.proto.tcp = &tcpServer;
 		espconnServer.proto.tcp->local_port = TCP_PORT;
@@ -971,7 +984,7 @@ user_init(void) {
 		espconn_regist_sentcb(&espconnServer, tcp_sentcb);          // data sent
 		espconn_regist_reconcb(&espconnServer, tcp_reconcb);        // error, or TCP disconnected
 		espconn_accept(&espconnServer);
-		espconn_regist_time(&espconnServer, TCP_SERVER_TIMEOUT, 0);
+		espconn_regist_time(&espconnServer, TCP_SERVER_TIMEOUT, 0);*/
 //		espconn_tcp_set_max_con(255);
 
 #ifdef DEBUG
@@ -1140,9 +1153,9 @@ initWIFI( ) {
 		wifi_station_set_hostname( &tmp[BROADCAST_NAME_OFSET] );
 	}
 */
-	if ( STATIONAP_MODE != wifi_get_opmode() ) {
+	if ( STATION_MODE != wifi_get_opmode() ) {
 
-		wifi_set_opmode( STATIONAP_MODE );
+		wifi_set_opmode( STATION_MODE );
 	}
 
 	wifi_station_disconnect();
@@ -1174,7 +1187,7 @@ initWIFI( ) {
 	wifi_station_dhcpc_start();
 
 
-	softapConf->ssid_len = os_sprintf( softapConf->ssid, "%s", &writeFlashTmp[ SSID_AP_OFSET ] );
+/*	softapConf->ssid_len = os_sprintf( softapConf->ssid, "%s", &writeFlashTmp[ SSID_AP_OFSET ] );
 #ifdef DEBUG
 		os_printf( " softapConf->ssid  %s,  &tmp[ SSID_AP_OFSET ]  %s, softapConf->ssid_len  %d\r\n", \
 														softapConf->ssid, &writeFlashTmp[ SSID_AP_OFSET ], softapConf->ssid_len );
@@ -1235,7 +1248,7 @@ initWIFI( ) {
 		os_printf( " ipinfo.ip.addr  %d ", ipinfo.ip.addr );
 #endif
 
-	wifi_softap_dhcps_start();
+	wifi_softap_dhcps_start();*/
 
 }
 
