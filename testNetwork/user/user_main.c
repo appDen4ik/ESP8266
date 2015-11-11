@@ -14,6 +14,7 @@ struct espconn espconnServer;
 esp_tcp tcpServer;
 extern void uart_tx_one_char();
 
+uint8_t writeFlashTmp[4096];
 
 LOCAL struct espconn espconnClientTCP;
 LOCAL esp_tcp clientEsp_TCP;
@@ -162,7 +163,7 @@ void user_rf_pre_init(void)
 void ICACHE_FLASH_ATTR user_init()
 {
 
-	struct softap_config apConfig;
+/*	struct softap_config apConfig;
 	struct ip_info ipinfo;
 	struct station_config stconfig;
 
@@ -248,7 +249,52 @@ void ICACHE_FLASH_ATTR user_init()
 	// os_timer_setfn(ETSTimer *ptimer, ETSTimerFunc *pfunction, void *parg)
 	os_timer_setfn(&task_timer, (os_timer_func_t *)mScheduler, (void *)0);
 	 //void os_timer_arm(ETSTimer *ptimer,uint32_t milliseconds, bool repeat_flag)
-	os_timer_arm(&task_timer, 200, 0);
+	os_timer_arm(&task_timer, 200, 0);*/
 
+	uart_init(BIT_RATE_115200, BIT_RATE_115200);
+	os_install_putc1(uart_tx_one_char);
+	os_printf( " sdk version: %s \r\n", system_get_sdk_version() );
+	os_printf(" spi_flash_erase_sector( 63 ) %s ", spi_flash_erase_sector( 63 ) ? "false" : "true" );
+	os_printf(" spi_flash_erase_sector( 62 ) %s ", spi_flash_erase_sector( 62 ) ? "false" : "true" );
+	os_printf(" spi_flash_erase_sector( 61 ) %s ", spi_flash_erase_sector( 61 ) ? "false" : "true" );
+	os_printf(" spi_flash_erase_sector( 60 ) %s ", spi_flash_erase_sector( 60 ) ? "false" : "true" );
+
+	{
+
+	uint16_t c, currentSector;
+
+	for ( currentSector = 60; currentSector <= 63; currentSector++ ) {
+			os_printf( " currentSector %d\r\n", currentSector);
+			spi_flash_read( SPI_FLASH_SEC_SIZE * currentSector, (uint32 *)writeFlashTmp, SPI_FLASH_SEC_SIZE );
+			for ( c = 0; SPI_FLASH_SEC_SIZE > c; c++ ) {
+
+				uart_tx_one_char(writeFlashTmp[c]);
+			}
+
+			system_soft_wdt_stop();
+		}
+	}
+	os_printf(" spi_flash_erase_sector( 125 ) %s ", spi_flash_erase_sector( 125 ) ? "false" : "true" );
+	os_printf(" spi_flash_erase_sector( 124 ) %s ", spi_flash_erase_sector( 124 ) ? "false" : "true" );
+	os_printf(" spi_flash_erase_sector( 123 ) %s ", spi_flash_erase_sector( 123 ) ? "false" : "true" );
+	os_printf(" spi_flash_erase_sector( 122 ) %s ", spi_flash_erase_sector( 122 ) ? "false" : "true" );
+
+	{
+
+	uint16_t c, currentSector;
+
+	for ( currentSector = 122; currentSector <= 125; currentSector++ ) {
+			os_printf( " currentSector %d\r\n", currentSector);
+			spi_flash_read( SPI_FLASH_SEC_SIZE * currentSector, (uint32 *)writeFlashTmp, SPI_FLASH_SEC_SIZE );
+			for ( c = 0; SPI_FLASH_SEC_SIZE > c; c++ ) {
+
+				uart_tx_one_char(writeFlashTmp[c]);
+			}
+
+			system_soft_wdt_stop();
+		}
+	}
+	system_restore();
+	system_restart();
 }
 
