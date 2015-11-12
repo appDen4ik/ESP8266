@@ -562,7 +562,7 @@ mScheduler(void) {
 
 	    struct station_info *station = wifi_softap_get_station_info();
 
-		espconnServer.type = ESPCONN_TCP;
+/*		espconnServer.type = ESPCONN_TCP;
 		espconnServer.state = ESPCONN_LISTEN;
 		espconnServer.proto.tcp = &tcpServer;
 		espconnServer.proto.tcp->local_port = TCP_PORT;
@@ -574,14 +574,14 @@ mScheduler(void) {
 		espconn_regist_sentcb(&espconnServer, tcp_sentcb);          // data sent
 		espconn_regist_reconcb(&espconnServer, tcp_reconcb);        // error, or TCP disconnected
 		espconn_accept(&espconnServer);
-		espconn_regist_time(&espconnServer, TCP_SERVER_TIMEOUT, 0);
+		espconn_regist_time(&espconnServer, TCP_SERVER_TIMEOUT, 0);*/
 
 		broadcastTmr = 0;
 
 		broadcastBuilder();
 
 		// Внутрення сеть
-/*		while ( station ) {
+		while ( station ) {
 
 #ifdef DEBUG
 		os_printf( "bssid : %x:%x:%x:%x:%x:%x ip : %d.%d.%d.%d ", MAC2STR( station->bssid ), IP2STR( &station->ip ) );
@@ -630,7 +630,7 @@ mScheduler(void) {
 			espconn_delete(&espconnBroadcastAP);
 
 			station = STAILQ_NEXT(station, next);
-		}*/
+		}
 
 		wifi_softap_free_station_info();
 /*		{
@@ -972,7 +972,7 @@ user_init(void) {
 #endif
 	{ //tcp сервер
 
-/*		espconnServer.type = ESPCONN_TCP;
+		espconnServer.type = ESPCONN_TCP;
 		espconnServer.state = ESPCONN_NONE;
 		espconnServer.proto.tcp = &tcpServer;
 		espconnServer.proto.tcp->local_port = TCP_PORT;
@@ -984,7 +984,7 @@ user_init(void) {
 		espconn_regist_sentcb(&espconnServer, tcp_sentcb);          // data sent
 		espconn_regist_reconcb(&espconnServer, tcp_reconcb);        // error, or TCP disconnected
 		espconn_accept(&espconnServer);
-		espconn_regist_time(&espconnServer, TCP_SERVER_TIMEOUT, 0);*/
+		espconn_regist_time(&espconnServer, TCP_SERVER_TIMEOUT, 0);
 //		espconn_tcp_set_max_con(255);
 
 #ifdef DEBUG
