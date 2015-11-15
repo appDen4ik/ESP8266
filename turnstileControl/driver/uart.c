@@ -49,16 +49,16 @@ uart_config(uint8 uart_no)
 
 
     //clear rx and tx fifo,not ready
-    SET_PERI_REG_MASK(UART_CONF0(uart_no), UART_RXFIFO_RST | UART_TXFIFO_RST);
-    CLEAR_PERI_REG_MASK(UART_CONF0(uart_no), UART_RXFIFO_RST | UART_TXFIFO_RST);
+//    SET_PERI_REG_MASK(UART_CONF0(uart_no), UART_RXFIFO_RST | UART_TXFIFO_RST);
+//   CLEAR_PERI_REG_MASK(UART_CONF0(uart_no), UART_RXFIFO_RST | UART_TXFIFO_RST);
 
     //set rx fifo trigger
-    WRITE_PERI_REG(UART_CONF1(uart_no), (UartDev.rcv_buff.TrigLvl & UART_RXFIFO_FULL_THRHD) << UART_RXFIFO_FULL_THRHD_S);
+//   WRITE_PERI_REG(UART_CONF1(uart_no), (UartDev.rcv_buff.TrigLvl & UART_RXFIFO_FULL_THRHD) << UART_RXFIFO_FULL_THRHD_S);
 
-    //clear all interrupt
-    WRITE_PERI_REG(UART_INT_CLR(uart_no), 0xffff);
-    //enable rx_interrupt
-    SET_PERI_REG_MASK(UART_INT_ENA(uart_no), UART_RXFIFO_FULL_INT_ENA);
+ //clear all interrupt
+ //  WRITE_PERI_REG(UART_INT_CLR(uart_no), 0xffff);
+ //enable rx_interrupt
+ //   SET_PERI_REG_MASK(UART_INT_ENA(uart_no), UART_RXFIFO_FULL_INT_ENA);
 }
 
 /******************************************************************************
@@ -101,15 +101,6 @@ uart1_write_char(char c)
         uart1_tx_one_char(c);
     }
 }
-
-/******************************************************************************
- * FunctionName : uart0_rx_intr_handler
- * Description  : Internal used function
- *                UART0 interrupt handler, add self handle code inside
- * Parameters   : void *para - point to ETS_UART_INTR_ATTACH's arg
- * Returns      : NONE
-*******************************************************************************/
-
 
 
 /******************************************************************************

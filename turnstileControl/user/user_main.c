@@ -1,29 +1,11 @@
-/**
+/*
  **********************************************************************************************************************************
   * @file    user_main.c
   * @author  Denys
   * @version V0.0.1
-  * @date    2-Sept-2015
+  * @date    14-Nov-2015
   * @brief
- **********************************************************************************************************************************
- * @info:
- * 		esp8266 работает в режиме softAP и STA. На ней запущен TCP сервер
- * который может обрабатывать определенный список команд ( который будет
- * определлен и реализован в следующей версии ), в данной же версии,
- * при получении любой информации она просто валится в уарт. Также, если есп
- * настроен на определенный роутер, то он пытается подключиться к нему, в
- * случае успешного подключения есп udp бродкастом шлет через каждый
- * определенный промежуток времени необходимую информацию (свой ip, номер пората
- * , для того чтобы данную есп можна было найти в сети и подключиться с TCP
- * серверу с дальшей передачей необходимой информации. Обратная связь реализована
- * через широковещительные запроси, через те же запросы, через которые передается
- * информация которая необходима, для того чтобы можна было найти есп внутри
- * локальной сети.
- * 		Длинна запросов ограничена ~1400 байт из-за ограничения буффера( если
- * длинна запроса более указаной длинны, то оно передается вызовом receive callback
- * несколько раз, а в даном проэкте механизм приема таких сообщений не реализован ).
- **********************************************************************************************************************************
- */
+ *********************************************************************************************************************************/
 
 #include "ets_sys.h"
 #include "osapi.h"
@@ -35,20 +17,21 @@
 #include "user_config.h"
 #include "driver/uart.h"
 
-#define USER_SECTOR_IN_FLASH_MEM		59
-
 extern void uart_tx_one_char();
 
 LOCAL inline void ICACHE_FLASH_ATTR tcpRespounseBuilder( uint8_t *responseCode ) __attribute__((always_inline));
 LOCAL inline void ICACHE_FLASH_ATTR comandParser( void ) __attribute__((always_inline));
 LOCAL inline void ICACHE_FLASH_ATTR broadcastBuilder( void ) __attribute__((always_inline));
 LOCAL inline res  ICACHE_FLASH_ATTR writeFlash( uint16_t where, uint8_t *what ) __attribute__((always_inline));
-LOCAL inline void ICACHE_FLASH_ATTR UpdateCRC (uint8_t b) __attribute__((always_inline));
 LOCAL inline void ICACHE_FLASH_ATTR UpdateCRCForPackage(uint8_t* pack, uint8_t length) __attribute__((always_inline));
 LOCAL uint8_t * ICACHE_FLASH_ATTR ShortIntToString(uint32_t data, uint8_t *adressDestenation);
+LOCAL void ICACHE_FLASH_ATTR UpdateCRC(uint8_t b);
 //**********************************************************************************************************************************
 LOCAL struct espconn espconnServer;
 LOCAL esp_tcp tcpServer;
+LOCAL tcp_stat tcpSt = TCP_FREE;
+LOCAL struct espconn *pespconn;
+LOCAL uint32_t ipAdd;
 //**********************************************************************************************************************************
 LOCAL struct  espconn espconnBroadcastAP;
 LOCAL esp_udp espudpBroadcastAP;
@@ -59,16 +42,17 @@ LOCAL uint8_t brodcastMessage[500];
 //**********************************************************************************************************************************
 LOCAL os_timer_t task_timer;
 //**********************************************************************************************************************************
-LOCAL tcp_stat tcpSt = TCP_FREE;
-LOCAL struct espconn *pespconn;
-LOCAL uint32_t ipAdd;
-//**********************************************************************************************************************************
 LOCAL const uint8_t numberTurnstiles = 10;
 LOCAL uint16_t turnBroadcastStatuses[32];
 LOCAL turnstileOperation currentOperation = TURNSTILE_STATUS;
-LOCAL uint8_t currentTurnstileID = 0;
-LOCAL uint8_t currentTurnstileCommandId = 0;
+LOCAL uint8_t currentTurnstileID = 1;
+LOCAL uint8_t currentTurnstileCommandId = 1;
 LOCAL uint8_t currentcommand;
+LOCAL crc_stat crcStatus = CRC_OK;
+LOCAL turnstile bufTurnstile;
+LOCAL uint8_t counterForBufTurn;
+//**********************************************************************************************************************************
+LOCAL uint8_t CRC;
 //**********************************************************************************************************************************
 //tasks
 LOCAL os_event_t *disconQueue;
@@ -88,7 +72,7 @@ LOCAL os_event_t *turnstQueue;
 #define TURNSTILE_TASK_PRIO_QUEUE_ETS_SIGNAL_TOKEN		0XF
 #define TURNSTILE_TASK_PRIO_QUEUE_ETS_PARAM_TOKEN		0XF
 //**********************************************************************************************************************************
-LOCAL uint8_t CRC;
+
 //**********************************************************Callbacks***************************************************************
 
 LOCAL void ICACHE_FLASH_ATTR
@@ -107,7 +91,13 @@ tcp_recvcb( void *arg, char *pdata, unsigned short len ) { // data received
 		ipAdd = *(uint32 *)( pespconn->proto.tcp->remote_ip );
 		tcpSt = TCP_BUSY;
 		os_printf(" tcp_recvcb *pdata  %d,  len  %d", pdata, len );
-		memcpy( tmp, pdata, len );
+		if ( len < TMP_SIZE ){
+
+			memcpy( tmp, pdata, len );
+		} else {
+
+			memcpy( tmp, "empty", sizeof("empty") );
+		}
 		system_os_post( CMD_PRS_TASK_PRIO, (ETSSignal)pdata, (ETSParam)len );
 	}
 }
@@ -172,10 +162,47 @@ void uart0_rx_intr_handler( void *para ) {
     WRITE_PERI_REG(UART_INT_CLR(UART0), UART_RXFIFO_FULL_INT_CLR);
 
     while (READ_PERI_REG(UART_STATUS(UART0)) & (UART_RXFIFO_CNT << UART_RXFIFO_CNT_S)) {
-        RcvChar = READ_PERI_REG(UART_FIFO(UART0)) & 0xFF;
+       // RcvChar = READ_PERI_REG(UART_FIFO(UART0)) & 0xFF;
+
+        ((uint8_t *)( &bufTurnstile ))[ counterForBufTurn++ ] = READ_PERI_REG(UART_FIFO(UART0)) & 0xFF;
+
+        if ( sizeof(bufTurnstile) == counterForBufTurn ) {
+
+        	counterForBufTurn = 0;
 
 
-        os_timer_disarm(&task_timer);
+        	WRITE_PERI_REG(UART_INT_CLR(UART0), 0xffff);//clr status
+        	WRITE_PERI_REG(UART_INT_ENA(UART0), 0x0); //disable interput
+        	os_timer_disarm(&task_timer);
+
+        	os_printf("uart0_rx_intr_handler intput response bufTurnstile.address %d, bufTurnstile.numberOfBytes %d, bufTurnstile.typeData %d, \
+        				bufTurnstile.data %d, bufTurnstile.crc %d", bufTurnstile.address, bufTurnstile.numberOfBytes, bufTurnstile.typeData, \
+        									  	  	  	  	  	  	bufTurnstile.data, bufTurnstile.crc );
+
+        	UpdateCRCForPackage( ( (uint8_t *)&bufTurnstile ), ( sizeof(turnstile) - 1 ) );
+        	if ( bufTurnstile.crc == CRC ) {
+
+        		turnBroadcastStatuses[currentTurnstileID - 1] = bufTurnstile.data;
+        		currentTurnstileID++;
+        	} else {
+
+        		if ( CRC_OK == crcStatus) {
+
+        			os_printf( "crc error id: %d, try again...", currentTurnstileID );
+        			crcStatus = CRC_ERROR;
+        		} else if ( CRC_ERROR == crcStatus ) {
+
+        			os_printf( "crc double error id: %d", currentTurnstileID );
+        			turnBroadcastStatuses[currentTurnstileID - 1] = 257;
+        			crcStatus = CRC_OK;
+        			currentTurnstileID++;
+        		}
+
+        	}
+
+        	system_os_post( TURNSTILE_TASK_PRIO, TURNSTILE_TASK_PRIO_QUEUE_ETS_SIGNAL_TOKEN, \
+        													TURNSTILE_TASK_PRIO_QUEUE_ETS_PARAM_TOKEN );
+        }
 
         *(pRxBuff->pWritePos) = RcvChar;
 
@@ -198,8 +225,14 @@ void uart0_rx_intr_handler( void *para ) {
 LOCAL void ICACHE_FLASH_ATTR
 timeout( void ) {
 
+	os_printf( "timeout, turnstile not response id: %d", currentTurnstileID );
 	os_timer_disarm(&task_timer);
-	// выключаем уарт
+	WRITE_PERI_REG(UART_INT_CLR(UART0), 0xffff);
+	WRITE_PERI_REG(UART_INT_ENA(UART0), 0x0); //disable interput
+	turnBroadcastStatuses[currentTurnstileID - 1] = 256;
+	currentTurnstileID++;
+	system_os_post( TURNSTILE_TASK_PRIO, TURNSTILE_TASK_PRIO_QUEUE_ETS_SIGNAL_TOKEN, \
+	        													TURNSTILE_TASK_PRIO_QUEUE_ETS_PARAM_TOKEN );
 }
 
 
@@ -241,20 +274,34 @@ cmdPars( os_event_t *e ) {
 
 
 LOCAL void ICACHE_FLASH_ATTR
-turnstile( os_event_t *e ) {
+turnstileHandler( os_event_t *e ) {
 
+	os_delay_us(20000);
 
-	if ( 0 == currentTurnstileID || 0 == ( currentTurnstileID % 5 ) ) {
+	if ( currentTurnstileID > numberTurnstiles ) {
+
+		currentTurnstileID = 1;
+	}
+
+	if ( 1 == currentTurnstileID || 0 == ( currentTurnstileID % 10 ) ) {
 
 		struct station_info *station = wifi_softap_get_station_info();
 
 		broadcastBuilder();
 
-		while ( station ) {
+#ifdef DEBUG
+		os_delay_us(DELAY);
+#endif
+
+		os_printf( "%s ", brodcastMessage );
 
 #ifdef DEBUG
-		os_printf( "bssid : %x:%x:%x:%x:%x:%x ip : %d.%d.%d.%d ", MAC2STR( station->bssid ), IP2STR( &station->ip ) );
+		os_delay_us(DELAY);
 #endif
+
+		while ( station ) {
+
+			os_printf( "bssid : %x:%x:%x:%x:%x:%x ip : %d.%d.%d.%d ", MAC2STR( station->bssid ), IP2STR( &station->ip ) );
     		espconnBroadcastAP.type = ESPCONN_UDP;
     		espconnBroadcastAP.state = ESPCONN_NONE;
     		espconnBroadcastAP.proto.udp = &espudpBroadcastAP;
@@ -296,8 +343,8 @@ turnstile( os_event_t *e ) {
 					break;
 
 			}
-			espconn_delete(&espconnBroadcastAP);
 
+			espconn_delete(&espconnBroadcastAP);
 			station = STAILQ_NEXT(station, next);
 		}
 
@@ -306,16 +353,58 @@ turnstile( os_event_t *e ) {
 
 	if ( TURNSTILE_STATUS == currentOperation ) {
 
+		bufTurnstile.address 		= currentTurnstileID;
+		bufTurnstile.numberOfBytes 	= 0x02;
+		bufTurnstile.typeData 		= 0xAA;
+		bufTurnstile.data 			= 0;
+		UpdateCRCForPackage( ( (uint8_t *)&bufTurnstile ), ( sizeof(turnstile) - 1 ) );
+		bufTurnstile.crc 			= CRC;
 
 	} else if ( TURNSTILE_COMMAND == currentOperation ) {
 
+		currentOperation = TURNSTILE_STATUS;
+		currentTurnstileID = currentTurnstileCommandId;
 
+		bufTurnstile.address 		= currentTurnstileID;
+		bufTurnstile.numberOfBytes 	= 0x02;
+		bufTurnstile.typeData 		= 0xcc;
+		bufTurnstile.data 			= currentcommand;
+		UpdateCRCForPackage( ( (uint8_t *)&bufTurnstile ), ( sizeof(turnstile) - 1 ) );
+		bufTurnstile.crc 			= CRC;
 	}
+
+	uart_tx_one_char( bufTurnstile.address );
+	uart_tx_one_char( bufTurnstile.numberOfBytes );
+	uart_tx_one_char( bufTurnstile.typeData );
+	uart_tx_one_char( bufTurnstile.data );
+	uart_tx_one_char( bufTurnstile.crc );
 
 	//включаем уарт
 	//включаем таймер
-	os_timer_setfn( &task_timer, (os_timer_func_t *)timeout, (void *)0 );
-	os_timer_arm( &task_timer, DELAY, 0 );
+
+#ifdef DEBUG
+		os_delay_us(DELAY);
+#endif
+	os_printf("turnstileHandler output request bufTurnstile.address %d, bufTurnstile.numberOfBytes %d, bufTurnstile.typeData %d, \
+			bufTurnstile.data %d, bufTurnstile.crc %d", bufTurnstile.address, bufTurnstile.numberOfBytes, bufTurnstile.typeData, \
+								  	  	  	  	  	  	bufTurnstile.data, bufTurnstile.crc );
+#ifdef DEBUG
+		os_delay_us(DELAY);
+#endif
+
+   //clear rx and tx fifo,not ready
+   SET_PERI_REG_MASK(UART_CONF0(UART0), UART_RXFIFO_RST | UART_TXFIFO_RST);
+   CLEAR_PERI_REG_MASK(UART_CONF0(UART0), UART_RXFIFO_RST | UART_TXFIFO_RST);
+   //set rx fifo trigger
+  // WRITE_PERI_REG(UART_CONF1(UART0), (UartDev.rcv_buff.TrigLvl & UART_RXFIFO_FULL_THRHD) << UART_RXFIFO_FULL_THRHD_S);
+   //clear all interrupt
+   WRITE_PERI_REG(UART_INT_CLR(UART0), 0xffff);
+   //enable rx_interrupt
+   SET_PERI_REG_MASK(UART_INT_ENA(UART0), UART_RXFIFO_FULL_INT_ENA);
+
+   os_timer_disarm(&task_timer);
+   os_timer_setfn( &task_timer, (os_timer_func_t *)timeout, (void *)0 );
+   os_timer_arm( &task_timer, DELAY_TIMER, 0 );
 }
 
 //**********************************************************************************************************************************
@@ -388,10 +477,15 @@ init_done( void ) {
 		os_printf( " | initWIFI: read ip ap fail! |\r\n" );
 	}
 #ifdef DEBUG
-		os_printf( " ipinfo.ip.addr  %d ", ipinfo.ip.addr );
+		os_printf( " ipinfo.ip.addr  %d.%d.%d.%d ", IP2STR( &(ipinfo.ip.addr) ) );
 #endif
 
 	wifi_softap_dhcps_start();
+
+	os_delay_us(1000000);
+
+	system_os_post( TURNSTILE_TASK_PRIO, TURNSTILE_TASK_PRIO_QUEUE_ETS_SIGNAL_TOKEN, \
+												TURNSTILE_TASK_PRIO_QUEUE_ETS_PARAM_TOKEN );
 }
 
 
@@ -400,9 +494,7 @@ user_init( void ) {
 
 	uart_init(BIT_RATE_115200, BIT_RATE_115200);
 
-	//os_install_putc1( ( void *)uart1_write_char );
 	os_install_putc1( (void *)uart1_tx_one_char );
-//	os_install_putc1( uart_tx_one_char );
 	if ( SYS_CPU_160MHZ != system_get_cpu_freq() ) {
 
 		system_update_cpu_freq( SYS_CPU_160MHZ );
@@ -454,7 +546,23 @@ user_init( void ) {
 		uint8_t i;
 		for ( i = 0; i < numberTurnstiles; i++ ) {
 
-			turnBroadcastStatuses[i] = 256;
+			turnBroadcastStatuses[i] = 1000;
+		}
+	}
+
+	{
+
+	uint16_t c, currentSector;
+
+	for ( currentSector = USER_SECTOR_IN_FLASH_MEM; currentSector <= USER_SECTOR_IN_FLASH_MEM; currentSector++ ) {
+			os_printf( " currentSector %d\r\n", currentSector);
+			spi_flash_read( SPI_FLASH_SEC_SIZE * currentSector, (uint32 *)flashTmp, SPI_FLASH_SEC_SIZE );
+			for ( c = 0; SPI_FLASH_SEC_SIZE > c; c++ ) {
+
+				uart1_tx_one_char(flashTmp[c]);
+			}
+
+			system_soft_wdt_stop();
 		}
 	}
 
@@ -492,7 +600,7 @@ user_init( void ) {
 
 	system_os_task( discon, DISCON_TASK_PRIO, disconQueue, DISCON_QUEUE_LENGHT );
 	system_os_task( cmdPars, CMD_PRS_TASK_PRIO, cmdPrsQueue, CMD_PRS_QUEUE_LENGHT );
-	system_os_task( turnstile, TURNSTILE_TASK_PRIO, turnstQueue, TURNSTILE_QUEUE_LENGHT );
+	system_os_task( turnstileHandler, TURNSTILE_TASK_PRIO, turnstQueue, TURNSTILE_QUEUE_LENGHT );
 
 	system_init_done_cb(init_done);
 }
@@ -566,8 +674,6 @@ broadcastBuilder( void ) {
 
 		count = ShortIntToString( ( i + 1 ), count );
 
-		if( 9 < numberTurnstiles ) count++;
-
 		memcpy( count, BROADCAST_STATUS, ( sizeof( BROADCAST_STATUS ) - 1 ) );
 		count += sizeof( BROADCAST_STATUS ) - 1;
 
@@ -577,8 +683,6 @@ broadcastBuilder( void ) {
 	*count++ = '\r';
 	*count++ = '\n';
 	*count = '\0';
-
-	os_printf("BROADCAST MESSAGE %s", brodcastMessage);
 }
 
 
@@ -677,24 +781,22 @@ tcpRespounseBuilder( uint8_t *responseCode ) {
 }
 
 
-LOCAL void ICACHE_FLASH_ATTR
-UpdateCRCForPackage( uint8_t *pack, uint8_t length ){
-
+void ICACHE_FLASH_ATTR
+UpdateCRCForPackage(uint8_t *pack, uint8_t length){
 	CRC = 0;
 	uint8_t counter = 0;
-	for ( ;counter++ < length; UpdateCRC( *pack++ ) );
+	for ( ;counter++ < length; UpdateCRC((*pack++)) );
 }
 
 
-LOCAL void ICACHE_FLASH_ATTR
-UpdateCRC ( uint8_t b ) {
-
+void ICACHE_FLASH_ATTR
+UpdateCRC(uint8_t b){
 	uint8_t i;
-	for ( i = 8; i > 0; i-- ){
-		if ( ( b ^ CRC ) & 1 )
-			CRC = ( ( CRC ^ 0x18 ) >> 1 ) | 0x80;
+	for (i = 8; i > 0; i--){
+		if ((b ^ CRC) & 1)
+		CRC = ((CRC ^ 0x18) >> 1) | 0x80;
 		else
-			CRC >>= 1;
+		CRC >>= 1;
 		b >>= 1;
 	}
 }
