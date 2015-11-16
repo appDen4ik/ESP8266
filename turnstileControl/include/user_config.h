@@ -50,8 +50,9 @@
 //***********************************************************************************************************************************
 #define TMP_SIZE    1000
 //***********************************************************************************************************************************
-#define DELAY 		10   //mcs
-#define DELAY_TIMER 80 //ms
+#define DELAY 				10   //mcs
+#define DELAY_TIMER 		80 	 //ms
+#define BROADCAST_TIMER  	300  //ms
 //***********************************************************************************************************************************
 // tcp, udp parameters
 
@@ -80,6 +81,10 @@ typedef enum {
 typedef enum {
 				CRC_OK = 0,
 				CRC_ERROR       } crc_stat;
+
+typedef enum {
+				BROADCAST_NEED = 0,
+				BROADCAST_NOT_NEED     } broadcast_stat;
 
 typedef enum {
 				TURNSTILE_STATUS = 0,

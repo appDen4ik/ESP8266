@@ -35,6 +35,8 @@ LOCAL uint32_t ipAdd;
 //**********************************************************************************************************************************
 LOCAL struct  espconn espconnBroadcastAP;
 LOCAL esp_udp espudpBroadcastAP;
+LOCAL broadcast_stat broadcastStatus = BROADCAST_NEED;
+LOCAL os_timer_t timerBroadcast;
 //**********************************************************************************************************************************
 LOCAL uint8_t flashTmp[SPI_FLASH_SEC_SIZE];
 LOCAL uint8_t tmp[TMP_SIZE];
@@ -245,6 +247,14 @@ timeout( void ) {
 
 
 LOCAL void ICACHE_FLASH_ATTR
+broadcastTimeout( void ) {
+
+	os_timer_disarm(&timerBroadcast);
+	broadcastStatus = BROADCAST_NEED;
+}
+
+
+LOCAL void ICACHE_FLASH_ATTR
 discon( os_event_t *e ) {
 
 #ifdef DEBUG
@@ -293,7 +303,9 @@ turnstileHandler( os_event_t *e ) {
 		currentTurnstileID = 1;
 	}
 
-	if ( 1 == currentTurnstileID || 0 == ( currentTurnstileID % 5 ) ) {
+	if ( BROADCAST_NEED == broadcastStatus ) {
+
+		broadcastStatus = BROADCAST_NOT_NEED;
 
 		struct station_info *station = wifi_softap_get_station_info();
 
@@ -359,6 +371,10 @@ turnstileHandler( os_event_t *e ) {
 		}
 
 		wifi_softap_free_station_info();
+
+		os_timer_disarm( &timerBroadcast);
+		os_timer_setfn( &timerBroadcast, (os_timer_func_t *)broadcastTimeout, (void *)0 );
+		os_timer_arm( &timerBroadcast, BROADCAST_TIMER, 0 );
 	}
 
 	if ( TURNSTILE_STATUS == currentOperation ) {
