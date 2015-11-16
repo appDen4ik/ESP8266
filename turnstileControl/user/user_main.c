@@ -42,7 +42,7 @@ LOCAL uint8_t brodcastMessage[500];
 //**********************************************************************************************************************************
 LOCAL os_timer_t task_timer;
 //**********************************************************************************************************************************
-LOCAL const uint8_t numberTurnstiles = 10;
+LOCAL const uint8_t numberTurnstiles = 7;
 LOCAL uint16_t turnBroadcastStatuses[32];
 LOCAL turnstileOperation currentOperation = TURNSTILE_STATUS;
 LOCAL uint8_t currentTurnstileID = 1;
@@ -50,7 +50,7 @@ LOCAL uint8_t currentTurnstileCommandId = 1;
 LOCAL uint8_t currentcommand;
 LOCAL crc_stat crcStatus = CRC_OK;
 LOCAL turnstile bufTurnstile;
-LOCAL uint8_t counterForBufTurn;
+LOCAL volatile uint8_t counterForBufTurn = 0;
 //**********************************************************************************************************************************
 LOCAL uint8_t CRC;
 //**********************************************************************************************************************************
@@ -96,7 +96,7 @@ tcp_recvcb( void *arg, char *pdata, unsigned short len ) { // data received
 			memcpy( tmp, pdata, len );
 		} else {
 
-			memcpy( tmp, "empty", sizeof("empty") );
+			memcpy( tmp, "overflow", sizeof("overflow") );
 		}
 		system_os_post( CMD_PRS_TASK_PRIO, (ETSSignal)pdata, (ETSParam)len );
 	}
@@ -165,21 +165,29 @@ void uart0_rx_intr_handler( void *para ) {
        // RcvChar = READ_PERI_REG(UART_FIFO(UART0)) & 0xFF;
 
         ((uint8_t *)( &bufTurnstile ))[ counterForBufTurn++ ] = READ_PERI_REG(UART_FIFO(UART0)) & 0xFF;
-
-        if ( sizeof(bufTurnstile) == counterForBufTurn ) {
+#ifdef DEBUG
+ //       os_delay_us(1000);
+		os_printf("uart interrupt %d, counterForBufTurn %d", ((uint8_t *)( &bufTurnstile ))[ counterForBufTurn - 1 ], \
+				counterForBufTurn);
+#endif
+        if ( sizeof(turnstile) == counterForBufTurn ) {
 
         	counterForBufTurn = 0;
-
 
         	WRITE_PERI_REG(UART_INT_CLR(UART0), 0xffff);//clr status
         	WRITE_PERI_REG(UART_INT_ENA(UART0), 0x0); //disable interput
         	os_timer_disarm(&task_timer);
-
+#ifdef DEBUG
+		os_delay_us(DELAY);
+#endif
         	os_printf("uart0_rx_intr_handler intput response bufTurnstile.address %d, bufTurnstile.numberOfBytes %d, bufTurnstile.typeData %d, \
         				bufTurnstile.data %d, bufTurnstile.crc %d", bufTurnstile.address, bufTurnstile.numberOfBytes, bufTurnstile.typeData, \
         									  	  	  	  	  	  	bufTurnstile.data, bufTurnstile.crc );
-
+#ifdef DEBUG
+		os_delay_us(DELAY);
+#endif
         	UpdateCRCForPackage( ( (uint8_t *)&bufTurnstile ), ( sizeof(turnstile) - 1 ) );
+        	os_printf("crc %d", CRC);
         	if ( bufTurnstile.crc == CRC ) {
 
         		turnBroadcastStatuses[currentTurnstileID - 1] = bufTurnstile.data;
@@ -258,10 +266,10 @@ cmdPars( os_event_t *e ) {
 
 #ifdef DEBUG
 		{
-			int i;
+			uint32_t i;
 			for ( i = 0; i < (uint16_t)(e->par); i++) {
 
-				uart_tx_one_char( tmp[i] );
+				uart1_tx_one_char( tmp[i] );
 			}
 		}
 #endif
@@ -276,14 +284,16 @@ cmdPars( os_event_t *e ) {
 LOCAL void ICACHE_FLASH_ATTR
 turnstileHandler( os_event_t *e ) {
 
+#ifdef DEBUG
 	os_delay_us(20000);
+#endif
 
 	if ( currentTurnstileID > numberTurnstiles ) {
 
 		currentTurnstileID = 1;
 	}
 
-	if ( 1 == currentTurnstileID || 0 == ( currentTurnstileID % 10 ) ) {
+	if ( 1 == currentTurnstileID || 0 == ( currentTurnstileID % 5 ) ) {
 
 		struct station_info *station = wifi_softap_get_station_info();
 
@@ -383,14 +393,16 @@ turnstileHandler( os_event_t *e ) {
 	//включаем таймер
 
 #ifdef DEBUG
-		os_delay_us(DELAY);
+		os_delay_us(DELAY*10);
 #endif
 	os_printf("turnstileHandler output request bufTurnstile.address %d, bufTurnstile.numberOfBytes %d, bufTurnstile.typeData %d, \
 			bufTurnstile.data %d, bufTurnstile.crc %d", bufTurnstile.address, bufTurnstile.numberOfBytes, bufTurnstile.typeData, \
 								  	  	  	  	  	  	bufTurnstile.data, bufTurnstile.crc );
 #ifdef DEBUG
-		os_delay_us(DELAY);
+		os_delay_us(DELAY*10);
 #endif
+
+	counterForBufTurn = 0;
 
    //clear rx and tx fifo,not ready
    SET_PERI_REG_MASK(UART_CONF0(UART0), UART_RXFIFO_RST | UART_TXFIFO_RST);
@@ -769,7 +781,7 @@ tcpRespounseBuilder( uint8_t *responseCode ) {
 			uint16_t a;
 			os_printf(" tcp answer ");
 			for ( a = 0; a < i; a++) {
-				uart_tx_one_char(tmp[a]);
+				uart1_tx_one_char(tmp[a]);
 			}
 		}
 #endif
