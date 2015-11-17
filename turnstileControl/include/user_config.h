@@ -14,7 +14,7 @@
 #ifndef __USER_CONFIG_H__
 #define __USER_CONFIG_H__
 
-#define DEBUG
+//#define DEBUG
 
 #define UART0   0
 /*

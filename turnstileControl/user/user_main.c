@@ -18,6 +18,7 @@
 #include "driver/uart.h"
 
 extern void uart_tx_one_char();
+extern void ets_wdt_restore();
 
 LOCAL inline void ICACHE_FLASH_ATTR tcpRespounseBuilder( uint8_t *responseCode ) __attribute__((always_inline));
 LOCAL inline void ICACHE_FLASH_ATTR comandParser( void ) __attribute__((always_inline));
@@ -181,11 +182,9 @@ void uart0_rx_intr_handler( void *para ) {
         	os_timer_disarm(&task_timer);
 #ifdef DEBUG
 		os_delay_us(DELAY);
-#endif
         	os_printf("uart0_rx_intr_handler intput response bufTurnstile.address %d, bufTurnstile.numberOfBytes %d, bufTurnstile.typeData %d, \
         				bufTurnstile.data %d, bufTurnstile.crc %d", bufTurnstile.address, bufTurnstile.numberOfBytes, bufTurnstile.typeData, \
         									  	  	  	  	  	  	bufTurnstile.data, bufTurnstile.crc );
-#ifdef DEBUG
 		os_delay_us(DELAY);
 #endif
         	UpdateCRCForPackage( ( (uint8_t *)&bufTurnstile ), ( sizeof(turnstile) - 1 ) );
@@ -294,9 +293,11 @@ cmdPars( os_event_t *e ) {
 LOCAL void ICACHE_FLASH_ATTR
 turnstileHandler( os_event_t *e ) {
 
-#ifdef DEBUG
-	os_delay_us(20000);
-#endif
+
+	os_delay_us(10000); // таймаут между запросами
+
+	system_soft_wdt_feed();
+	ets_wdt_restore();
 
 	if ( currentTurnstileID > numberTurnstiles ) {
 
@@ -313,11 +314,7 @@ turnstileHandler( os_event_t *e ) {
 
 #ifdef DEBUG
 		os_delay_us(DELAY);
-#endif
-
 		os_printf( "%s ", brodcastMessage );
-
-#ifdef DEBUG
 		os_delay_us(DELAY);
 #endif
 
@@ -408,21 +405,21 @@ turnstileHandler( os_event_t *e ) {
 	//включаем уарт
 	//включаем таймер
 
+
 #ifdef DEBUG
 		os_delay_us(DELAY*10);
-#endif
+
 	os_printf("turnstileHandler output request bufTurnstile.address %d, bufTurnstile.numberOfBytes %d, bufTurnstile.typeData %d, \
 			bufTurnstile.data %d, bufTurnstile.crc %d", bufTurnstile.address, bufTurnstile.numberOfBytes, bufTurnstile.typeData, \
-								  	  	  	  	  	  	bufTurnstile.data, bufTurnstile.crc );
-#ifdef DEBUG
-		os_delay_us(DELAY*10);
+								  	  	  	  	  	  	bufTurnstile.data, bufTurnstile.crcl;
+	os_delay_us(DELAY*10);
 #endif
 
 	counterForBufTurn = 0;
 
    //clear rx and tx fifo,not ready
-   SET_PERI_REG_MASK(UART_CONF0(UART0), UART_RXFIFO_RST | UART_TXFIFO_RST);
-   CLEAR_PERI_REG_MASK(UART_CONF0(UART0), UART_RXFIFO_RST | UART_TXFIFO_RST);
+   //SET_PERI_REG_MASK(UART_CONF0(UART0), UART_RXFIFO_RST | UART_TXFIFO_RST);
+   //CLEAR_PERI_REG_MASK(UART_CONF0(UART0), UART_RXFIFO_RST | UART_TXFIFO_RST);
    //set rx fifo trigger
   // WRITE_PERI_REG(UART_CONF1(UART0), (UartDev.rcv_buff.TrigLvl & UART_RXFIFO_FULL_THRHD) << UART_RXFIFO_FULL_THRHD_S);
    //clear all interrupt
@@ -510,7 +507,15 @@ init_done( void ) {
 
 	wifi_softap_dhcps_start();
 
-	os_delay_us(1000000);
+	os_delay_us(10000);
+
+   	ets_wdt_init();
+//  ets_wdt_disable();
+   	ets_wdt_enable();
+   	ets_wdt_restore();
+   	system_soft_wdt_stop();
+    system_soft_wdt_restart();
+    system_soft_wdt_feed();
 
 	system_os_post( TURNSTILE_TASK_PRIO, TURNSTILE_TASK_PRIO_QUEUE_ETS_SIGNAL_TOKEN, \
 												TURNSTILE_TASK_PRIO_QUEUE_ETS_PARAM_TOKEN );
