@@ -188,7 +188,9 @@ void uart0_rx_intr_handler( void *para ) {
 		os_delay_us(DELAY);
 #endif
         	UpdateCRCForPackage( ( (uint8_t *)&bufTurnstile ), ( sizeof(turnstile) - 1 ) );
+#ifdef DEBUG
         	os_printf("crc %d", CRC);
+#endif
         	if ( bufTurnstile.crc == CRC ) {
 
         		turnBroadcastStatuses[currentTurnstileID - 1] = bufTurnstile.data;
