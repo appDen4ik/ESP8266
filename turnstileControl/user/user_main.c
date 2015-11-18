@@ -126,7 +126,6 @@ LOCAL void ICACHE_FLASH_ATTR
 tcp_disnconcb( void *arg ) { // TCP disconnected successfully
 
 	struct espconn *conn = (struct espconn *) arg;
-
 	os_printf( " |tcp_disnconcb TCP disconnected successfully : %d.%d.%d.%d\r\n| ",  IP2STR( conn->proto.tcp->remote_ip ) );
 }
 
@@ -135,7 +134,6 @@ LOCAL void ICACHE_FLASH_ATTR
 tcp_reconcb( void *arg, sint8 err ) { // error, or TCP disconnected
 
 	struct espconn *conn = (struct espconn *) arg;
-
 	os_printf( " |tcp_reconcb TCP RECON : %d.%d.%d.%d\r\n| ",  IP2STR( conn->proto.tcp->remote_ip ) );
 }
 
@@ -144,7 +142,6 @@ LOCAL void ICACHE_FLASH_ATTR
 tcp_sentcb( void *arg ) { // data sent callback
 
 	struct espconn *conn = (struct espconn *) arg;
-
 	os_printf( " |tcp_sentcb DATA sent for ip : %d.%d.%d.%d\r\n| ",  IP2STR( conn->proto.tcp->remote_ip ) );
 	system_os_post( DISCON_TASK_PRIO, DISCON_ETS_SIGNAL_TOKEN, (ETSParam)conn );
 }
@@ -155,17 +152,14 @@ void uart0_rx_intr_handler( void *para ) {
     /* uart0 and uart1 intr combine togther, when interrupt occur, see reg 0x3ff20020, bit2, bit0 represents
      * uart1 and uart0 respectively
      */
-    RcvMsgBuff *pRxBuff = (RcvMsgBuff *)para;
-    uint8 RcvChar;
 
-    if (UART_RXFIFO_FULL_INT_ST != (READ_PERI_REG(UART_INT_ST(UART0)) & UART_RXFIFO_FULL_INT_ST)) {
+    if ( UART_RXFIFO_FULL_INT_ST != (READ_PERI_REG(UART_INT_ST(UART0)) & UART_RXFIFO_FULL_INT_ST) ) {
         return;
     }
 
     WRITE_PERI_REG(UART_INT_CLR(UART0), UART_RXFIFO_FULL_INT_CLR);
 
     while (READ_PERI_REG(UART_STATUS(UART0)) & (UART_RXFIFO_CNT << UART_RXFIFO_CNT_S)) {
-       // RcvChar = READ_PERI_REG(UART_FIFO(UART0)) & 0xFF;
 
         ((uint8_t *)( &bufTurnstile ))[ counterForBufTurn++ ] = READ_PERI_REG(UART_FIFO(UART0)) & 0xFF;
 #ifdef DEBUG
@@ -214,20 +208,6 @@ void uart0_rx_intr_handler( void *para ) {
         	system_os_post( TURNSTILE_TASK_PRIO, TURNSTILE_TASK_PRIO_QUEUE_ETS_SIGNAL_TOKEN, \
         													TURNSTILE_TASK_PRIO_QUEUE_ETS_PARAM_TOKEN );
         }
-
-        *(pRxBuff->pWritePos) = RcvChar;
-
-
-        if (RcvChar == '\r') {
-            pRxBuff->BuffState = WRITE_OVER;
-        }
-
-        pRxBuff->pWritePos++;
-
-        if (pRxBuff->pWritePos == (pRxBuff->pRcvMsgBuff + RX_BUFF_SIZE)) {
-
-            pRxBuff->pWritePos = pRxBuff->pRcvMsgBuff ;
-        }
     }
 }
 
@@ -266,27 +246,24 @@ discon( os_event_t *e ) {
 
 		espconn_disconnect( ( struct espconn * )( e->par ) );
 	}
-
 }
 
 
 LOCAL void ICACHE_FLASH_ATTR
 cmdPars( os_event_t *e ) {
 
-	os_printf(" cmdPars (char *)(e->sig)  %d,  (unsigned short)(e->par)  %d", (char *)(e->sig), (unsigned short)(e->par) );
-
 #ifdef DEBUG
-		{
-			uint32_t i;
-			for ( i = 0; i < (uint16_t)(e->par); i++) {
+	os_printf(" cmdPars (char *)(e->sig)  %d,  (unsigned short)(e->par)  %d", (char *)(e->sig), (unsigned short)(e->par) );
+	{
+		uint32_t i;
+		for ( i = 0; i < (uint16_t)(e->par); i++) {
 
-				uart1_tx_one_char( tmp[i] );
-			}
+			uart1_tx_one_char( tmp[i] );
 		}
+	}
 #endif
 
 	comandParser();
-
 	ipAdd = 0;
 	pespconn = NULL;
 }
@@ -295,12 +272,9 @@ cmdPars( os_event_t *e ) {
 LOCAL void ICACHE_FLASH_ATTR
 turnstileHandler( os_event_t *e ) {
 
-
 	os_delay_us(10000); // таймаут между запросами
-
-	system_soft_wdt_feed();
-	ets_wdt_restore();
-
+//	system_soft_wdt_feed();
+//	ets_wdt_restore();
 	if ( currentTurnstileID > numberTurnstiles ) {
 
 		currentTurnstileID = 1;
@@ -337,32 +311,19 @@ turnstileHandler( os_event_t *e ) {
 				case ESPCONN_MEM:
 					os_printf( " |esp soft AP  broadcast out of memory| " );
 					system_restart();
-					while (1) {
-
-					}
 					break;
 				case ESPCONN_ARG:
 					os_printf( " |esp soft AP  broadcast illegal argument| " );
 					system_restart();
-					while (1) {
-
-					}
 					break;
 				case ESPCONN_IF:
 					os_printf( " |esp soft AP  broadcast send UDP fail| " );
 					system_restart();
-					while (1) {
-
-					}
 					break;
 				case ESPCONN_MAXNUM:
 					os_printf( " |esp soft AP  broadcast buffer of sending data is full| " );
 					system_restart();
-					while (1) {
-
-					}
 					break;
-
 			}
 
 			espconn_delete(&espconnBroadcastAP);
@@ -371,7 +332,7 @@ turnstileHandler( os_event_t *e ) {
 
 		wifi_softap_free_station_info();
 
-		os_timer_disarm( &timerBroadcast);
+		os_timer_disarm( &timerBroadcast );
 		os_timer_setfn( &timerBroadcast, (os_timer_func_t *)broadcastTimeout, (void *)0 );
 		os_timer_arm( &timerBroadcast, BROADCAST_TIMER, 0 );
 	}
@@ -404,13 +365,8 @@ turnstileHandler( os_event_t *e ) {
 	uart_tx_one_char( bufTurnstile.data );
 	uart_tx_one_char( bufTurnstile.crc );
 
-	//включаем уарт
-	//включаем таймер
-
-
 #ifdef DEBUG
-		os_delay_us(DELAY*10);
-
+	os_delay_us(DELAY*10);
 	os_printf("turnstileHandler output request bufTurnstile.address %d, bufTurnstile.numberOfBytes %d, bufTurnstile.typeData %d, \
 			bufTurnstile.data %d, bufTurnstile.crc %d", bufTurnstile.address, bufTurnstile.numberOfBytes, bufTurnstile.typeData, \
 								  	  	  	  	  	  	bufTurnstile.data, bufTurnstile.crcl;
@@ -419,16 +375,13 @@ turnstileHandler( os_event_t *e ) {
 
 	counterForBufTurn = 0;
 
-   //clear rx and tx fifo,not ready
-   //SET_PERI_REG_MASK(UART_CONF0(UART0), UART_RXFIFO_RST | UART_TXFIFO_RST);
-   //CLEAR_PERI_REG_MASK(UART_CONF0(UART0), UART_RXFIFO_RST | UART_TXFIFO_RST);
-   //set rx fifo trigger
-  // WRITE_PERI_REG(UART_CONF1(UART0), (UartDev.rcv_buff.TrigLvl & UART_RXFIFO_FULL_THRHD) << UART_RXFIFO_FULL_THRHD_S);
+   //включаем уарт
    //clear all interrupt
    WRITE_PERI_REG(UART_INT_CLR(UART0), 0xffff);
    //enable rx_interrupt
    SET_PERI_REG_MASK(UART_INT_ENA(UART0), UART_RXFIFO_FULL_INT_ENA);
 
+   //включаем таймер
    os_timer_disarm(&task_timer);
    os_timer_setfn( &task_timer, (os_timer_func_t *)timeout, (void *)0 );
    os_timer_arm( &task_timer, DELAY_TIMER, 0 );
@@ -448,6 +401,8 @@ init_done( void ) {
 	struct softap_config *softapConf = (struct softap_config *)os_zalloc(sizeof(struct softap_config));
 	struct ip_info ipinfo;
 
+	system_restore();
+
 	if ( SOFTAP_MODE != wifi_get_opmode() ) {
 
 		wifi_set_opmode( SOFTAP_MODE );
@@ -463,7 +418,7 @@ init_done( void ) {
 
 	wifi_softap_dhcps_stop();
 
-	softapConf->ssid_len = os_sprintf( softapConf->ssid, "%s", "Access Control System" );
+	softapConf->ssid_len = os_sprintf( softapConf->ssid, "%s", AP_NAME );
 	os_printf( " softapConf->ssid  %s, softapConf->ssid_len  %d\r\n", softapConf->ssid, softapConf->ssid_len );
 
 	os_sprintf( softapConf->password, "%s", "76543210" );
@@ -503,13 +458,9 @@ init_done( void ) {
 
 		os_printf( " | initWIFI: read ip ap fail! |\r\n" );
 	}
-#ifdef DEBUG
-		os_printf( " ipinfo.ip.addr  %d.%d.%d.%d ", IP2STR( &(ipinfo.ip.addr) ) );
-#endif
+	os_printf( " ipinfo.ip.addr  %d.%d.%d.%d ", IP2STR( &(ipinfo.ip.addr) ) );
 
 	wifi_softap_dhcps_start();
-
-	os_delay_us(10000);
 
    	ets_wdt_init();
 //  ets_wdt_disable();
@@ -689,6 +640,9 @@ broadcastBuilder( void ) {
 	uint8_t i;
 	count = brodcastMessage;
 
+//=================================================================================================
+	memcpy( count, AP_NAME, ( sizeof( AP_NAME ) - 1 ) );
+	count += sizeof( AP_NAME ) - 1;
 //=================================================================================================
 	memcpy( count, BROADCAST_IP_AP, ( sizeof( BROADCAST_IP_AP ) - 1 ) );
 	count += sizeof( BROADCAST_IP_AP ) - 1;
