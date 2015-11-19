@@ -252,7 +252,7 @@ discon( os_event_t *e ) {
 LOCAL void ICACHE_FLASH_ATTR
 cmdPars( os_event_t *e ) {
 
-#ifdef DEBUG
+//#ifdef DEBUG
 	os_printf(" cmdPars (char *)(e->sig)  %d,  (unsigned short)(e->par)  %d", (char *)(e->sig), (unsigned short)(e->par) );
 	{
 		uint32_t i;
@@ -261,7 +261,7 @@ cmdPars( os_event_t *e ) {
 			uart1_tx_one_char( tmp[i] );
 		}
 	}
-#endif
+//#endif
 
 	comandParser();
 	ipAdd = 0;
@@ -753,7 +753,7 @@ tcpRespounseBuilder( uint8_t *responseCode ) {
 	tmp[ i++ ] = '\r';
 	tmp[ i++ ] = '\n';
 
-#ifdef DEBUG
+//#ifdef DEBUG
 	{
 			uint16_t a;
 			os_printf(" tcp answer ");
@@ -761,7 +761,7 @@ tcpRespounseBuilder( uint8_t *responseCode ) {
 				uart1_tx_one_char(tmp[a]);
 			}
 		}
-#endif
+//#endif
 	tcpSt = TCP_FREE;
 	if ( NULL != pespconn ) {
 
