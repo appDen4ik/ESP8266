@@ -161,7 +161,10 @@ void uart0_rx_intr_handler( void *para ) {
 
     while (READ_PERI_REG(UART_STATUS(UART0)) & (UART_RXFIFO_CNT << UART_RXFIFO_CNT_S)) {
 
+
         ((uint8_t *)( &bufTurnstile ))[ counterForBufTurn++ ] = READ_PERI_REG(UART_FIFO(UART0)) & 0xFF;
+
+//      os_printf("| uart interrupt %d|", ((uint8_t *)( &bufTurnstile ))[ counterForBufTurn - 1 ] );
 #ifdef DEBUG
  //       os_delay_us(1000);
 		os_printf("uart interrupt %d, counterForBufTurn %d", ((uint8_t *)( &bufTurnstile ))[ counterForBufTurn - 1 ], \
@@ -170,6 +173,7 @@ void uart0_rx_intr_handler( void *para ) {
         if ( sizeof(turnstile) == counterForBufTurn ) {
 
         	counterForBufTurn = 0;
+//        	os_printf(" | interrupt 1 counterForBufTurn = %d |", counterForBufTurn);
 
         	WRITE_PERI_REG(UART_INT_CLR(UART0), 0xffff);//clr status
         	WRITE_PERI_REG(UART_INT_ENA(UART0), 0x0); //disable interput
@@ -205,6 +209,7 @@ void uart0_rx_intr_handler( void *para ) {
 
         	}
 
+//        	os_printf("| counterForBufTurn = %d |", counterForBufTurn);
         	system_os_post( TURNSTILE_TASK_PRIO, TURNSTILE_TASK_PRIO_QUEUE_ETS_SIGNAL_TOKEN, \
         													TURNSTILE_TASK_PRIO_QUEUE_ETS_PARAM_TOKEN );
         }
@@ -372,6 +377,9 @@ turnstileHandler( os_event_t *e ) {
 								  	  	  	  	  	  	bufTurnstile.data, bufTurnstile.crcl;
 	os_delay_us(DELAY*10);
 #endif
+
+
+//	os_printf("turnstileHandler counterForBufTurn = %d", counterForBufTurn);
 
 	counterForBufTurn = 0;
 
