@@ -994,7 +994,7 @@ user_init(void) {
    	if ( 5 != espconn_tcp_get_max_con() ) {
 
     		espconn_tcp_set_max_con(5);
-    	}
+    }
   /*  	if ( 0 == espconn_tcp_set_max_con_allow( &espconnServer, 2 ) ) {
 
     		os_printf( "espconn_tcp_set_max_con_allow( espconnServer, 2 ) fail " );
@@ -1062,7 +1062,7 @@ user_init(void) {
     cmdPrsQueue = (os_event_t *)os_malloc( sizeof(os_event_t)*CMD_PRS_QUEUE_LENGHT );
 
     system_os_task( discon, DISCON_QUEUE_PRIO, disconQueue, DISCON_QUEUE_LENGHT );
-    system_os_task( cmdPars, CMD_PRS_QUEUE_PRIO, cmdPrsQueue, CMD_PRS_QUEUE_PRIO );
+    system_os_task( cmdPars, CMD_PRS_QUEUE_PRIO, cmdPrsQueue, CMD_PRS_QUEUE_LENGHT );
 
     {
     	uint8_t a, b;
@@ -1187,7 +1187,7 @@ initWIFI( ) {
 	wifi_station_dhcpc_start();
 
 
-/*	softapConf->ssid_len = os_sprintf( softapConf->ssid, "%s", &writeFlashTmp[ SSID_AP_OFSET ] );
+	softapConf->ssid_len = os_sprintf( softapConf->ssid, "%s", &writeFlashTmp[ SSID_AP_OFSET ] );
 #ifdef DEBUG
 		os_printf( " softapConf->ssid  %s,  &tmp[ SSID_AP_OFSET ]  %s, softapConf->ssid_len  %d\r\n", \
 														softapConf->ssid, &writeFlashTmp[ SSID_AP_OFSET ], softapConf->ssid_len );
@@ -1248,7 +1248,7 @@ initWIFI( ) {
 		os_printf( " ipinfo.ip.addr  %d ", ipinfo.ip.addr );
 #endif
 
-	wifi_softap_dhcps_start();*/
+	wifi_softap_dhcps_start();
 
 }
 
