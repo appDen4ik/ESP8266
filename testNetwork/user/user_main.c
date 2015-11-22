@@ -5,8 +5,8 @@
 #include "driver/uart.h"
 #include "user_config.h"
 #include "espconn.h"
-#define WIFI_CLIENTSSID		"TSM_Guest"
-#define WIFI_CLIENTPASSWORD	"tsmguest"
+#define WIFI_CLIENTSSID		"SomeHomeNetwork"
+#define WIFI_CLIENTPASSWORD	"a053516626"
 
 extern int ets_uart_printf(const char *fmt, ...);
 int (*console_printf)(const char *fmt, ...) = ets_uart_printf;
@@ -14,6 +14,7 @@ struct espconn espconnServer;
 esp_tcp tcpServer;
 extern void uart_tx_one_char();
 
+LOCAL  uint16_t restartStamode;
 LOCAL struct  espconn espconnBroadcastSTA;
 LOCAL esp_udp espudpBroadcastSTA;
 LOCAL uint8_t brodcastMessage[] = "Hello World!\r\n";
@@ -78,7 +79,7 @@ tcp_recvcb( void *arg, char *pdata, unsigned short len ) { // data received
  tcpclient_connect_cb(void *arg) {
  	ets_uart_printf("tcpclient_connect_cb\r\n");
  	os_printf("printf %s", data);
- 	espconn_send( arg, data, sizeof(data) );
+ 	espconn_sent( arg, data, sizeof(data) );
 //espconn_disconnect((struct espconn *)arg);
  }
 
@@ -135,6 +136,10 @@ tcp_recvcb( void *arg, char *pdata, unsigned short len ) { // data received
  LOCAL void ICACHE_FLASH_ATTR
  mScheduler(void) {
 
+
+	 if ( restartStamode < 30 ) {
+		 restartStamode++;
+
  	os_timer_disarm(&task_timer);
  	struct station_info *station = wifi_softap_get_station_info();
  	LOCAL struct ip_info inf;
@@ -152,14 +157,23 @@ tcp_recvcb( void *arg, char *pdata, unsigned short len ) { // data received
 	    		(uint8_t)(station->ip.addr >> 8),\
 				(uint8_t)(station->ip.addr >> 16), (uint8_t)(station->ip.addr >> 24) );
 		espconn_create( &espconnBroadcastAP );
-		espconn_send( &espconnBroadcastAP, brodcastMessage, strlen( brodcastMessage ) );
+		espconn_sent( &espconnBroadcastAP, brodcastMessage, strlen( brodcastMessage ) );
 		espconn_delete(&espconnBroadcastAP);
 
 		station = STAILQ_NEXT(station, next);
 	}
 	wifi_softap_free_station_info();
 
+//	os_delay(100);
+ 	//wifi_set_opmode(SOFTAP_MODE);
+ 	//wifi_set_opmode(STATIONAP_MODE);
+ /*	wifi_station_dhcpc_stop();
+ 	wifi_station_dhcpc_start();*/
+
  	switch( wifi_station_get_connect_status() ) {
+
+
+
  			case STATION_GOT_IP:
  				ets_uart_printf( "WiFi connected\r\n " );
  				wifi_get_ip_info( STATION_IF, &inf );
@@ -172,7 +186,7 @@ tcp_recvcb( void *arg, char *pdata, unsigned short len ) { // data received
  						(uint8_t)(inf.ip.addr >> 8),
                          (uint8_t)(inf.ip.addr >> 16), 255);
  				espconn_create( &espconnBroadcastSTA );
- 				espconn_send( &espconnBroadcastSTA, brodcastMessage, strlen( brodcastMessage ) );
+ 				espconn_sent( &espconnBroadcastSTA, brodcastMessage, strlen( brodcastMessage ) );
  				senddata();
  				break;
  			case STATION_WRONG_PASSWORD:
@@ -189,10 +203,21 @@ tcp_recvcb( void *arg, char *pdata, unsigned short len ) { // data received
  				ets_uart_printf( "WiFi connecting...\r\n " );
  				break;
  	}
+	 } else {
+
+		 restartStamode = 0;
+		// wifi_set_opmode(SOFTAP_MODE);
+		 //os_delay(100);
+		//os_printf("restart STA mode");
+		// wifi_set_opmode(STATIONAP_MODE);
+		 wifi_station_disconnect();
+		 os_printf("restart STA mode");
+		 wifi_station_connect();
+	 }
 
  	espconn_delete( &espconnBroadcastSTA );
  	os_timer_setfn( &task_timer, (os_timer_func_t *)mScheduler, (void *)0 );
- 	os_timer_arm( &task_timer, 3000, 0 );
+ 	os_timer_arm( &task_timer, 1000, 0 );
  }
 
  static void ICACHE_FLASH_ATTR
@@ -209,14 +234,19 @@ tcp_recvcb( void *arg, char *pdata, unsigned short len ) { // data received
 
 	struct station_config stationConfig;
 
-	system_restore();
 
-	wifi_set_opmode(STATIONAP_MODE);
+
+
 
 	uart_init(BIT_RATE_115200, BIT_RATE_115200);
 	os_install_putc1(uart_tx_one_char);
-
+	os_delay_us(10000);
+	//os_printf("system_get_rst_info() = %d", system_get_rst_info()->reason);
 	ets_uart_printf("ESP8266 platform starting...\r\n");
+
+	system_restore();
+
+	wifi_set_opmode(STATIONAP_MODE);
 
 	wifi_station_disconnect();
 	wifi_station_dhcpc_stop();
