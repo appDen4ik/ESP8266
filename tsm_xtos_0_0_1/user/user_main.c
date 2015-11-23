@@ -76,6 +76,8 @@ LOCAL uint32_t resetDHCP = 0;
 //**********************************************************************************************************************************
 LOCAL uint8_t ledState = 0;
 //**********************************************************************************************************************************
+LOCAL uint32_t reconStation = 0;
+//**********************************************************************************************************************************
 LOCAL uint32_t broadcastTmr;
 LOCAL uint8_t *broadcastShift;
 LOCAL uint8_t brodcastMessage[1000] = { 0 };
@@ -558,6 +560,27 @@ mScheduler(void) {
 		}
 	}
 
+	if ( reconStation >=  RECON_TIMER ) {
+		if (tcpSt == TCP_FREE) {
+			os_printf("restart STA mode");
+			wifi_station_disconnect();
+			wifi_station_connect();
+			os_delay_us(100000);
+			wifi_station_disconnect();
+			wifi_station_connect();
+			os_delay_us(100000);
+			wifi_station_disconnect();
+			wifi_station_connect();
+			os_delay_us(100000);
+			wifi_station_disconnect();
+			wifi_station_connect();
+		}
+		reconStation = 0;
+	} else {
+
+		reconStation += 10;
+	}
+
 	if ( broadcastTmr >= BROADCAST_TIMER ) {
 
 	    struct station_info *station = wifi_softap_get_station_info();
@@ -852,6 +875,7 @@ init_done(void) {
 	os_timer_setfn( &task_timer, (os_timer_func_t *)mScheduler, (void *)0 );
 	 //void os_timer_arm(ETSTimer *ptimer,uint32_t milliseconds, bool repeat_flag)
 	os_timer_arm( &task_timer, 200, 0 );
+
 }
 
 
@@ -1041,7 +1065,7 @@ user_init(void) {
 
 	//wifi_softap_get_station_num;
 
-	 wifi_set_sleep_type(0);
+	// wifi_set_sleep_type(0);
 	// wifi_rfid_locp_recv_close();
 	 //wifi_set_event_handler_cb();
 
@@ -1153,9 +1177,9 @@ initWIFI( ) {
 		wifi_station_set_hostname( &tmp[BROADCAST_NAME_OFSET] );
 	}
 */
-	if ( STATION_MODE != wifi_get_opmode() ) {
+	if ( STATIONAP_MODE != wifi_get_opmode() ) {
 
-		wifi_set_opmode( STATION_MODE );
+		wifi_set_opmode( STATIONAP_MODE );
 	}
 
 	wifi_station_disconnect();

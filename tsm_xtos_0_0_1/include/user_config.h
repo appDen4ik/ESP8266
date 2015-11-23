@@ -259,7 +259,7 @@
 #define HEADER_STA		 	    "STA:"
 #define HEADER_STA_OFSET	    100
 
-#define DEF_SSID_AP          	"Access Control System"
+#define DEF_SSID_AP          	"Access System"
 #define SSID_AP_OFSET			505
 #define DEF_PWD_AP		        "defaultt"
 #define PWD_AP_OFSET			539
@@ -332,7 +332,10 @@
 #define DELAY 	10 /* milliseconds */
 //***********************************************************************************************************************************
 // broadcast timer
-#define BROADCAST_TIMER		300 //ms
+#define BROADCAST_TIMER		300 				//ms
+//***********************************************************************************************************************************
+// recon timer
+#define RECON_TIMER		    ( 1000 * 60 ) * 1  //min
 //***********************************************************************************************************************************
 
 #define BROADCAST_NAME_MIN_LENGHT   1
