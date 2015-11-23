@@ -565,13 +565,16 @@ mScheduler(void) {
 			os_printf("restart STA mode");
 			wifi_station_disconnect();
 			wifi_station_connect();
-			os_delay_us(100000);
+			os_delay_us(150000);
 			wifi_station_disconnect();
 			wifi_station_connect();
-			os_delay_us(100000);
+			os_delay_us(150000);
 			wifi_station_disconnect();
 			wifi_station_connect();
-			os_delay_us(100000);
+			os_delay_us(150000);
+			wifi_station_disconnect();
+			wifi_station_connect();
+			os_delay_us(150000);
 			wifi_station_disconnect();
 			wifi_station_connect();
 		}
