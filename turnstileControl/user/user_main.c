@@ -45,7 +45,7 @@ LOCAL uint8_t brodcastMessage[500];
 //**********************************************************************************************************************************
 LOCAL os_timer_t task_timer;
 //**********************************************************************************************************************************
-LOCAL const uint8_t numberTurnstiles = 7;
+LOCAL uint8_t numberTurnstiles = 0;
 LOCAL uint16_t turnBroadcastStatuses[32];
 LOCAL turnstileOperation currentOperation = TURNSTILE_STATUS;
 LOCAL uint8_t currentTurnstileID = 1;
@@ -488,6 +488,8 @@ user_init( void ) {
 
 	uart_init(BIT_RATE_115200, BIT_RATE_115200);
 
+	spi_flash_erase_sector( USER_SECTOR_IN_FLASH_MEM );
+
 	os_install_putc1( (void *)uart1_tx_one_char );
 	if ( SYS_CPU_160MHZ != system_get_cpu_freq() ) {
 
@@ -526,6 +528,9 @@ user_init( void ) {
 		memcpy( &flashTmp[CHANEL_AP_OFSET], DEF_CHANEL_AP, sizeof(DEF_CHANEL_AP) );
 		flashTmp[ sizeof(DEF_CHANEL_AP) + CHANEL_AP_OFSET ] = '\n';
 
+		flashTmp[NUMBER_OF_TURNSTILES_OFSET] = NUMBER_OF_TURNSTILE_DEFAULT;
+		flashTmp[ 1 + NUMBER_OF_TURNSTILES_OFSET ] = '\n';
+
 		if ( SPI_FLASH_RESULT_OK != spi_flash_write( USER_SECTOR_IN_FLASH_MEM * SPI_FLASH_SEC_SIZE, \
 																						(uint32 *)flashTmp, SPI_FLASH_SEC_SIZE ) ) {
 
@@ -537,14 +542,6 @@ user_init( void ) {
 	}
 
 	{
-		uint8_t i;
-		for ( i = 0; i < numberTurnstiles; i++ ) {
-
-			turnBroadcastStatuses[i] = 1000;
-		}
-	}
-
-	{
 
 	uint16_t c, currentSector;
 
@@ -553,10 +550,20 @@ user_init( void ) {
 			spi_flash_read( SPI_FLASH_SEC_SIZE * currentSector, (uint32 *)flashTmp, SPI_FLASH_SEC_SIZE );
 			for ( c = 0; SPI_FLASH_SEC_SIZE > c; c++ ) {
 
-				uart1_tx_one_char(flashTmp[c]);
+				uart_tx_one_char(flashTmp[c]);
 			}
 
 			system_soft_wdt_stop();
+		}
+	}
+
+	numberTurnstiles = flashTmp[NUMBER_OF_TURNSTILES_OFSET];
+
+	{
+		uint8_t i;
+		for ( i = 0; i < numberTurnstiles; i++ ) {
+
+			turnBroadcastStatuses[i] = 1000;
 		}
 	}
 
@@ -595,6 +602,7 @@ user_init( void ) {
 	system_os_task( discon, DISCON_TASK_PRIO, disconQueue, DISCON_QUEUE_LENGHT );
 	system_os_task( cmdPars, CMD_PRS_TASK_PRIO, cmdPrsQueue, CMD_PRS_QUEUE_LENGHT );
 	system_os_task( turnstileHandler, TURNSTILE_TASK_PRIO, turnstQueue, TURNSTILE_QUEUE_LENGHT );
+
 
 	system_init_done_cb(init_done);
 }
@@ -652,11 +660,12 @@ broadcastBuilder( void ) {
 	memcpy( count, AP_NAME, ( sizeof( AP_NAME ) - 1 ) );
 	count += sizeof( AP_NAME ) - 1;
 //=================================================================================================
-	memcpy( count, BROADCAST_IP_AP, ( sizeof( BROADCAST_IP_AP ) - 1 ) );
+/*	memcpy( count, BROADCAST_IP_AP, ( sizeof( BROADCAST_IP_AP ) - 1 ) );
 	count += sizeof( BROADCAST_IP_AP ) - 1;
 
 	os_sprintf( count, "%s", IP_AP );
 	count += strlen( IP_AP );
+*/
 //=================================================================================================
 	memcpy( count, BROADCAST_COUNTER_TURNSTILE, ( sizeof( BROADCAST_COUNTER_TURNSTILE ) - 1 ) );
 	count += sizeof( BROADCAST_COUNTER_TURNSTILE ) - 1;
@@ -727,6 +736,26 @@ comandParser( void ) {
 
 			tcpRespounseBuilder( TCP_OPERATION_FAIL );
 		}
+
+	} else if ( 0 == strcmp( tmp, TCP_GROUP_ACTION ) ) {
+
+
+
+	} else if ( 0 == strcmp( tmp, TCP_NUMBER_TURN ) ) {
+
+		uint8_t numb = atoi( &tmp[ sizeof(TCP_NUMBER_TURN) + 1 ] );
+#ifdef DEBUG
+		os_printf( " | comandParser channel %d | ", chanel );
+#endif
+				if ( 1 < numb && 32 > numb ) {
+
+					writeFlash( NUMBER_OF_TURNSTILES_OFSET, &tmp[ sizeof(TCP_NUMBER_TURN) + 1 ] );
+					tcpRespounseBuilder( TCP_OPERATION_OK );
+					numberTurnstiles = numb;
+				} else {
+
+					tcpRespounseBuilder( TCP_OPERATION_FAIL );
+				}
 
 	} else { // ERROR
 

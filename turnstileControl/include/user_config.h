@@ -23,6 +23,10 @@
 *
 * setChanel\0 chanel\0\r\n  - установить канал AP
 *
+* setNumTurn\0 number\0\r\n - установить количество турникетов
+*
+* groupAction\0 command\0\r\n -	отправить команду всем турникетам
+*
 *************************************************************************************************************************************
 */
 
@@ -36,6 +40,9 @@
  *
  *  100..104 ..105
  * | chanel\0 | \n |               chanel
+ *
+ * 200....
+ * | numb\0 | \n |				   количество турникетов
  */
 
 
@@ -44,6 +51,9 @@
 
 #define DEF_CHANEL_AP			"7"
 #define CHANEL_AP_OFSET	    	100
+
+#define NUMBER_OF_TURNSTILES_OFSET		200
+#define NUMBER_OF_TURNSTILE_DEFAULT		6
 
 //***********************************************************************************************************************************
 #define IP_AP	"172.168.0.1"
@@ -113,6 +123,8 @@ typedef struct {
 
 #define TCP_SET_TURNSTILE			"set"
 #define	TCP_SET_CHANEL				"setChanel"
+#define TCP_GROUP_ACTION			"groupAction"
+#define TCP_NUMBER_TURN				"setNumTurn"
 
 #define TCP_ERROR					"ERROR"
 
