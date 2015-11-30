@@ -45,6 +45,10 @@ LOCAL uint8_t brodcastMessage[500];
 //**********************************************************************************************************************************
 LOCAL os_timer_t task_timer;
 //**********************************************************************************************************************************
+LOCAL user_status groupStatus = USER_FALSE;
+LOCAL uint8_t groupCommandCounter = 0;
+LOCAL uint8_t groupCommand;
+//**********************************************************************************************************************************
 LOCAL uint8_t numberTurnstiles = 0;
 LOCAL uint16_t turnBroadcastStatuses[32];
 LOCAL turnstileOperation currentOperation = TURNSTILE_STATUS;

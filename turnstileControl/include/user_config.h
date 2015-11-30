@@ -94,6 +94,11 @@ typedef enum {
 				CRC_ERROR       } crc_stat;
 
 typedef enum {
+				USER_TRUE = 0,
+				USER_FALSE
+								}  user_status;
+
+typedef enum {
 				BROADCAST_NEED = 0,
 				BROADCAST_NOT_NEED     } broadcast_stat;
 
