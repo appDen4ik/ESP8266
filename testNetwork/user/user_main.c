@@ -136,10 +136,6 @@ tcp_recvcb( void *arg, char *pdata, unsigned short len ) { // data received
  LOCAL void ICACHE_FLASH_ATTR
  mScheduler(void) {
 
-
-	 if ( restartStamode < 30 ) {
-		 restartStamode++;
-
  	os_timer_disarm(&task_timer);
  	struct station_info *station = wifi_softap_get_station_info();
  	LOCAL struct ip_info inf;
@@ -164,14 +160,7 @@ tcp_recvcb( void *arg, char *pdata, unsigned short len ) { // data received
 	}
 	wifi_softap_free_station_info();
 
-//	os_delay(100);
- 	//wifi_set_opmode(SOFTAP_MODE);
- 	//wifi_set_opmode(STATIONAP_MODE);
- /*	wifi_station_dhcpc_stop();
- 	wifi_station_dhcpc_start();*/
-
  	switch( wifi_station_get_connect_status() ) {
-
 
 
  			case STATION_GOT_IP:
@@ -187,7 +176,7 @@ tcp_recvcb( void *arg, char *pdata, unsigned short len ) { // data received
                          (uint8_t)(inf.ip.addr >> 16), 255);
  				espconn_create( &espconnBroadcastSTA );
  				espconn_sent( &espconnBroadcastSTA, brodcastMessage, strlen( brodcastMessage ) );
- 				senddata();
+ 				//senddata();
  				break;
  			case STATION_WRONG_PASSWORD:
  				ets_uart_printf( "WiFi connecting error, wrong password\r\n" );
@@ -203,17 +192,6 @@ tcp_recvcb( void *arg, char *pdata, unsigned short len ) { // data received
  				ets_uart_printf( "WiFi connecting...\r\n " );
  				break;
  	}
-	 } else {
-
-		 restartStamode = 0;
-		// wifi_set_opmode(SOFTAP_MODE);
-		 //os_delay(100);
-		//os_printf("restart STA mode");
-		// wifi_set_opmode(STATIONAP_MODE);
-		 wifi_station_disconnect();
-		 os_printf("restart STA mode");
-		 wifi_station_connect();
-	 }
 
  	espconn_delete( &espconnBroadcastSTA );
  	os_timer_setfn( &task_timer, (os_timer_func_t *)mScheduler, (void *)0 );
