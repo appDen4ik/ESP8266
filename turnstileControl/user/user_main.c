@@ -46,6 +46,8 @@ LOCAL uint8_t brodcastMessage[500];
 //**********************************************************************************************************************************
 LOCAL os_timer_t task_timer;
 //**********************************************************************************************************************************
+//LOCAL user_status userReset = USER_FALSE;
+//**********************************************************************************************************************************
 LOCAL user_status groupStatus = USER_FALSE;
 LOCAL uint8_t groupCommandCounter = 0;
 LOCAL uint8_t groupCommand = 0;
@@ -132,6 +134,12 @@ tcp_disnconcb( void *arg ) { // TCP disconnected successfully
 
 	struct espconn *conn = (struct espconn *) arg;
 	os_printf( " |tcp_disnconcb TCP disconnected successfully : %d.%d.%d.%d\r\n| ",  IP2STR( conn->proto.tcp->remote_ip ) );
+/*	if ( USER_TRUE == userReset ){
+		userReset = USER_FALSE;
+		while( 1 ) {
+
+		}
+	}*/
 }
 
 
@@ -750,10 +758,20 @@ comandParser( void ) {
 			writeFlash( CHANEL_AP_OFSET, &tmp[ sizeof(TCP_SET_CHANEL) + 1 ] );
 			tcpRespounseBuilder( TCP_OPERATION_OK );
 			//system_restart();
-			os_delay_us(50000);
-			while ( 1 ) {
+			/*while ( 1 ) {
 
+			}*/
+
+			//userReset = USER_TRUE;
+			struct softap_config *softapConf = (struct softap_config *)os_zalloc(sizeof(struct softap_config));
+			if ( true == wifi_softap_get_config( softapConf ) ) {
+
+				wifi_softap_dhcps_stop();
+				softapConf->channel = chanel;
+				wifi_softap_set_config( softapConf );
+				wifi_softap_dhcps_start();
 			}
+
 		} else {
 
 			tcpRespounseBuilder( TCP_OPERATION_FAIL );
