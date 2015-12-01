@@ -78,8 +78,9 @@ tcp_recvcb( void *arg, char *pdata, unsigned short len ) { // data received
  static void ICACHE_FLASH_ATTR
  tcpclient_connect_cb(void *arg) {
  	ets_uart_printf("tcpclient_connect_cb\r\n");
- 	os_printf("printf %s", data);
- 	espconn_sent( arg, data, sizeof(data) );
+ 	espconn_disconnect(arg);
+ 	//os_printf("printf %s", data);
+ 	//espconn_sent( arg, data, sizeof(data) );
 //espconn_disconnect((struct espconn *)arg);
  }
 
@@ -104,7 +105,7 @@ tcp_recvcb( void *arg, char *pdata, unsigned short len ) { // data received
  	espconnClientTCP.proto.tcp = &clientEsp_TCP;
  	espconnClientTCP.type = ESPCONN_TCP;
  	espconnClientTCP.state = ESPCONN_NONE;
- 	os_sprintf(tcpserverip, "%s", "209.132.180.131");
+ 	os_sprintf(tcpserverip, "%s", "192.168.0.1");//209.132.180.131
  	uint32_t ip = ipaddr_addr(tcpserverip);
  	os_memcpy(espconnClientTCP.proto.tcp->remote_ip, &ip, 4);
  	espconnClientTCP.proto.tcp->local_port = espconn_port();
@@ -139,6 +140,8 @@ tcp_recvcb( void *arg, char *pdata, unsigned short len ) { // data received
  	os_timer_disarm(&task_timer);
  	struct station_info *station = wifi_softap_get_station_info();
  	LOCAL struct ip_info inf;
+
+ 	wifi_station_clear_cert_key();
 
 	while ( station ) {
 
@@ -176,7 +179,7 @@ tcp_recvcb( void *arg, char *pdata, unsigned short len ) { // data received
                          (uint8_t)(inf.ip.addr >> 16), 255);
  				espconn_create( &espconnBroadcastSTA );
  				espconn_sent( &espconnBroadcastSTA, brodcastMessage, strlen( brodcastMessage ) );
- 				//senddata();
+ 				senddata();
  				break;
  			case STATION_WRONG_PASSWORD:
  				ets_uart_printf( "WiFi connecting error, wrong password\r\n" );
@@ -195,7 +198,7 @@ tcp_recvcb( void *arg, char *pdata, unsigned short len ) { // data received
 
  	espconn_delete( &espconnBroadcastSTA );
  	os_timer_setfn( &task_timer, (os_timer_func_t *)mScheduler, (void *)0 );
- 	os_timer_arm( &task_timer, 1000, 0 );
+ 	os_timer_arm( &task_timer, 10000, 0 );
  }
 
  static void ICACHE_FLASH_ATTR
@@ -285,6 +288,6 @@ tcp_recvcb( void *arg, char *pdata, unsigned short len ) { // data received
 
 	os_timer_disarm(&task_timer);
 	os_timer_setfn(&task_timer, (os_timer_func_t *)mScheduler, (void *)0);
-	os_timer_arm(&task_timer, 1000, 0);
+	os_timer_arm(&task_timer, 10000, 0);
 }
 
