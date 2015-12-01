@@ -19,6 +19,7 @@
 
 extern void uart_tx_one_char();
 extern void ets_wdt_restore();
+extern void ping_coarse_tmr(void *arg);
 
 LOCAL inline void ICACHE_FLASH_ATTR tcpRespounseBuilder( uint8_t *responseCode ) __attribute__((always_inline));
 LOCAL inline void ICACHE_FLASH_ATTR comandParser( void ) __attribute__((always_inline));
@@ -426,7 +427,14 @@ init_done( void ) {
 	struct softap_config *softapConf = (struct softap_config *)os_zalloc(sizeof(struct softap_config));
 	struct ip_info ipinfo;
 
-	system_restore();
+	//  ets_wdt_init();
+	//  ets_wdt_disable();
+	   	ets_wdt_enable();
+	//  ets_wdt_restore();
+	// 	system_soft_wdt_stop();
+	    system_soft_wdt_restart();
+	//  system_soft_wdt_feed();
+
 
 	if ( SOFTAP_MODE != wifi_get_opmode() ) {
 
@@ -461,7 +469,7 @@ init_done( void ) {
 	softapConf->ssid_hidden = 0;
 	os_printf( " softapConf->ssid_hidden  %d\r\n", softapConf->ssid_hidden );
 
-	softapConf->beacon_interval = 100;
+	softapConf->beacon_interval = 60;
 	os_printf( " softapConf->beacon_interval  %d\r\n", softapConf->beacon_interval );
 
 	if( !wifi_softap_set_config( softapConf ) ) {
@@ -487,14 +495,6 @@ init_done( void ) {
 
 	wifi_softap_dhcps_start();
 
-   	ets_wdt_init();
-//  ets_wdt_disable();
-   	ets_wdt_enable();
-   	ets_wdt_restore();
-   	system_soft_wdt_stop();
-    system_soft_wdt_restart();
-    system_soft_wdt_feed();
-
 	system_os_post( TURNSTILE_TASK_PRIO, TURNSTILE_TASK_PRIO_QUEUE_ETS_SIGNAL_TOKEN, \
 												TURNSTILE_TASK_PRIO_QUEUE_ETS_PARAM_TOKEN );
 }
@@ -503,11 +503,19 @@ init_done( void ) {
 void ICACHE_FLASH_ATTR
 user_init( void ) {
 
+	uint16_t c;
+
+	ets_wdt_disable();
+	system_soft_wdt_stop();
+
 	uart_init(BIT_RATE_115200, BIT_RATE_115200);
 
-	spi_flash_erase_sector( USER_SECTOR_IN_FLASH_MEM );
+	//spi_flash_erase_sector( USER_SECTOR_IN_FLASH_MEM );
+
+	system_restore();
 
 	os_install_putc1( (void *)uart1_tx_one_char );
+
 	if ( SYS_CPU_160MHZ != system_get_cpu_freq() ) {
 
 		system_update_cpu_freq( SYS_CPU_160MHZ );
@@ -556,22 +564,15 @@ user_init( void ) {
 		}
 
 		system_restore();
+		system_restart();
 	}
 
-	{
 
-	uint16_t c, currentSector;
 
-	for ( currentSector = USER_SECTOR_IN_FLASH_MEM; currentSector <= USER_SECTOR_IN_FLASH_MEM; currentSector++ ) {
-			os_printf( " currentSector %d\r\n", currentSector);
-			spi_flash_read( SPI_FLASH_SEC_SIZE * currentSector, (uint32 *)flashTmp, SPI_FLASH_SEC_SIZE );
-			for ( c = 0; SPI_FLASH_SEC_SIZE > c; c++ ) {
+	spi_flash_read( SPI_FLASH_SEC_SIZE * USER_SECTOR_IN_FLASH_MEM, (uint32 *)flashTmp, SPI_FLASH_SEC_SIZE );
+	for ( c = 0; SPI_FLASH_SEC_SIZE > c; c++ ) {
 
-				uart_tx_one_char(flashTmp[c]);
-			}
-
-			system_soft_wdt_stop();
-		}
+		uart1_tx_one_char(flashTmp[c]);
 	}
 
 	numberTurnstiles = flashTmp[NUMBER_OF_TURNSTILES_OFSET];
@@ -583,6 +584,7 @@ user_init( void ) {
 			turnBroadcastStatuses[i] = 1000;
 		}
 	}
+
 
 	espconnServer.type = ESPCONN_TCP;
 	espconnServer.state = ESPCONN_NONE;
@@ -619,7 +621,6 @@ user_init( void ) {
 	system_os_task( discon, DISCON_TASK_PRIO, disconQueue, DISCON_QUEUE_LENGHT );
 	system_os_task( cmdPars, CMD_PRS_TASK_PRIO, cmdPrsQueue, CMD_PRS_QUEUE_LENGHT );
 	system_os_task( turnstileHandler, TURNSTILE_TASK_PRIO, turnstQueue, TURNSTILE_QUEUE_LENGHT );
-
 
 	system_init_done_cb(init_done);
 }
@@ -748,7 +749,11 @@ comandParser( void ) {
 
 			writeFlash( CHANEL_AP_OFSET, &tmp[ sizeof(TCP_SET_CHANEL) + 1 ] );
 			tcpRespounseBuilder( TCP_OPERATION_OK );
-			system_restart();
+			//system_restart();
+			os_delay_us(50000);
+			while ( 1 ) {
+
+			}
 		} else {
 
 			tcpRespounseBuilder( TCP_OPERATION_FAIL );
