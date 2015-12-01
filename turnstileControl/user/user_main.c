@@ -47,7 +47,7 @@ LOCAL os_timer_t task_timer;
 //**********************************************************************************************************************************
 LOCAL user_status groupStatus = USER_FALSE;
 LOCAL uint8_t groupCommandCounter = 0;
-LOCAL uint8_t groupCommand;
+LOCAL uint8_t groupCommand = 0;
 //**********************************************************************************************************************************
 LOCAL uint8_t numberTurnstiles = 0;
 LOCAL uint16_t turnBroadcastStatuses[32];
@@ -287,6 +287,19 @@ turnstileHandler( os_event_t *e ) {
 	if ( currentTurnstileID > numberTurnstiles ) {
 
 		currentTurnstileID = 1;
+	}
+
+	if ( USER_TRUE == groupStatus ) {// изначально groupCommandCounter = 0
+
+		groupCommandCounter++;
+		currentOperation = TURNSTILE_COMMAND;
+		currentTurnstileCommandId = groupCommandCounter;
+		currentcommand = groupCommand;
+		if ( groupCommandCounter == numberTurnstiles ) {
+
+			groupCommandCounter = 0;
+			groupStatus = USER_FALSE;
+		}
 	}
 
 	if ( BROADCAST_NEED == broadcastStatus ) {
@@ -743,7 +756,9 @@ comandParser( void ) {
 
 	} else if ( 0 == strcmp( tmp, TCP_GROUP_ACTION ) ) {
 
-
+		groupCommand = atoi( &tmp[ sizeof(TCP_GROUP_ACTION) + 1 ] );
+		groupStatus = USER_TRUE;
+		tcpRespounseBuilder( TCP_OPERATION_OK );
 
 	} else if ( 0 == strcmp( tmp, TCP_NUMBER_TURN ) ) {
 
@@ -751,15 +766,16 @@ comandParser( void ) {
 #ifdef DEBUG
 		os_printf( " | comandParser channel %d | ", chanel );
 #endif
-				if ( 1 < numb && 32 > numb ) {
+		if ( 1 < numb && 33 > numb ) {
 
-					writeFlash( NUMBER_OF_TURNSTILES_OFSET, &tmp[ sizeof(TCP_NUMBER_TURN) + 1 ] );
-					tcpRespounseBuilder( TCP_OPERATION_OK );
-					numberTurnstiles = numb;
-				} else {
+			writeFlash( NUMBER_OF_TURNSTILES_OFSET, &tmp[ sizeof(TCP_NUMBER_TURN) + 1 ] );
+			tcpRespounseBuilder( TCP_OPERATION_OK );
+			numberTurnstiles = numb;
 
-					tcpRespounseBuilder( TCP_OPERATION_FAIL );
-				}
+		} else {
+
+			tcpRespounseBuilder( TCP_OPERATION_FAIL );
+		}
 
 	} else { // ERROR
 
