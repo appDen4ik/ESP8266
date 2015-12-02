@@ -527,8 +527,6 @@ user_init( void ) {
 
 	//spi_flash_erase_sector( USER_SECTOR_IN_FLASH_MEM );
 
-	system_restore();
-
 	os_install_putc1( (void *)uart1_tx_one_char );
 
 	if ( SYS_CPU_160MHZ != system_get_cpu_freq() ) {
@@ -583,7 +581,6 @@ user_init( void ) {
 	}
 
 
-
 	spi_flash_read( SPI_FLASH_SEC_SIZE * USER_SECTOR_IN_FLASH_MEM, (uint32 *)flashTmp, SPI_FLASH_SEC_SIZE );
 	for ( c = 0; SPI_FLASH_SEC_SIZE > c; c++ ) {
 
@@ -599,7 +596,6 @@ user_init( void ) {
 			turnBroadcastStatuses[i] = 1000;
 		}
 	}
-
 
 	espconnServer.type = ESPCONN_TCP;
 	espconnServer.state = ESPCONN_NONE;
