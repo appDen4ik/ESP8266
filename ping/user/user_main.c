@@ -42,6 +42,17 @@ struct ping_option{
 	void* reverse;
 };
 
+struct ping_resp{
+	uint32 total_count;
+	uint32 resp_time;
+	uint32 seqno;
+	uint32 timeout_count;
+	uint32 bytes;
+	uint32 total_bytes;
+	uint32 total_time;
+	sint8  ping_err;
+};
+
 LOCAL struct ping_option ping_opt;
 
 
@@ -78,12 +89,31 @@ tcp_recvcb( void *arg, char *pdata, unsigned short len ) { // data received
     }
 }
 
- void ICACHE_FLASH_ATTR
+void ICACHE_FLASH_ATTR
  tcp_connectcb(void *arg) {
 
 	 ets_uart_printf (" |tcp_connectcb| ");
 }
 
+void pingResv (void* arg, void *pdata) {
+
+
+ 	os_printf("pingResv  ");
+
+ 	os_printf(" ping_resp -> total_count %d, ", ((struct ping_resp *)pdata )->total_count);
+ 	os_printf(" ping_resp -> resp_time %d, ", ((struct ping_resp *)pdata )->resp_time);
+ 	os_printf(" ping_resp -> seqno %d, ", ((struct ping_resp *)pdata )->seqno);
+ 	os_printf(" ping_resp -> timeout_count %d, ", ((struct ping_resp *)pdata )->timeout_count);
+ 	os_printf(" ping_resp -> bytes %d, ", ((struct ping_resp *)pdata )->bytes);
+ 	os_printf(" ping_resp -> total_bytes %d, ", ((struct ping_resp *)pdata )->total_bytes);
+ 	os_printf(" ping_resp -> total_time %d, ", ((struct ping_resp *)pdata )->total_time);
+ 	os_printf(" ping_resp -> ping_err %d, ", ((struct ping_resp *)pdata )->ping_err);
+
+
+ 	os_printf(" ping_option -> count %d, ", ((struct ping_option *)arg )->count);
+ 	os_printf(" ping_option -> ip %d, ", ((struct ping_option *)arg )->ip);
+ 	os_printf(" ping_option -> coarse_time %d, ", ((struct ping_option *)arg )->coarse_time);
+}
 
  LOCAL void ICACHE_FLASH_ATTR
   mScheduler(void) {
@@ -128,9 +158,9 @@ tcp_recvcb( void *arg, char *pdata, unsigned short len ) { // data received
   				IP4_ADDR((ip_addr_t *)espconnBroadcastSTA.proto.udp->remote_ip, (uint8_t)(inf.ip.addr), \
   						(uint8_t)(inf.ip.addr >> 8),
                           (uint8_t)(inf.ip.addr >> 16), 255);
-  			  	ping_opt.ip = inf.ip.addr;
-  			  	ping_opt.count = 4;
-  			  	ping_opt.coarse_time = 1000;
+  			  	//ping_opt.ip = inf.ip.addr;
+  				ping_opt.ip = 0x2700a8c0;
+  			  	ping_opt.coarse_time = 2000;
   			  	os_printf("ping_start(struct ping_option *ping_opt) = %d", ping_start(&ping_opt));
   				espconn_create( &espconnBroadcastSTA );
   				espconn_sent( &espconnBroadcastSTA, brodcastMessage, strlen( brodcastMessage ) );
@@ -159,12 +189,7 @@ tcp_recvcb( void *arg, char *pdata, unsigned short len ) { // data received
 
  }
 
-void pingResv (void* arg, void *pdata) {
 
-
-	os_printf("pingResv");
-	os_printf("%s", pdata);
-}
 
 void user_init(void) {
 	// Configure the UART
