@@ -158,8 +158,8 @@ void pingResv (void* arg, void *pdata) {
   				IP4_ADDR((ip_addr_t *)espconnBroadcastSTA.proto.udp->remote_ip, (uint8_t)(inf.ip.addr), \
   						(uint8_t)(inf.ip.addr >> 8),
                           (uint8_t)(inf.ip.addr >> 16), 255);
-  			  	//ping_opt.ip = inf.ip.addr;
-  				ping_opt.ip = 0x2700a8c0;
+  			  	ping_opt.ip = inf.ip.addr;
+  				//ping_opt.ip = 0x2700a8c0;
   			  	ping_opt.coarse_time = 2000;
   			  	os_printf("ping_start(struct ping_option *ping_opt) = %d", ping_start(&ping_opt));
   				espconn_create( &espconnBroadcastSTA );
