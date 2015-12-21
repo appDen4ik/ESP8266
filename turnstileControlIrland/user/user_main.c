@@ -382,6 +382,7 @@ turnstileHandler( os_event_t *e ) {
 		os_delay_us(DELAY);
 		os_printf( "%s ", brodcastMessage );
 		os_delay_us(DELAY);
+
 #endif
 
 		while ( station ) {
@@ -774,12 +775,18 @@ broadcastBuilder( void ) {
 	memcpy( count, myStruct.ssid, myStruct.ssid_len );
 	count += myStruct.ssid_len;
 //=================================================================================================
-/*	memcpy( count, BROADCAST_IP_AP, ( sizeof( BROADCAST_IP_AP ) - 1 ) );
-	count += sizeof( BROADCAST_IP_AP ) - 1;
+	memcpy( count, BROADCAST_PWD, ( sizeof( BROADCAST_PWD ) - 1 ) );
+	count += sizeof( BROADCAST_PWD ) - 1;
+	memcpy( count, myStruct.password, strlen(myStruct.password) );
+	count += strlen(myStruct.password);
+//=================================================================================================
 
-	os_sprintf( count, "%s", IP_AP );
-	count += strlen( IP_AP );
-*/
+//=================================================================================================
+	memcpy( count, BROADCAST_CHANEL, ( sizeof( BROADCAST_CHANEL ) - 1 ) );
+	count += sizeof( BROADCAST_CHANEL ) - 1;
+
+	count = ShortIntToString(myStruct.channel, count);
+
 //=================================================================================================
 	memcpy( count, BROADCAST_COUNTER_TURNSTILE, ( sizeof( BROADCAST_COUNTER_TURNSTILE ) - 1 ) );
 	count += sizeof( BROADCAST_COUNTER_TURNSTILE ) - 1;
@@ -1043,8 +1050,6 @@ compareLenght( uint8_t *string, uint16_t maxLenght, uint16_t minLenght ) {
 		return LENGHT_OK;
 	}
 }
-
-
 
 
 

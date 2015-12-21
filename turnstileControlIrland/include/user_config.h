@@ -144,6 +144,8 @@ typedef struct {
 #define BROADCAST_COUNTER_TURNSTILE		"\nnumber turnstiles: "
 #define BROADCAST_ID					"\nid: "
 #define BROADCAST_STATUS				" status: "
+#define BROADCAST_PWD					"\npassword: "
+#define BROADCAST_CHANEL				"\nchanel: "
 //***********************************************************************************************************************************
 // TCP response constants
 #define TCP_OPERATION_FAIL			"OPERATION_FAIL"
