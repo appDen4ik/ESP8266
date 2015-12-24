@@ -19,13 +19,19 @@
 #define UART0   0
 /*
 *************************************************************************************************************************************
-* set\0 id\0 command\0\r\n	- задать command для id турникета
+* set\0 id\0 command\0\r\n		- задать command для id турникета    +
 *
-* setChanel\0 chanel\0\r\n  - установить канал AP
+* setChanel\0 chanel\0\r\n  	- установить канал AP					+
 *
-* setNumTurn\0 number\0\r\n - установить количество турникетов
+* setNumTurn\0 number\0\r\n 	- установить количество турникетов		+
 *
-* groupAction\0 command\0\r\n -	отправить команду всем турникетам
+* groupAction\0 command\0\r\n 	- отправить команду всем турникетам    +
+*
+* resetWIFI\0\r\n				- перезагрузить модуль                             +
+*
+* pwdAP\0  pwd\0\r\n			- задать pwd есп soft ap, макс длинна 64 символа
+*
+* ssidAP\0 ssid\0\r\n			- задать ssid есп soft ap, макс длинна 32 символа
 *
 *************************************************************************************************************************************
 */
@@ -56,7 +62,7 @@
 #define CHANEL_AP_OFSET	    	100
 
 #define NUMBER_OF_TURNSTILES_OFSET		200
-#define NUMBER_OF_TURNSTILE_DEFAULT		6
+#define NUMBER_OF_TURNSTILE_DEFAULT		"6"
 
 #define DEF_SSID_AP          	"Access Control System"
 #define SSID_AP_OFSET			505
@@ -159,6 +165,7 @@ typedef struct {
 #define TCP_GROUP_ACTION			"groupAction"
 #define TCP_NUMBER_TURN				"setNumTurn"
 
+#define TCP_RESET                   "resetWIFI"
 #define TCP_SSID_AP					"ssidAP"		//+
 #define TCP_PWD_AP					"pwdAP"			//+
 #define TCP_ERROR					"ERROR"

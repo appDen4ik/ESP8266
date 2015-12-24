@@ -52,6 +52,8 @@ LOCAL os_timer_t wdt_timer;
 LOCAL user_status userReset = USER_FALSE;
 LOCAL uint8_t chanel;
 //**********************************************************************************************************************************
+LOCAL user_status statusCurrentOperationForTimeout = USER_FALSE;
+//**********************************************************************************************************************************
 LOCAL user_status groupStatus = USER_FALSE;
 LOCAL uint8_t groupCommandCounter = 0;
 LOCAL uint8_t groupCommand = 0;
@@ -214,9 +216,10 @@ void uart0_rx_intr_handler( void *para ) {
 #endif
         	if ( bufTurnstile.crc == CRC ) {
 
-        		if (TURNSTILE_COMMAND == currentOperation && USER_FALSE == groupStatus) {
+        		if (statusCurrentOperationForTimeout == USER_TRUE && USER_FALSE == groupStatus) {
 
-        			currentOperation = TURNSTILE_STATUS;
+        			//currentOperation = TURNSTILE_STATUS;
+        			statusCurrentOperationForTimeout = USER_FALSE;
         			tcpRespounseBuilder( TCP_OPERATION_OK );
         		}
         		turnBroadcastStatuses[currentTurnstileID - 1] = bufTurnstile.data;
@@ -228,9 +231,9 @@ void uart0_rx_intr_handler( void *para ) {
         			os_printf( "crc error id: %d, try again...", currentTurnstileID );
         			crcStatus = CRC_ERROR;
         		} else if ( CRC_ERROR == crcStatus ) {
-            		if (TURNSTILE_COMMAND == currentOperation && USER_FALSE == groupStatus) {
+            		if (statusCurrentOperationForTimeout == USER_TRUE && USER_FALSE == groupStatus) {
 
-            			currentOperation = TURNSTILE_STATUS;
+            			statusCurrentOperationForTimeout = USER_FALSE;
             			tcpRespounseBuilder( TCP_OPERATION_FAIL );
             		}
         			os_printf( "crc double error id: %d", currentTurnstileID );
@@ -288,10 +291,10 @@ wdt_timeout( void ) {
 
 LOCAL void ICACHE_FLASH_ATTR
 timeout( void ) {
-	if (TURNSTILE_COMMAND == currentOperation && USER_FALSE == groupStatus) {
-
-	   currentOperation = TURNSTILE_STATUS;
-	   tcpRespounseBuilder( TCP_OPERATION_FAIL );
+	if (statusCurrentOperationForTimeout == USER_TRUE && USER_FALSE == groupStatus) {
+		statusCurrentOperationForTimeout = USER_FALSE;
+		os_printf("timeout debug");
+		tcpRespounseBuilder( TCP_OPERATION_FAIL );
 	}
 	os_printf( "timeout, turnstile not response id: %d", currentTurnstileID );
 	os_timer_disarm(&task_timer);
@@ -359,15 +362,19 @@ turnstileHandler( os_event_t *e ) {
 
 	if ( USER_TRUE == groupStatus ) {// изначально groupCommandCounter = 0
 
-		groupCommandCounter++;
-		currentOperation = TURNSTILE_COMMAND;
-		currentTurnstileCommandId = groupCommandCounter;
-		currentcommand = groupCommand;
 		if ( groupCommandCounter == numberTurnstiles ) {
 
 			groupCommandCounter = 0;
 			groupStatus = USER_FALSE;
+			statusCurrentOperationForTimeout = USER_FALSE;
+			currentOperation = TURNSTILE_STATUS;
+		} else {
+			groupCommandCounter++;
+			currentOperation = TURNSTILE_COMMAND;
+			currentTurnstileCommandId = groupCommandCounter;
+			currentcommand = groupCommand;
 		}
+
 	}
 
 	if ( BROADCAST_NEED == broadcastStatus ) {
@@ -441,7 +448,8 @@ turnstileHandler( os_event_t *e ) {
 
 		//currentOperation = TURNSTILE_STATUS;
 		currentTurnstileID = currentTurnstileCommandId;
-
+		statusCurrentOperationForTimeout = USER_TRUE;
+		currentOperation = TURNSTILE_STATUS;
 		bufTurnstile.address 		= currentTurnstileID;
 		bufTurnstile.numberOfBytes 	= 0x02;
 		bufTurnstile.typeData 		= 0xcc;
@@ -631,8 +639,11 @@ user_init( void ) {
 		memcpy( &flashTmp[CHANEL_AP_OFSET], DEF_CHANEL_AP, sizeof(DEF_CHANEL_AP) );
 		flashTmp[ sizeof(DEF_CHANEL_AP) + CHANEL_AP_OFSET ] = '\n';
 
-		flashTmp[NUMBER_OF_TURNSTILES_OFSET] = NUMBER_OF_TURNSTILE_DEFAULT;
-		flashTmp[ 1 + NUMBER_OF_TURNSTILES_OFSET ] = '\n';
+//		flashTmp[NUMBER_OF_TURNSTILES_OFSET] = NUMBER_OF_TURNSTILE_DEFAULT;
+//		flashTmp[ 1 + NUMBER_OF_TURNSTILES_OFSET ] = '\n';
+
+		memcpy( &flashTmp[NUMBER_OF_TURNSTILES_OFSET], NUMBER_OF_TURNSTILE_DEFAULT, sizeof(NUMBER_OF_TURNSTILE_DEFAULT) );
+		flashTmp[ sizeof(NUMBER_OF_TURNSTILE_DEFAULT) + NUMBER_OF_TURNSTILES_OFSET ] = '\n';
 
 		memcpy( &flashTmp[SSID_AP_OFSET], DEF_SSID_AP, sizeof(DEF_SSID_AP) );
 		flashTmp[ sizeof(DEF_SSID_AP) + SSID_AP_OFSET ] = '\n';
@@ -662,7 +673,7 @@ user_init( void ) {
 		uart1_tx_one_char(flashTmp[c]);
 	}
 
-	numberTurnstiles = flashTmp[NUMBER_OF_TURNSTILES_OFSET];
+	numberTurnstiles = atoi(&flashTmp[NUMBER_OF_TURNSTILES_OFSET]);
 
 	{
 		uint8_t i;
@@ -842,6 +853,7 @@ comandParser( void ) {
 		//tcpRespounseBuilder( TCP_OPERATION_OK );
 		currentOperation = TURNSTILE_COMMAND;
 
+
 	} else if ( 0 == strcmp( tmp, TCP_SET_CHANEL ) ) {
 
 		chanel = atoi( &tmp[ sizeof(TCP_SET_CHANEL) + 1 ] );
@@ -876,6 +888,7 @@ comandParser( void ) {
 
 		groupCommand = atoi( &tmp[ sizeof(TCP_GROUP_ACTION) + 1 ] );
 		groupStatus = USER_TRUE;
+
 		tcpRespounseBuilder( TCP_OPERATION_OK );
 
 	} else if ( 0 == strcmp( tmp, TCP_NUMBER_TURN ) ) {
@@ -922,6 +935,11 @@ comandParser( void ) {
 
     		tcpRespounseBuilder( TCP_OPERATION_FAIL );
     	}
+
+    } else if ( 0 == strcmp( tmp, TCP_RESET ) ) { 															//+
+
+    	tcpRespounseBuilder( TCP_OPERATION_OK );
+    	system_restart();
 
     } else { // ERROR
 
