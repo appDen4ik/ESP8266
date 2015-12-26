@@ -62,7 +62,7 @@
 #define CHANEL_AP_OFSET	    	100
 
 #define NUMBER_OF_TURNSTILES_OFSET		200
-#define NUMBER_OF_TURNSTILE_DEFAULT		"6"
+#define NUMBER_OF_TURNSTILE_DEFAULT		"7"
 
 #define DEF_SSID_AP          	"Access Control System"
 #define SSID_AP_OFSET			505
