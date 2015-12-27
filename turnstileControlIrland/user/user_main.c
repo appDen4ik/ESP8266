@@ -408,19 +408,19 @@ turnstileHandler( os_event_t *e ) {
 					break;
 				case ESPCONN_MEM:
 					os_printf( " |esp soft AP  broadcast out of memory| " );
-					system_restart();
+//					system_restart();
 					break;
 				case ESPCONN_ARG:
 					os_printf( " |esp soft AP  broadcast illegal argument| " );
-					system_restart();
+//					system_restart();
 					break;
 				case ESPCONN_IF:
 					os_printf( " |esp soft AP  broadcast send UDP fail| " );
-					system_restart();
+//					system_restart();
 					break;
 				case ESPCONN_MAXNUM:
 					os_printf( " |esp soft AP  broadcast buffer of sending data is full| " );
-					system_restart();
+//					system_restart();
 					break;
 			}
 
@@ -570,6 +570,7 @@ init_done( void ) {
 	os_printf( " ipinfo.ip.addr  %d.%d.%d.%d ", IP2STR( &(ipinfo.ip.addr) ) );
 
 	wifi_softap_dhcps_start();
+
 
 	ETS_GPIO_INTR_DISABLE(); // Disable gpio interrupts
 	//gpio_intr_handler_register(callbackFunction, (void* )INP_4_PIN); // GPIO interrupt handler
