@@ -25,9 +25,9 @@ LOCAL inline void ICACHE_FLASH_ATTR tcpRespounseBuilder( uint8_t *responseCode )
 LOCAL inline void ICACHE_FLASH_ATTR comandParser( void ) __attribute__((always_inline));
 LOCAL inline void ICACHE_FLASH_ATTR broadcastBuilder( void ) __attribute__((always_inline));
 LOCAL inline res  ICACHE_FLASH_ATTR writeFlash( uint16_t where, uint8_t *what ) __attribute__((always_inline));
-LOCAL inline void ICACHE_FLASH_ATTR UpdateCRCForPackage(uint8_t* pack, uint8_t length) __attribute__((always_inline));
-LOCAL uint8_t * ICACHE_FLASH_ATTR ShortIntToString(uint32_t data, uint8_t *adressDestenation);
-LOCAL void ICACHE_FLASH_ATTR UpdateCRC(uint8_t b);
+LOCAL inline void ICACHE_FLASH_ATTR UpdateCRCForPackage( uint8_t* pack, uint8_t length ) __attribute__((always_inline));
+LOCAL uint8_t * ICACHE_FLASH_ATTR ShortIntToString( uint32_t data, uint8_t *adressDestenation );
+LOCAL void ICACHE_FLASH_ATTR UpdateCRC( uint8_t b );
 //**********************************************************************************************************************************
 LOCAL struct espconn espconnServer;
 LOCAL esp_tcp tcpServer;
