@@ -29,7 +29,7 @@
 *
 * resetWIFI\0\r\n				- перезагрузить модуль                             +
 *
-* pwdAP\0  pwd\0\r\n			- задать pwd есп soft ap, макс длинна 64 символа
+* pwdAP\0 pwd\0\r\n			- задать pwd есп soft ap, макс длинна 64 символа
 *
 * ssidAP\0 ssid\0\r\n			- задать ssid есп soft ap, макс длинна 32 символа
 *
@@ -107,7 +107,6 @@
 #define USER_SECTOR_IN_FLASH_MEM		59
 
 typedef enum {
-
 				DONE = 0,
 				ERROR      	} res;
 
@@ -133,10 +132,10 @@ typedef enum {
 				TURNSTILE_COMMAND		} turnstileOperation;
 
 typedef enum {
-			LENGHT_ERROR = 0,
-			LENGHT_OK
+				LENGHT_ERROR = 0,
+				LENGHT_OK
 
-		} compStr;
+										} compStr;
 
 typedef struct {
 					uint8_t address;
