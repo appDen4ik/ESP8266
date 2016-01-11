@@ -870,7 +870,7 @@ comandParser( void ) {
 
 			}*/
 
-			userReset = USER_TRUE;
+			//userReset = USER_TRUE;
 	/*		struct softap_config *softapConf = (struct softap_config *)os_zalloc(sizeof(struct softap_config));
 			if ( true == wifi_softap_get_config( softapConf ) ) {
 
