@@ -17,6 +17,7 @@
 #include "user_config.h"
 #include "driver/uart.h"
 
+
 extern void uart_tx_one_char();
 extern void ets_wdt_restore();
 extern void ping_coarse_tmr(void *arg);
