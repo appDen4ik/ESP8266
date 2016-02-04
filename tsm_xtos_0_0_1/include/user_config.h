@@ -82,7 +82,7 @@
 *
 * WIFI:
 *
-*  - restore\r\n
+* - restore\r\n
 * 					Восстановить настройки по умаолчанию
 *
 * - resetWIFI\r\n

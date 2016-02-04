@@ -16,7 +16,7 @@
 #include "spi_flash.h"
 
 
-#define STRING_SIZE	    100 	            // длинна записи
+#define STRING_SIZE	    100 	            // длинна строки
 
 #define START_SECTOR 	19                  // начальный сектор
 
@@ -45,14 +45,15 @@
 	#error STRING_SIZE wrong lenght
 #endif
 
+#define FIELDS_MAX_NUM	10    // максимально допустимое количество записей в одной строке
 
-#define STORAGE_SIZE     1000 // байт
+#define STORAGE_SIZE    1000  // байт
 
-#define START_OF_FIELD	 2
+#define START_OF_FIELD	 2    // ascii символ начала поля
 
-#define END_OF_FIELD	'\n'
+#define END_OF_FIELD	'\n'  // символ конца поля
 
-#define END_OF_STRING   '\0'
+#define END_OF_STRING   '\0'  // символ конца нуль терминальной строки
 
 
 typedef enum {

@@ -104,10 +104,10 @@ insert( uint8_t *string ) {
 #endif
 
 	if ( strlen( string ) + 1 != STRING_SIZE ) {     // длинна входящей записи не должна быть больше установленой длинны LINE_SIZE
-		return WRONG_LENGHT;				       // функция strlen возвращает длинну без учета \0
+		return WRONG_LENGHT;				         // функция strlen возвращает длинну без учета \0
 	}
 
-	switch ( findString( string ) ) {                  // такая запись уже существует
+	switch ( findString( string ) ) {                // такая запись уже существует
 		case OPERATION_FAIL:
 			 return OPERATION_FAIL;
 		case WRONG_LENGHT:
@@ -249,7 +249,7 @@ update( uint8_t *oldString, uint8_t *newString ) {
  * Вычитывается сектор в буффур. Если запись последняя, то она просто затирается в буффере (заполняется 0хff).
  * Если же запись не является последней тогда все записи, которые находяться справа от удаляемой сдвигаются на
  * длинну одной выровнянной строки влево. Самая крайняя запись справа затирается, так как последняя запись в ре -
- * зультате сдвига последняя запсь в секторе дублируется.
+ * зультате сдвига дублируется.
  ****************************************************************************************************************
  */
 result ICACHE_FLASH_ATTR
@@ -355,7 +355,7 @@ delete( uint8_t *removableString ) {
  *****************************************************************************************************************
  */
 result ICACHE_FLASH_ATTR
-requestString( uint8_t *string ) {
+requestStringOld( uint8_t *string ) { // эта реализация работает по принципу ИЛИ. Необходимо сделать реализацию по принципу И
 
 	uint8_t currentSector;
 	uint16_t i = 0;
@@ -370,7 +370,7 @@ requestString( uint8_t *string ) {
 
 	while ( i < STRING_SIZE ) {
 
-		for ( ; i < STRING_SIZE; i++ ) {                   // в искомой строке должно быть хотя бы одно поле
+		for ( ; i < STRING_SIZE; i++ ) {                    // в искомой строке должно быть хотя бы одно поле
 
 			if ( START_OF_FIELD == string[ i ] ) {
 
@@ -387,7 +387,7 @@ requestString( uint8_t *string ) {
 
 			if ( SPI_FLASH_RESULT_OK != spi_flash_read( SPI_FLASH_SEC_SIZE * currentSector , (uint32 *)tmp, SPI_FLASH_SEC_SIZE ) ) {
 
-					return OPERATION_FAIL;
+				return OPERATION_FAIL;
 			}
 
 			for ( c = relativeShift; c < SPI_FLASH_SEC_SIZE; c += ALIGN_STRING_SIZE ) { // пока не дошли до конца сектора
@@ -404,6 +404,69 @@ requestString( uint8_t *string ) {
 }
 
 
+result ICACHE_FLASH_ATTR
+requestString( uint8_t *string ) {
+
+	uint8_t currentSector;
+	uint16_t i = 0;
+	uint16_t c;
+	uint16_t relativeShift[FIELDS_MAX_NUM];
+	uint8_t  relativeShiftNum = 0;
+
+	if ( ( strlen( string ) + 1 ) != STRING_SIZE ) {    // длинна входящей строки не должна быть больше установленой длинны
+
+		return WRONG_LENGHT;
+	}
+
+
+	for ( ; i < STRING_SIZE; i++ ) {                    // поиск во входной строке начала всех полей
+
+		if ( START_OF_FIELD == string[ i ] ) {
+
+			relativeShift[relativeShiftNum] = i;
+			relativeShiftNum++;
+
+		}
+	}
+
+	if( relativeShiftNum == 0 ) {
+
+		return OPERATION_FAIL;
+	}
+
+	for ( currentSector = START_SECTOR; currentSector <= END_SECTOR; currentSector++ ) {
+
+		if ( SPI_FLASH_RESULT_OK != spi_flash_read( SPI_FLASH_SEC_SIZE * currentSector , (uint32 *)tmp, SPI_FLASH_SEC_SIZE ) ) {
+
+			return OPERATION_FAIL;
+		}
+
+		for ( c = relativeShift[0]; c < SPI_FLASH_SEC_SIZE; c += ALIGN_STRING_SIZE ) {     // пока не дошли до конца сектора
+
+			if ( OPERATION_OK == stringEqual(&string[ relativeShift[0] ], &tmp[ c ]) ) {    // найдено совпадение по первому полю
+
+				uint8_t indexForRelativeShiftArr = 1; 					// проверить все остальные поля
+
+				for ( ; indexForRelativeShiftArr < relativeShiftNum; indexForRelativeShiftArr++) {
+
+					if ( OPERATION_OK != stringEqual( &string[ relativeShift[indexForRelativeShiftArr] ], \
+														&tmp[ relativeShift[indexForRelativeShiftArr] + (c - relativeShift[0]) ] ) ) {
+
+						break;
+					}
+				}
+
+				if ( indexForRelativeShiftArr == relativeShiftNum ) {
+
+					return OPERATION_OK;
+				}
+
+			}
+		}
+	}
+
+	return NOTHING_FOUND;        // если дошли до этой строчки значит совпадений не было найдено
+}
 
 /*
  ****************************************************************************************************************
