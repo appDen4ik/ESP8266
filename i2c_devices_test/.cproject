@@ -146,4 +146,5 @@
 			<resource resourceType="PROJECT" workspacePath="/i2c_devices_test"/>
 		</configuration>
 	</storageModule>
+	<storageModule moduleId="org.eclipse.cdt.make.core.buildtargets"/>
 </cproject>
