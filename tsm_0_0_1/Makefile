@@ -19,7 +19,7 @@ SDK_BASE	?= $(TOOLS_ROOT)/ESP8266_RTOS_SDK
 
 # esptool path and port
 ESPTOOL		?= $(TOOLS_ROOT)/utils/esptool.exe
-ESPPORT		?= COM2
+ESPPORT		?= COM3
 
 # name for the target project
 TARGET		= app
@@ -30,8 +30,7 @@ EXTRA_INCDIR = include
 
 #LIBS       = cirom gccirom hal phy pp net80211 wpa main freertos lwip udhcp
 # linking libgccirom.a instead of libgcc.a causes reset when working with flash memory (ie spi_flash_erase_sector)
-LIBS		= gcc hal phy pp net80211 wpa main freertos lwip udhcp
-
+LIBS		= gcc hal phy pp net80211 wpa main freertos lwip cirom crypto espconn
 # compiler flags using during compilation of source files
 CFLAGS		= -g -save-temps -Os -Wpointer-arith -Wundef -Werror -Wl,-EL -fno-inline-functions -nostdlib -mlongcalls -mtext-section-literals  -D__ets__ -DICACHE_FLASH
 CXXFLAGS	= $(CFLAGS) -fno-rtti -fno-exceptions
@@ -41,6 +40,119 @@ LDFLAGS		= -nostdlib -Wl,--no-check-sections -u call_user_start -Wl,-static
 
 # linker script used for the above linkier step
 LD_SCRIPT	= eagle.app.v6.ld
+
+
+# SPI_SPEED = 20MHz, 26.7MHz, 40MHz, 80MHz
+SPI_SPEED?=40
+# SPI_MODE: QIO, QOUT, DIO, DOUT
+SPI_MODE?=DIO
+# SPI_SIZE: 256KB, 512KB, 1024KB, 2048KB, 4096KB
+SPI_SIZE?=4096
+
+ifeq ($(BOOT), new)
+    boot = new
+else
+    ifeq ($(BOOT), old)
+        boot = old
+    else
+        boot = none
+    endif
+endif
+
+ifeq ($(APP), 1)
+    app = 1
+else
+    ifeq ($(APP), 2)
+        app = 2
+    else
+        app = 0
+    endif
+endif
+
+ifeq ($(SPI_SPEED), 26.7)
+    freqdiv = 1
+    flashimageoptions = -ff 26m
+else
+    ifeq ($(SPI_SPEED), 20)
+        freqdiv = 2
+        flashimageoptions = -ff 20m
+    else
+        ifeq ($(SPI_SPEED), 80)
+            freqdiv = 15
+            flashimageoptions = -ff 80m
+        else
+            freqdiv = 0
+            flashimageoptions = -ff 40m
+        endif
+    endif
+endif
+
+ifeq ($(SPI_MODE), QOUT)
+    mode = 1
+    flashimageoptions += -fm qout
+else
+    ifeq ($(SPI_MODE), DIO)
+        mode = 2
+        flashimageoptions += -fm dio
+    else
+        ifeq ($(SPI_MODE), DOUT)
+            mode = 3
+            flashimageoptions += -fm dout
+        else
+            mode = 0
+            flashimageoptions += -fm qio
+        endif
+    endif
+endif
+
+# flash larger than 1024KB only use 1024KB to storage user1.bin and user2.bin
+ifeq ($(SPI_SIZE), 256)
+    size = 1
+    flash = 256
+    flashimageoptions += -fs 2m
+else
+    ifeq ($(SPI_SIZE), 1024)
+        size = 2
+        flash = 1024
+        flashimageoptions += -fs 8m
+    else
+        ifeq ($(SPI_SIZE), 2048)
+            size = 3
+            flash = 1024
+            flashimageoptions += -fs 16m
+        else
+            ifeq ($(SPI_SIZE), 4096)
+                size = 4
+                flash = 1024
+                flashimageoptions += -fs 32m
+            else
+                size = 0
+                flash = 512
+                flashimageoptions += -fs 4m
+            endif
+        endif
+    endif
+endif
+
+ifeq ($(flash), 512)
+  ifeq ($(app), 1)
+    addr = 0x01000
+  else
+    ifeq ($(app), 2)
+      addr = 0x41000
+    endif
+  endif
+else
+  ifeq ($(flash), 1024)
+    ifeq ($(app), 1)
+      addr = 0x01000
+    else
+      ifeq ($(app), 2)
+        addr = 0x81000
+      endif
+    endif
+  endif
+endif
 
 # various paths from the SDK used in this project
 SDK_LIBDIR	= lib
@@ -165,7 +277,7 @@ flashonefile: all
 	$(ESPTOOL) -p $(ESPPORT) -b 256000 write_flash 0x00000 $(FW_BASE)/eagle.app.flash.bin
 
 flash: all
-	$(ESPTOOL) -p $(ESPPORT) -b 256000 write_flash 0x00000 $(FW_BASE)/eagle.flash.bin 0x40000 $(FW_BASE)/eagle.irom0text.bin
+	$(ESPTOOL) -p $(ESPPORT) -b 256000 write_flash $(flashimageoptions) 0x00000 $(FW_BASE)/eagle.flash.bin 0x20000 $(FW_BASE)/eagle.irom0text.bin
 
 flashinit:
 	$(vecho) "Flash init data default and blank data."

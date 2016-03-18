@@ -1,5 +1,24 @@
 /*
- *  Copyright (C) 2014 -2016  Espressif System
+ * ESPRSSIF MIT License
+ *
+ * Copyright (c) 2015 <ESPRESSIF SYSTEMS (SHANGHAI) PTE LTD>
+ *
+ * Permission is hereby granted for use on ESPRESSIF SYSTEMS ESP8266 only, in which case,
+ * it is free of charge, to any person obtaining a copy of this software and associated
+ * documentation files (the "Software"), to deal in the Software without restriction, including
+ * without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense,
+ * and/or sell copies of the Software, and to permit persons to whom the Software is furnished
+ * to do so, subject to the following conditions:
+ * 
+ * The above copyright notice and this permission notice shall be included in all copies or
+ * substantial portions of the Software.
+ * 
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+ * FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+ * COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+ * IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+ * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  *
  */
 
@@ -10,6 +29,8 @@
 #include "freertos/queue.h"
 
 #include "uart.h"
+
+extern void uart_div_modify(UART_Port, uint32);
 
 enum {
     UART_EVENT_RX_CHAR,
@@ -39,7 +60,7 @@ uart_tx_one_char(uint8 uart, uint8 TxChar)
     return OK;
 }
 
-LOCAL void
+void
 uart1_write_char(char c)
 {
     if (c == '\n') {
@@ -91,7 +112,7 @@ uart_rx_intr_handler_ssc(void)
 }
 
 #if 0
-LOCAL void ICACHE_FLASH_ATTR
+LOCAL void
 uart_config(uint8 uart_no, UartDevice *uart)
 {
     if (uart_no == UART1) {
@@ -130,7 +151,7 @@ uart_config(uint8 uart_no, UartDevice *uart)
 }
 #endif
 
-LOCAL void ICACHE_FLASH_ATTR
+LOCAL void
 uart_task(void *pvParameters)
 {
     os_event_t e;
@@ -152,7 +173,7 @@ uart_task(void *pvParameters)
 }
 
 #if 0
-void ICACHE_FLASH_ATTR
+void
 uart_init(void)
 {
     while (READ_PERI_REG(UART_STATUS(0)) & (UART_TXFIFO_CNT << UART_TXFIFO_CNT_S));
@@ -183,26 +204,26 @@ uart_init(void)
 
 //=================================================================
 
-void ICACHE_FLASH_ATTR
+void
 UART_SetWordLength(UART_Port uart_no, UART_WordLength len)
 {
     SET_PERI_REG_BITS(UART_CONF0(uart_no), UART_BIT_NUM, len, UART_BIT_NUM_S);
 }
 
-void ICACHE_FLASH_ATTR
+void
 UART_SetStopBits(UART_Port uart_no, UART_StopBits bit_num)
 {
     SET_PERI_REG_BITS(UART_CONF0(uart_no), UART_STOP_BIT_NUM, bit_num, UART_STOP_BIT_NUM_S);
 }
 
-void ICACHE_FLASH_ATTR
+void
 UART_SetLineInverse(UART_Port uart_no, UART_LineLevelInverse inverse_mask)
 {
     CLEAR_PERI_REG_MASK(UART_CONF0(uart_no), UART_LINE_INV_MASK);
     SET_PERI_REG_MASK(UART_CONF0(uart_no), inverse_mask);
 }
 
-void ICACHE_FLASH_ATTR
+void
 UART_SetParity(UART_Port uart_no, UART_ParityMode Parity_mode)
 {
     CLEAR_PERI_REG_MASK(UART_CONF0(uart_no), UART_PARITY | UART_PARITY_EN);
@@ -213,14 +234,14 @@ UART_SetParity(UART_Port uart_no, UART_ParityMode Parity_mode)
     }
 }
 
-void ICACHE_FLASH_ATTR
+void
 UART_SetBaudrate(UART_Port uart_no, uint32 baud_rate)
 {
     uart_div_modify(uart_no, UART_CLK_FREQ / baud_rate);
 }
 
 //only when USART_HardwareFlowControl_RTS is set , will the rx_thresh value be set.
-void ICACHE_FLASH_ATTR
+void
 UART_SetFlowCtrl(UART_Port uart_no, UART_HwFlowCtrl flow_ctrl, uint8 rx_thresh)
 {
     if (flow_ctrl & USART_HardwareFlowControl_RTS) {
@@ -239,38 +260,38 @@ UART_SetFlowCtrl(UART_Port uart_no, UART_HwFlowCtrl flow_ctrl, uint8 rx_thresh)
     }
 }
 
-void ICACHE_FLASH_ATTR
+void
 UART_WaitTxFifoEmpty(UART_Port uart_no) //do not use if tx flow control enabled
 {
     while (READ_PERI_REG(UART_STATUS(uart_no)) & (UART_TXFIFO_CNT << UART_TXFIFO_CNT_S));
 }
 
-void ICACHE_FLASH_ATTR
+void
 UART_ResetFifo(UART_Port uart_no)
 {
     SET_PERI_REG_MASK(UART_CONF0(uart_no), UART_RXFIFO_RST | UART_TXFIFO_RST);
     CLEAR_PERI_REG_MASK(UART_CONF0(uart_no), UART_RXFIFO_RST | UART_TXFIFO_RST);
 }
 
-void ICACHE_FLASH_ATTR
+void
 UART_ClearIntrStatus(UART_Port uart_no, uint32 clr_mask)
 {
     WRITE_PERI_REG(UART_INT_CLR(uart_no), clr_mask);
 }
 
-void ICACHE_FLASH_ATTR
+void
 UART_SetIntrEna(UART_Port uart_no, uint32 ena_mask)
 {
     SET_PERI_REG_MASK(UART_INT_ENA(uart_no), ena_mask);
 }
 
-void ICACHE_FLASH_ATTR
-UART_intr_handler_register(void *fn)
+void
+UART_intr_handler_register(void *fn, void *arg)
 {
-    _xt_isr_attach(ETS_UART_INUM, fn);
+    _xt_isr_attach(ETS_UART_INUM, fn, arg);
 }
 
-void ICACHE_FLASH_ATTR
+void
 UART_SetPrintPort(UART_Port uart_no)
 {
     if (uart_no == 1) {
@@ -280,7 +301,7 @@ UART_SetPrintPort(UART_Port uart_no)
     }
 }
 
-void ICACHE_FLASH_ATTR
+void
 UART_ParamConfig(UART_Port uart_no,  UART_ConfigTypeDef *pUARTConfig)
 {
     if (uart_no == UART1) {
@@ -304,7 +325,7 @@ UART_ParamConfig(UART_Port uart_no,  UART_ConfigTypeDef *pUARTConfig)
     UART_ResetFifo(uart_no);
 }
 
-void ICACHE_FLASH_ATTR
+void
 UART_IntrConfig(UART_Port uart_no,  UART_IntrConfTypeDef *pUARTIntrConf)
 {
 
@@ -378,14 +399,14 @@ uart0_rx_intr_handler(void *para)
     }
 }
 
-void ICACHE_FLASH_ATTR
+void
 uart_init_new(void)
 {
     UART_WaitTxFifoEmpty(UART0);
     UART_WaitTxFifoEmpty(UART1);
 
     UART_ConfigTypeDef uart_config;
-    uart_config.baud_rate    = BIT_RATE_115200;
+    uart_config.baud_rate    = BIT_RATE_115200;//BIT_RATE_74880;
     uart_config.data_bits     = UART_WordLength_8b;
     uart_config.parity          = USART_Parity_None;
     uart_config.stop_bits     = USART_StopBits_1;
@@ -393,6 +414,7 @@ uart_init_new(void)
     uart_config.UART_RxFlowThresh = 120;
     uart_config.UART_InverseMask = UART_None_Inverse;
     UART_ParamConfig(UART0, &uart_config);
+    UART_ParamConfig(UART1, &uart_config);
 
     UART_IntrConfTypeDef uart_intr;
     uart_intr.UART_IntrEnMask = UART_RXFIFO_TOUT_INT_ENA | UART_FRM_ERR_INT_ENA | UART_RXFIFO_FULL_INT_ENA | UART_TXFIFO_EMPTY_INT_ENA;
@@ -402,7 +424,7 @@ uart_init_new(void)
     UART_IntrConfig(UART0, &uart_intr);
 
     UART_SetPrintPort(UART0);
-    UART_intr_handler_register(uart0_rx_intr_handler);
+    UART_intr_handler_register(uart0_rx_intr_handler, "test"); // add "test"
     ETS_UART_INTR_ENABLE();
 
     /*

@@ -10,10 +10,15 @@
 *******************************************************************************/
 #include "esp_common.h"
 
+#include <esp8266/ets_sys.h>
+
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 
+#include "espconn.h"
+
+#include "uart.h"
 //#include "ip_addr.h"
 
 
@@ -22,11 +27,7 @@
 #include "lwip/netdb.h"
 
 
-#include "gpio.h"
 //#include "espconn.h"
-
-
-
 
 void task4(void *pvParameters);
 void task3(void *pvParameters);
@@ -44,7 +45,52 @@ void task1(void *pvParameters);
 #define server_ip "192.168.0.255"
 #define server_port 9876
 
+extern void uart1_write_char(char);
 
+static void ICACHE_FLASH_ATTR
+at_tcpclient_discon_cb(void *arg) {
+	struct espconn *pespconn = (struct espconn *)arg;
+	free(pespconn->proto.tcp);
+	free(pespconn);
+	printf("Disconnect callback\r\n");
+}
+
+static void ICACHE_FLASH_ATTR
+at_tcpclient_sent_cb(void *arg) {
+	printf("Send callback\r\n");
+	struct espconn *pespconn = (struct espconn *)arg;
+	espconn_disconnect(pespconn);
+}
+
+static void ICACHE_FLASH_ATTR
+at_tcpclient_connect_cb(void *arg)
+{
+	struct espconn *pespconn = (struct espconn *)arg;
+
+	printf("TCP client connect\r\n");
+
+	espconn_regist_sentcb(pespconn, at_tcpclient_sent_cb);
+	espconn_regist_disconcb(pespconn, at_tcpclient_discon_cb);
+	espconn_sent(pespconn, "ESP8266", strlen("ESP8266"));
+}
+
+static void ICACHE_FLASH_ATTR
+senddata()
+{
+
+	struct espconn *pCon = (struct espconn *)zalloc(sizeof(struct espconn));
+
+	pCon->type = ESPCONN_TCP;
+	pCon->state = ESPCONN_NONE;
+	uint32_t ip = ipaddr_addr("192.168.0.21");
+	pCon->proto.tcp = (esp_tcp *)zalloc(sizeof(esp_tcp));
+	pCon->proto.tcp->local_port = espconn_port();
+	pCon->proto.tcp->remote_port = 6666;
+	memcpy(pCon->proto.tcp->remote_ip, &ip, 4);
+	espconn_regist_connectcb(pCon, at_tcpclient_connect_cb);
+	printf("send %d", *(uint32 *)(&(pCon->proto.tcp->remote_ip)));
+	espconn_connect(pCon);
+}
 
 void task1(void *pvParameters)
 {
@@ -53,12 +99,13 @@ void task1(void *pvParameters)
 	int state = 0;
     while (1) {
 
-    	state ^=1;
-    	GPIO_OUTPUT_SET(LED_GPIO, state);
-    	for (i = 0xfffff; i > 0; i--){
+    	//printf("task1");
+    	for (i = 0xfffffff; i > 0; i--){
+    	/*	for (i = 0xff; i > 0; i--){
 
-    	}
-
+    		    	}
+    	*/}
+    	senddata();
     }
 }
 
@@ -99,19 +146,21 @@ void task4(void *pvParameters){
 void task3(void *pvParameters){
 
 	const char ssid[] = "DIR-320";
-	const char password[] = "123456789";
+	const char password[] = "";
 	struct station_config stationConf;
 
 	wifi_station_set_auto_connect(1);
-	wifi_set_opmode( STATION_MODE );
+	wifi_set_opmode( STATIONAP_MODE );
 	memcpy(&stationConf.ssid, ssid, sizeof(ssid));
 	memcpy(&stationConf.password, password, sizeof(password));
 	wifi_station_set_config(&stationConf);
 	wifi_station_connect();
 
 
-	vTaskSuspend( task3 );
-	while(1);
+
+	while(1) {
+		printf("Hello  ");
+	}
 
 }
 
@@ -120,9 +169,10 @@ void task2(void *pvParameters)
 	uint32_t i;
 	int state = 0;
     while (1) {
-    		for (i = 0xfffff; i > 0; i--){}
-    		state ^=1;
-    		GPIO_OUTPUT_SET(LED_GPIO1, state);
+    		for (i = 0xffffff; i > 0; i--){}
+    		printf("task2");
+    		uart1_write_char('2');
+
     }
 }
 
@@ -130,17 +180,33 @@ void task2(void *pvParameters)
 void ICACHE_FLASH_ATTR
 user_init(void)
 {
-	PIN_FUNC_SELECT(LED_GPIO_MUX, LED_GPIO_FUNC);
-	PIN_FUNC_SELECT(LED_GPIO_MUX1, LED_GPIO_FUNC1);
+//	uart_init(BIT_RATE_115200, BIT_RATE_115200);
+	uart_init_new();
+	printf("Hello  ");
+	  wifi_set_opmode(STATIONAP_MODE);
+#define DEMO_AP_SSID "DEMO_AP"
+#define DEMO_AP_PASSWORD "12345678"
 
+	  wifi_station_disconnect();
+	  wifi_station_dhcpc_stop();
+	  struct station_config *stationConf = (struct station_config *)zalloc(sizeof(struct station_config));
+	  sprintf( stationConf->ssid, "%s", "DIR-320" );
+	  sprintf( stationConf->password, "%s", "" );
+	  wifi_station_set_config(stationConf);
+	  wifi_station_connect();
+	  wifi_station_dhcpc_start();
 
+ struct softap_config *config = (struct softap_config *)zalloc(sizeof(struct softap_config));
+ wifi_softap_get_config(config); // Get soft-AP config first.
 
+ sprintf(config->ssid, DEMO_AP_SSID);
+ sprintf(config->password, DEMO_AP_PASSWORD);
 
-    xTaskCreate(task2, "tsk2", 256, NULL, 2, NULL);
-    xTaskCreate(task1, "tsk1", 256, NULL, 2, NULL);
-    xTaskCreate(task3, "tsk3", 0, NULL, 2, NULL);
-    xTaskCreate(task4, "tsk4", 0, NULL, 2, NULL);
-
-
-
+ config->authmode = AUTH_WPA_WPA2_PSK;
+  config->ssid_len = 0; // or its actual SSID length
+  config->max_connection = 4;
+  wifi_softap_set_config(config); // Set ESP8266 soft-AP config
+  free(config);
+  	  xTaskCreate( task2, "Task 2", 1000, NULL, 1, NULL );
+  	  xTaskCreate( task1, "Task 1", 1000, NULL, 1, NULL );
 }
